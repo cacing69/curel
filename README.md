@@ -19,4 +19,6 @@ A lightweight networking utility focused on loading, fetching, and streaming dat
 - Search within response with match highlighting
 - HTML preview
 
-<!-- GitAds-Verify: 8H8HV9XZO2GF7GBV4J7924VYCLPQL6NB -->
+## GitAds Sponsored
+
+[![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=cacing69/curel@github)](https://gitads.dev/v1/ad-track?source=cacing69/curel@github)
