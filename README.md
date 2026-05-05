@@ -6,16 +6,15 @@
 
 A lightweight networking utility focused on loading, fetching, and streaming data efficiently over HTTP.
 
-## Getting Started
+## Preview
 
-This project is a starting point for a Flutter application.
+| | |
+|:---:|:---:|
+| <img src="images/image_01.jpeg" alt="Screenshot 1" width="280" /> | <img src="images/image_02.jpeg" alt="Screenshot 2" width="280" /> |
 
-A few resources to get you started if this is your first Flutter project:
+## Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Paste and execute curl commands
+- Syntax-highlighted response
+- Search within response with match highlighting
+- HTML preview

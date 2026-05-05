@@ -22,9 +22,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _curlController = TextEditingController(
-    text: 'curl -L https://www.google.com',
-  );
+  final _curlController = TextEditingController();
   CurlResponse? _response;
   bool _isLoading = false;
   String? _error;
@@ -39,6 +37,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _executeCurl() async {
+    final text = _curlController.text.trim();
+    if (text.isEmpty || !text.startsWith('curl')) {
+      setState(() {
+        _error = 'error: command must start with "curl"';
+        _response = null;
+        _showHtmlPreview = false;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _response = null;
@@ -47,7 +55,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final curl = parseCurl(_curlController.text);
+      final curl = parseCurl(text);
       final result = await widget.httpClient.execute(curl);
       setState(() => _response = result);
     } catch (e) {
@@ -103,7 +111,7 @@ class _HomePageState extends State<HomePage> {
                         fontSize: 13,
                       ),
                       decoration: const InputDecoration(
-                        hintText: 'curl ...',
+                        hintText: 'paste or type a curl command...',
                         hintStyle: TextStyle(
                           color: TColors.mutedText,
                           fontFamily: 'monospace',
