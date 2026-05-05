@@ -1,6 +1,7 @@
 import 'package:Curel/data/models/curl_response.dart';
 import 'package:Curel/presentation/theme/terminal_colors.dart';
 import 'package:Curel/presentation/widgets/html_preview.dart';
+import 'package:Curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight2/themes/atom-one-dark.dart';
 import 'package:flutter_highlight2/flutter_highlight.dart';
@@ -13,6 +14,8 @@ class ResponseViewer extends StatelessWidget {
   final bool isLoading;
   final ResponseTab selectedTab;
   final bool showHtmlPreview;
+  final bool searchActive;
+  final VoidCallback? onCloseSearch;
 
   const ResponseViewer({
     this.isLoading = false,
@@ -20,6 +23,8 @@ class ResponseViewer extends StatelessWidget {
     this.error,
     this.selectedTab = ResponseTab.body,
     this.showHtmlPreview = false,
+    this.searchActive = false,
+    this.onCloseSearch,
     super.key,
   });
 
@@ -40,6 +45,7 @@ class ResponseViewer extends StatelessWidget {
 
     if (error != null) {
       return SingleChildScrollView(
+        padding: const EdgeInsets.all(8),
         child: SelectableText(
           error!,
           style: const TextStyle(
@@ -57,16 +63,30 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(8),
-          child: SelectableText(
-            response!.formatHeaders(),
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-              color: TColors.mutedText,
-            ),
+        return SearchableText(
+          text: response!.formatHeaders(),
+          searchActive: searchActive,
+          onClose: onCloseSearch,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            color: TColors.mutedText,
           ),
+        );
+      }
+
+      if (searchActive) {
+        return SearchableText(
+          text: response!.bodyText,
+          searchActive: true,
+          onClose: onCloseSearch,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            color: TColors.text,
+          ),
+          syntaxLanguage: response!.highlightLanguage,
+          syntaxTheme: atomOneDarkTheme,
         );
       }
 
@@ -126,6 +146,7 @@ class FullscreenResponseViewer extends StatefulWidget {
 class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
   var _selectedTab = ResponseTab.body;
   bool _showHtmlPreview = false;
+  bool _searchActive = false;
 
   @override
   Widget build(BuildContext context) {
@@ -172,10 +193,23 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       onTap: () => setState(() {
                         _selectedTab = ResponseTab.body;
                         _showHtmlPreview = true;
+                        _searchActive = false;
                       }),
                     ),
                   ],
                   const Spacer(),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _searchActive = !_searchActive;
+                      if (_searchActive) _showHtmlPreview = false;
+                    }),
+                    child: Icon(
+                      _searchActive ? Icons.search_off : Icons.search,
+                      size: 16,
+                      color: _searchActive ? TColors.green : TColors.mutedText,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     widget.response.contentTypeLabel,
                     style: const TextStyle(
@@ -186,7 +220,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${widget.response.statusCode} ${widget.response.statusMessage}',
+                    '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
                     style: TextStyle(
                       fontSize: 11,
                       fontFamily: 'monospace',
@@ -206,6 +240,8 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 response: widget.response,
                 selectedTab: _selectedTab,
                 showHtmlPreview: _showHtmlPreview,
+                searchActive: _searchActive,
+                onCloseSearch: () => setState(() => _searchActive = false),
               ),
             ),
           ],

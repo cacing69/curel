@@ -4,6 +4,7 @@ import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/domain/services/curl_parser_service.dart';
 import 'package:Curel/presentation/theme/terminal_colors.dart';
 import 'package:Curel/presentation/widgets/response_viewer.dart';
+import 'package:Curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   String? _error;
   var _selectedTab = ResponseTab.body;
   bool _showHtmlPreview = false;
+  bool _searchActive = false;
 
   @override
   void dispose() {
@@ -122,19 +124,19 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: Row(
                 children: [
-                  _TermButton(
-                    icon: Icons.history,
-                    label: 'History',
-                    onTap: () {},
-                  ),
-                  const SizedBox(width: 6),
-                  _TermButton(
+                  // TermButton(
+                  //   icon: Icons.history,
+                  //   label: 'History',
+                  //   onTap: () {},
+                  // ),
+                  // const SizedBox(width: 6),
+                  TermButton(
                     icon: Icons.content_paste,
                     label: 'Paste',
                     onTap: _paste,
                   ),
                   const Spacer(),
-                  _TermButton(
+                  TermButton(
                     label: 'Execute',
                     onTap: _isLoading ? null : _executeCurl,
                     accent: true,
@@ -146,84 +148,109 @@ class _HomePageState extends State<HomePage> {
             if (_response != null || _error != null) ...[
               Container(height: 1, color: TColors.border),
               if (_response != null)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
                   ),
                   child: Row(
                     children: [
-                      const Text(
-                        'response',
-                        style: TextStyle(
-                          color: TColors.purple,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              const Text(
+                                'response',
+                                style: TextStyle(
+                                  color: TColors.purple,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_response!.statusCode ?? '-'}',
+                                style: TextStyle(
+                                  color:
+                                      (_response!.statusCode ?? 0) >= 200 &&
+                                          (_response!.statusCode ?? 0) < 300
+                                      ? TColors.green
+                                      : TColors.red,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _response!.contentTypeLabel,
+                                style: const TextStyle(
+                                  color: TColors.cyan,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              _FlatTab(
+                                label: 'headers',
+                                selected: _selectedTab == ResponseTab.headers,
+                                onTap: () => setState(() {
+                                  _selectedTab = ResponseTab.headers;
+                                  _showHtmlPreview = false;
+                                }),
+                              ),
+                              const SizedBox(width: 4),
+                              _FlatTab(
+                                label: 'body',
+                                selected:
+                                    _selectedTab == ResponseTab.body &&
+                                    !_showHtmlPreview,
+                                onTap: () => setState(() {
+                                  _selectedTab = ResponseTab.body;
+                                  _showHtmlPreview = false;
+                                }),
+                              ),
+                              if (_response!.isHtml) ...[
+                                const SizedBox(width: 4),
+                                _FlatTab(
+                                  label: 'preview',
+                                  selected: _showHtmlPreview,
+                                  onTap: () => setState(() {
+                                    _selectedTab = ResponseTab.body;
+                                    _showHtmlPreview = true;
+                                    _searchActive = false;
+                                  }),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_response!.statusCode ?? '-'}',
-                        style: TextStyle(
-                          color:
-                              (_response!.statusCode ?? 0) >= 200 &&
-                                  (_response!.statusCode ?? 0) < 300
-                              ? TColors.green
-                              : TColors.red,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _searchActive = !_searchActive),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Icon(
+                            _searchActive ? Icons.search_off : Icons.search,
+                            size: 16,
+                            color: _searchActive
+                                ? TColors.green
+                                : TColors.mutedText,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _response!.contentTypeLabel,
-                        style: const TextStyle(
-                          color: TColors.cyan,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _FlatTab(
-                        label: 'headers',
-                        selected: _selectedTab == ResponseTab.headers,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.headers;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      const SizedBox(width: 4),
-                      _FlatTab(
-                        label: 'body',
-                        selected:
-                            _selectedTab == ResponseTab.body &&
-                            !_showHtmlPreview,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.body;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      if (_response!.isHtml) ...[
-                        const SizedBox(width: 4),
-                        _FlatTab(
-                          label: 'preview',
-                          selected: _showHtmlPreview,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.body;
-                            _showHtmlPreview = true;
-                          }),
-                        ),
-                      ],
-                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () =>
                             openFullscreenResponse(context, _response!),
-                        child: const Icon(
-                          Icons.fullscreen,
-                          size: 14,
-                          color: TColors.mutedText,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.fullscreen,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
                         ),
                       ),
                     ],
@@ -239,6 +266,8 @@ class _HomePageState extends State<HomePage> {
                 error: _error,
                 selectedTab: _selectedTab,
                 showHtmlPreview: _showHtmlPreview,
+                searchActive: _searchActive,
+                onCloseSearch: () => setState(() => _searchActive = false),
               ),
             ),
           ],
@@ -280,61 +309,6 @@ class _FlatTab extends StatelessWidget {
             fontFamily: 'monospace',
             color: selected ? TColors.foreground : TColors.mutedText,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TermButton extends StatelessWidget {
-  final IconData? icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool accent;
-
-  const _TermButton({
-    this.icon,
-    required this.label,
-    this.onTap,
-    this.accent = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        color: accent
-            ? (enabled
-                  ? TColors.green.withValues(alpha: 0.15)
-                  : TColors.surface)
-            : TColors.surface,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: accent
-                    ? TColors.green
-                    : (enabled ? TColors.foreground : TColors.mutedText),
-              ),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontFamily: 'monospace',
-                color: accent
-                    ? TColors.green
-                    : (enabled ? TColors.foreground : TColors.mutedText),
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -1,5 +1,9 @@
 # Curel
 
+<p align="center">
+  <img src="logo.png" alt="Curel" width="120" />
+</p>
+
 A lightweight networking utility focused on loading, fetching, and streaming data efficiently over HTTP.
 
 ## Getting Started

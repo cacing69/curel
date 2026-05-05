@@ -29,7 +29,7 @@ class CurlResponse {
     final ct = contentType?.toLowerCase() ?? '';
     if (ct.contains('json')) return 'json';
     if (ct.contains('xml')) return 'xml';
-    if (ct.contains('html')) return 'html';
+    if (ct.contains('html')) return 'xml';
     return null;
   }
 
