@@ -1,5 +1,3 @@
-<!-- GitAds-Verify: 4VNFAH4816B7FFB8UG86ZPXZZBKXZ9L8 -->
-
 # Curel
 
 <p align="center">
@@ -20,3 +18,5 @@ A lightweight networking utility focused on loading, fetching, and streaming dat
 - Syntax-highlighted response
 - Search within response with match highlighting
 - HTML preview
+
+<!-- GitAds-Verify: 8H8HV9XZO2GF7GBV4J7924VYCLPQL6NB -->
