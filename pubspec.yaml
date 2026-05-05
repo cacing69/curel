@@ -35,6 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   forui: ^0.21.3
+  curl_parser: ^0.1.2
+  dio: ^5.4.0
+  flutter_highlight2: ^0.8.3
+  webview_flutter: ^4.13.1
 
 dev_dependencies:
   flutter_test:

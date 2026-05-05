@@ -1,3 +1,5 @@
+import 'package:Curel/data/services/curl_http_client.dart';
+import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/presentation/screens/home_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,12 +14,6 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// Try changing this and hot reloading the application.
-    ///
-    /// To create a custom theme:
-    /// ```shell
-    /// dart forui theme create [theme template].
-    /// ```
     final theme =
         const <TargetPlatform>{
           .android,
@@ -28,24 +24,18 @@ class Application extends StatelessWidget {
         : FThemes.neutral.dark.desktop;
 
     return MaterialApp(
-      // TODO: replace with your application's supported locales.
       supportedLocales: FLocalizations.supportedLocales,
-      // TODO: add your application's localizations delegates.
       localizationsDelegates: const [...FLocalizations.localizationsDelegates],
-      // MaterialApp's theme is also animated by default with the same duration and curve.
-      // See https://api.flutter.dev/flutter/material/MaterialApp/themeAnimationStyle.html for how to configure this.
-      //
-      // There is a known issue with implicitly animated widgets where their transition occurs AFTER the theme's.
-      // See https://github.com/duobaseio/forui/issues/670.
       theme: theme.toApproximateMaterialTheme(),
       builder: (_, child) => FTheme(
         data: FThemes.neutral.light.touch,
         child: FToaster(child: FTooltipGroup(child: child!)),
       ),
-      // You can also replace FScaffold with Material Scaffold.
-      home: const FScaffold(
-        // TODO: replace with your widget.
-        child: HomePage(),
+      home: FScaffold(
+        child: HomePage(
+          httpClient: DioCurlHttpClient(),
+          clipboardService: FlutterClipboardService(),
+        ),
       ),
     );
   }
