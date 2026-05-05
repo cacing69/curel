@@ -18,3 +18,5 @@ A lightweight networking utility focused on loading, fetching, and streaming dat
 - Syntax-highlighted response
 - Search within response with match highlighting
 - HTML preview
+
+<!-- GitAds-Verify: 4VNFAH4816B7FFB8UG86ZPXZZBKXZ9L8 -->
