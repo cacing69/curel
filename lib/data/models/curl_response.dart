@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CurlResponse {
   final int? statusCode;
   final String statusMessage;
@@ -31,7 +33,16 @@ class CurlResponse {
     return null;
   }
 
-  String get bodyText => body?.toString() ?? '';
+  String get bodyText {
+    final raw = body?.toString() ?? '';
+    if (highlightLanguage == 'json') {
+      try {
+        final decoded = json.decode(raw);
+        return const JsonEncoder.withIndent('  ').convert(decoded);
+      } catch (_) {}
+    }
+    return raw;
+  }
 
   String formatHeaders() {
     final buffer = StringBuffer()

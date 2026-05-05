@@ -1,41 +1,37 @@
 import 'package:Curel/data/services/curl_http_client.dart';
 import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/presentation/screens/home_page.dart';
-import 'package:flutter/foundation.dart';
+import 'package:Curel/presentation/theme/terminal_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
 
 void main() {
-  runApp(const Application());
+  runApp(const App());
 }
 
-class Application extends StatelessWidget {
-  const Application({super.key});
+class App extends StatelessWidget {
+  const App({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme =
-        const <TargetPlatform>{
-          .android,
-          .iOS,
-          .fuchsia,
-        }.contains(defaultTargetPlatform)
-        ? FThemes.neutral.dark.touch
-        : FThemes.neutral.dark.desktop;
-
     return MaterialApp(
-      supportedLocales: FLocalizations.supportedLocales,
-      localizationsDelegates: const [...FLocalizations.localizationsDelegates],
-      theme: theme.toApproximateMaterialTheme(),
-      builder: (_, child) => FTheme(
-        data: FThemes.neutral.light.touch,
-        child: FToaster(child: FTooltipGroup(child: child!)),
-      ),
-      home: FScaffold(
-        child: HomePage(
-          httpClient: DioCurlHttpClient(),
-          clipboardService: FlutterClipboardService(),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: TColors.background,
+        colorScheme: const ColorScheme.dark(
+          primary: TColors.accentText,
+          surface: TColors.surface,
+          error: TColors.error,
         ),
+        textTheme: const TextTheme(
+          bodySmall: TextStyle(fontFamily: 'monospace'),
+          bodyMedium: TextStyle(fontFamily: 'monospace'),
+          bodyLarge: TextStyle(fontFamily: 'monospace'),
+        ),
+      ),
+      home: HomePage(
+        httpClient: DioCurlHttpClient(),
+        clipboardService: FlutterClipboardService(),
       ),
     );
   }

@@ -13,12 +13,13 @@ class DioCurlHttpClient implements CurlHttpClient {
 
   @override
   Future<CurlResponse> execute(Curl curl) async {
-    final response = await _dio.request<dynamic>(
+    final response = await _dio.request<String>(
       curl.uri.toString(),
       data: curl.data,
       options: Options(
         method: curl.method,
         headers: curl.headers,
+        responseType: ResponseType.plain,
       ),
     );
 
