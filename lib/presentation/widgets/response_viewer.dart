@@ -32,7 +32,7 @@ class ResponseViewer extends StatelessWidget {
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: TColors.accentText,
+            color: TColors.green,
           ),
         ),
       );
@@ -58,7 +58,7 @@ class ResponseViewer extends StatelessWidget {
 
       if (selectedTab == ResponseTab.headers) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(8),
           child: SelectableText(
             response!.formatHeaders(),
             style: const TextStyle(
@@ -76,7 +76,10 @@ class ResponseViewer extends StatelessWidget {
     return Center(
       child: Text(
         'No response yet',
-        style: TextStyle(color: TColors.mutedText.withValues(alpha:0.5), fontSize: 12),
+        style: TextStyle(
+          color: TColors.mutedText.withValues(alpha: 0.5),
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -86,7 +89,7 @@ class ResponseViewer extends StatelessWidget {
 
     if (lang != null) {
       return SingleChildScrollView(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(8),
         child: HighlightView(
           response.bodyText,
           language: lang,
@@ -97,7 +100,7 @@ class ResponseViewer extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(8),
       child: SelectableText(
         response.bodyText,
         style: const TextStyle(
@@ -116,7 +119,8 @@ class FullscreenResponseViewer extends StatefulWidget {
   const FullscreenResponseViewer({required this.response, super.key});
 
   @override
-  State<FullscreenResponseViewer> createState() => _FullscreenResponseViewerState();
+  State<FullscreenResponseViewer> createState() =>
+      _FullscreenResponseViewerState();
 }
 
 class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
@@ -131,17 +135,19 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
+            Container(
+              color: TColors.surface,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
+                    child: const Icon(Icons.arrow_back,
+                        size: 18, color: TColors.mutedText),
                   ),
                   const SizedBox(width: 8),
-                  _TabChip(
-                    label: 'Headers',
+                  _FlatTab(
+                    label: 'headers',
                     selected: _selectedTab == ResponseTab.headers,
                     onTap: () => setState(() {
                       _selectedTab = ResponseTab.headers;
@@ -149,9 +155,10 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     }),
                   ),
                   const SizedBox(width: 4),
-                  _TabChip(
-                    label: 'Body',
-                    selected: _selectedTab == ResponseTab.body && !_showHtmlPreview,
+                  _FlatTab(
+                    label: 'body',
+                    selected:
+                        _selectedTab == ResponseTab.body && !_showHtmlPreview,
                     onTap: () => setState(() {
                       _selectedTab = ResponseTab.body;
                       _showHtmlPreview = false;
@@ -159,8 +166,8 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   ),
                   if (widget.response.isHtml) ...[
                     const SizedBox(width: 4),
-                    _TabChip(
-                      label: 'Preview',
+                    _FlatTab(
+                      label: 'preview',
                       selected: _showHtmlPreview,
                       onTap: () => setState(() {
                         _selectedTab = ResponseTab.body;
@@ -169,34 +176,31 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     ),
                   ],
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: TColors.accent.withValues(alpha:0.3),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(
-                      widget.response.contentTypeLabel,
-                      style: const TextStyle(
-                        color: TColors.accentText,
-                        fontSize: 11,
-                        fontFamily: 'monospace',
-                      ),
+                  Text(
+                    widget.response.contentTypeLabel,
+                    style: const TextStyle(
+                      color: TColors.cyan,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '${widget.response.statusCode} ${widget.response.statusMessage}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontFamily: 'monospace',
-                      color: TColors.mutedText,
+                      color:
+                          (widget.response.statusCode ?? 0) >= 200 &&
+                                  (widget.response.statusCode ?? 0) < 300
+                              ? TColors.green
+                              : TColors.red,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 4),
+            Container(height: 1, color: TColors.border),
             Expanded(
               child: ResponseViewer(
                 response: widget.response,
@@ -211,33 +215,37 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
   }
 }
 
-class _TabChip extends StatelessWidget {
+class _FlatTab extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _FlatTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
-          color: selected ? TColors.accent.withValues(alpha:0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: selected
-              ? Border.all(color: TColors.accent.withValues(alpha:0.3))
-              : null,
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? TColors.green : Colors.transparent,
+              width: 1,
+            ),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
             fontFamily: 'monospace',
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-            color: selected ? TColors.accentText : TColors.mutedText,
+            color: selected ? TColors.foreground : TColors.mutedText,
           ),
         ),
       ),

@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 
 abstract class TColors {
-  static const background = Color(0xFF0D1117);
-  static const surface = Color(0xFF161B22);
-  static const border = Color(0xFF30363D);
-  static const text = Color(0xFFC9D1D9);
-  static const mutedText = Color(0xFF8B949E);
-  static const accent = Color(0xFF238636);
-  static const accentText = Color(0xFF3FB950);
-  static const error = Color(0xFFF85149);
-  static const warning = Color(0xFFD29922);
+  // Dracula theme palette
+  static const background = Color(0xFF282A36);
+  static const surface = Color(0xFF44475A);
+  static const foreground = Color(0xFFF8F8F2);
+  static const comment = Color(0xFF6272A4);
+  static const cyan = Color(0xFF8BE9FD);
+  static const green = Color(0xFF50FA7B);
+  static const orange = Color(0xFFFFB86C);
+  static const pink = Color(0xFFFF79C6);
+  static const purple = Color(0xFFBD93F9);
+  static const red = Color(0xFFFF5555);
+  static const yellow = Color(0xFFF1FA8C);
+
+  // Semantic aliases
+  static const text = foreground;
+  static const mutedText = comment;
+  static const accent = green;
+  static const accentText = green;
+  static const error = red;
+  static const warning = yellow;
+  static const border = comment;
 }

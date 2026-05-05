@@ -67,102 +67,127 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: TColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _curlController,
-                maxLines: 5,
-                minLines: 3,
-                style: const TextStyle(
-                  color: TColors.text,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                ),
-                decoration: InputDecoration(
-                  hintText: '\$ curl ...',
-                  hintStyle: TextStyle(color: TColors.mutedText.withValues(alpha: 0.5)),
-                  prefixIcon: Text(
-                    '\$ ',
-                    style: const TextStyle(
-                      color: TColors.accentText,
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Prompt input block
+            Container(
+              color: TColors.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 0),
+                    child: Text(
+                      '❯ ',
+                      style: TextStyle(
+                        color: TColors.green,
+                        fontFamily: 'monospace',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 24),
-                  filled: true,
-                  fillColor: TColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: TColors.border),
+                  Expanded(
+                    child: TextField(
+                      controller: _curlController,
+                      maxLines: null,
+                      minLines: 3,
+                      cursorColor: TColors.green,
+                      style: const TextStyle(
+                        color: TColors.text,
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'curl ...',
+                        hintStyle: TextStyle(
+                          color: TColors.mutedText,
+                          fontFamily: 'monospace',
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: TColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: TColors.accentText),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  isDense: true,
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Row(
+            ),
+            // Action buttons
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
                 children: [
                   _TermButton(
                     icon: Icons.history,
                     label: 'History',
                     onTap: () {},
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   _TermButton(
                     icon: Icons.content_paste,
                     label: 'Paste',
                     onTap: _paste,
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: _TermButton(
-                      label: 'Execute',
-                      onTap: _isLoading ? null : _executeCurl,
-                      accent: true,
-                    ),
+                  const Spacer(),
+                  _TermButton(
+                    label: 'Execute',
+                    onTap: _isLoading ? null : _executeCurl,
+                    accent: true,
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+            ),
+            // Response bar
+            if (_response != null || _error != null) ...[
+              Container(height: 1, color: TColors.border),
               if (_response != null)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   child: Row(
                     children: [
+                      const Text(
+                        'response',
+                        style: TextStyle(
+                          color: TColors.purple,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Response:',
-                        style: TextStyle(color: TColors.mutedText, fontSize: 12),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: TColors.accent.withValues(alpha:0.3),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          _response!.contentTypeLabel,
-                          style: const TextStyle(
-                            color: TColors.accentText,
-                            fontSize: 11,
-                          ),
+                        '${_response!.statusCode ?? '-'}',
+                        style: TextStyle(
+                          color:
+                              (_response!.statusCode ?? 0) >= 200 &&
+                                  (_response!.statusCode ?? 0) < 300
+                              ? TColors.green
+                              : TColors.red,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      _TabChip(
-                        label: 'Headers',
+                      const SizedBox(width: 8),
+                      Text(
+                        _response!.contentTypeLabel,
+                        style: const TextStyle(
+                          color: TColors.cyan,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _FlatTab(
+                        label: 'headers',
                         selected: _selectedTab == ResponseTab.headers,
                         onTap: () => setState(() {
                           _selectedTab = ResponseTab.headers;
@@ -170,9 +195,10 @@ class _HomePageState extends State<HomePage> {
                         }),
                       ),
                       const SizedBox(width: 4),
-                      _TabChip(
-                        label: 'Body',
-                        selected: _selectedTab == ResponseTab.body &&
+                      _FlatTab(
+                        label: 'body',
+                        selected:
+                            _selectedTab == ResponseTab.body &&
                             !_showHtmlPreview,
                         onTap: () => setState(() {
                           _selectedTab = ResponseTab.body;
@@ -181,8 +207,8 @@ class _HomePageState extends State<HomePage> {
                       ),
                       if (_response!.isHtml) ...[
                         const SizedBox(width: 4),
-                        _TabChip(
-                          label: 'Preview',
+                        _FlatTab(
+                          label: 'preview',
                           selected: _showHtmlPreview,
                           onTap: () => setState(() {
                             _selectedTab = ResponseTab.body;
@@ -190,72 +216,69 @@ class _HomePageState extends State<HomePage> {
                           }),
                         ),
                       ],
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       GestureDetector(
-                        onTap: () => openFullscreenResponse(context, _response!),
-                        child: Icon(
+                        onTap: () =>
+                            openFullscreenResponse(context, _response!),
+                        child: const Icon(
                           Icons.fullscreen,
-                          size: 16,
+                          size: 14,
                           color: TColors.mutedText,
                         ),
                       ),
                     ],
                   ),
                 ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: TColors.border),
-                    borderRadius: BorderRadius.circular(4),
-                    color: TColors.surface,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: ResponseViewer(
-                    isLoading: _isLoading,
-                    response: _response,
-                    error: _error,
-                    selectedTab: _selectedTab,
-                    showHtmlPreview: _showHtmlPreview,
-                  ),
-                ),
-              ),
+              Container(height: 1, color: TColors.border),
             ],
-          ),
+            // Response content
+            Expanded(
+              child: ResponseViewer(
+                isLoading: _isLoading,
+                response: _response,
+                error: _error,
+                selectedTab: _selectedTab,
+                showHtmlPreview: _showHtmlPreview,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _TabChip extends StatelessWidget {
+class _FlatTab extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _FlatTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
-          color: selected ? TColors.accent.withValues(alpha:0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: selected
-              ? Border.all(color: TColors.accent.withValues(alpha:0.3))
-              : null,
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? TColors.green : Colors.transparent,
+              width: 1,
+            ),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
             fontFamily: 'monospace',
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-            color: selected ? TColors.accentText : TColors.mutedText,
+            color: selected ? TColors.foreground : TColors.mutedText,
           ),
         ),
       ),
@@ -269,45 +292,49 @@ class _TermButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool accent;
 
-  const _TermButton({this.icon, required this.label, this.onTap, this.accent = false});
+  const _TermButton({
+    this.icon,
+    required this.label,
+    this.onTap,
+    this.accent = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: accent
-                ? TColors.accent.withValues(alpha:onTap == null ? 0.3 : 0.8)
-                : TColors.surface,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: accent ? TColors.accent : TColors.border,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 14, color: accent ? TColors.text : TColors.mutedText),
-                const SizedBox(width: 4),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  color: accent
-                      ? TColors.text
-                      : (onTap == null ? TColors.mutedText.withValues(alpha:0.5) : TColors.mutedText),
-                ),
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        color: accent
+            ? (enabled
+                  ? TColors.green.withValues(alpha: 0.15)
+                  : TColors.surface)
+            : TColors.surface,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: accent
+                    ? TColors.green
+                    : (enabled ? TColors.foreground : TColors.mutedText),
               ),
+              const SizedBox(width: 4),
             ],
-          ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: accent
+                    ? TColors.green
+                    : (enabled ? TColors.foreground : TColors.mutedText),
+              ),
+            ),
+          ],
         ),
       ),
     );
