@@ -1,4 +1,5 @@
 import 'package:Curel/data/models/curl_response.dart';
+import 'package:Curel/presentation/screens/about_page.dart';
 import 'package:Curel/data/services/curl_http_client.dart';
 import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/domain/services/curl_parser_service.dart';
@@ -142,6 +143,14 @@ class _HomePageState extends State<HomePage> {
                     icon: Icons.content_paste,
                     label: 'Paste',
                     onTap: _paste,
+                  ),
+                  const SizedBox(width: 6),
+                  TermButton(
+                    icon: Icons.info_outline,
+                    label: 'About',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AboutPage()),
+                    ),
                   ),
                   const Spacer(),
                   TermButton(

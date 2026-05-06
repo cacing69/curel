@@ -12,6 +12,10 @@ A lightweight networking utility focused on loading, fetching, and streaming dat
 |:---:|:---:|
 | <img src="images/image_01.jpeg" alt="Screenshot 1" width="280" /> | <img src="images/image_02.jpeg" alt="Screenshot 2" width="280" /> |
 
+## Download
+
+Download the latest release from the [Releases](https://github.com/cacing69/curel/releases) page.
+
 ## Features
 
 - Paste and execute curl commands
