@@ -3,7 +3,7 @@ import 'package:Curel/presentation/screens/about_page.dart';
 import 'package:Curel/data/services/curl_http_client.dart';
 import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/domain/services/curl_parser_service.dart';
-import 'package:Curel/presentation/theme/terminal_colors.dart';
+import 'package:Curel/presentation/theme/terminal_theme.dart';
 import 'package:Curel/presentation/widgets/response_viewer.dart';
 import 'package:Curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
@@ -151,11 +151,15 @@ class _HomePageState extends State<HomePage> {
                         }
                         return GestureDetector(
                           onTap: _clear,
-                          child: Padding(
+                          child: Container(
                             padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: TColors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Icon(
                               Icons.close,
-                              size: 14,
+                              size: 12,
                               color: TColors.red,
                             ),
                           ),
@@ -179,24 +183,16 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.info_outline,
-                    label: 'About',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const AboutPage()),
                     ),
                   ),
                   const Spacer(),
-                  // GestureDetector(
-                  //   onTap: null,
-                  //   child: Padding(
-                  //     padding: const EdgeInsets.all(4),
-                  //     child: Icon(
-                  //       Icons.history,
-                  //       size: 18,
-                  //       color: TColors.mutedText,
-                  //     ),
-                  //   ),
-                  // ),
-                  // const SizedBox(width: 6),
+                  TermButton(
+                    icon: Icons.history,
+                    onTap: null,
+                  ),
+                  const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.play_arrow,
                     label: 'Execute',
@@ -294,8 +290,9 @@ class _HomePageState extends State<HomePage> {
                           Clipboard.setData(
                             ClipboardData(text: _response!.bodyText),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            _terminalSnackBar('copied to clipboard'),
+                          showTerminalToast(
+                            context,
+                            'copied to clipboard',
                           );
                         },
                         child: const Padding(
@@ -393,26 +390,4 @@ class _FlatTab extends StatelessWidget {
       ),
     );
   }
-}
-
-SnackBar _terminalSnackBar(String message) {
-  return SnackBar(
-    content: Text(
-      message,
-      style: const TextStyle(
-        color: TColors.green,
-        fontFamily: 'monospace',
-        fontSize: 12,
-      ),
-    ),
-    backgroundColor: TColors.surface,
-    behavior: SnackBarBehavior.floating,
-    margin: const EdgeInsets.all(12),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    duration: const Duration(seconds: 2),
-    shape: RoundedRectangleBorder(
-      side: const BorderSide(color: TColors.border),
-      borderRadius: BorderRadius.circular(4),
-    ),
-  );
 }

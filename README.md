@@ -1,10 +1,11 @@
 # Curel
+<sub>/ˈtʃurɛl/</sub>
 
 <p align="center">
   <img src="logo.png" alt="Curel" width="120" />
 </p>
 
-A lightweight networking utility focused on loading, fetching, and streaming data efficiently over HTTP.
+A lightweight curl client for sending HTTP requests and inspecting responses with syntax highlighting.
 
 ## GitAds Sponsored
 

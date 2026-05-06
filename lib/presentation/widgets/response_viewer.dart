@@ -1,10 +1,9 @@
 import 'package:Curel/data/models/curl_response.dart';
-import 'package:Curel/presentation/theme/terminal_colors.dart';
+import 'package:Curel/presentation/theme/terminal_theme.dart';
 import 'package:Curel/presentation/widgets/html_preview.dart';
 import 'package:Curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_highlight2/themes/atom-one-dark.dart';
 import 'package:highlight/highlight.dart' show highlight;
 
 enum ResponseTab { headers, body }
@@ -99,7 +98,7 @@ class ResponseViewer extends StatelessWidget {
 
     if (lang != null) {
       final result = highlight.parse(response.bodyText, language: lang);
-      final spans = _buildSpans(result.nodes, atomOneDarkTheme);
+      final spans = _buildSpans(result.nodes, syntaxTheme);
 
       return SingleChildScrollView(
         padding: const EdgeInsets.all(8),
@@ -242,8 +241,9 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: widget.response.bodyText));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        _terminalSnackBar('copied to clipboard'),
+                      showTerminalToast(
+                        context,
+                        'copied to clipboard',
                       );
                     },
                     child: const Padding(
@@ -346,28 +346,6 @@ void openFullscreenResponse(BuildContext context, CurlResponse response) {
   Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => FullscreenResponseViewer(response: response),
-    ),
-  );
-}
-
-SnackBar _terminalSnackBar(String message) {
-  return SnackBar(
-    content: Text(
-      message,
-      style: const TextStyle(
-        color: TColors.green,
-        fontFamily: 'monospace',
-        fontSize: 12,
-      ),
-    ),
-    backgroundColor: TColors.surface,
-    behavior: SnackBarBehavior.floating,
-    margin: const EdgeInsets.all(12),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    duration: const Duration(seconds: 2),
-    shape: RoundedRectangleBorder(
-      side: const BorderSide(color: TColors.border),
-      borderRadius: BorderRadius.circular(4),
     ),
   );
 }
