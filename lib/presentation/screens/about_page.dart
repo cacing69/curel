@@ -1,10 +1,26 @@
-import 'package:Curel/presentation/theme/terminal_colors.dart';
+import 'package:Curel/presentation/theme/terminal_theme.dart';
 import 'package:Curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class AboutPage extends StatelessWidget {
+class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
+
+  @override
+  State<AboutPage> createState() => _AboutPageState();
+}
+
+class _AboutPageState extends State<AboutPage> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,14 +52,15 @@ class AboutPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'v1.0.0',
-                      style: TextStyle(
-                        color: TColors.mutedText,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
+                    if (_version.isNotEmpty)
+                      Text(
+                        'v$_version',
+                        style: const TextStyle(
+                          color: TColors.mutedText,
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 20),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),

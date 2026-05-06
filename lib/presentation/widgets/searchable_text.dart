@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:Curel/presentation/theme/terminal_colors.dart';
+import 'package:Curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_highlight2/themes/atom-one-dark.dart';
 import 'package:highlight/highlight.dart' show highlight, Node;
 
 class SearchableText extends StatefulWidget {
@@ -160,7 +159,7 @@ class _SearchableTextState extends State<SearchableText> {
   }
 
   List<TextSpan> _convertSyntaxNodes(List<Node> nodes) {
-    final theme = widget.syntaxTheme ?? atomOneDarkTheme;
+    final theme = widget.syntaxTheme ?? syntaxTheme;
     final defaultColor = theme['root']?.color ?? TColors.text;
     final spans = <TextSpan>[];
     var currentSpans = spans;
@@ -226,7 +225,7 @@ class _SearchableTextState extends State<SearchableText> {
 
   TextSpan _applySearchHighlight(List<TextSpan> baseSpans) {
     final defaultColor =
-        (widget.syntaxTheme ?? atomOneDarkTheme)['root']?.color ??
+        (widget.syntaxTheme ?? syntaxTheme)['root']?.color ??
         TColors.text;
     final flatSpans = _flattenSpans(baseSpans);
 

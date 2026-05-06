@@ -20,6 +20,7 @@ class DioCurlHttpClient implements CurlHttpClient {
         method: curl.method,
         headers: curl.headers,
         responseType: ResponseType.plain,
+        validateStatus: (status) => status != null && status < 600,
       ),
     );
 

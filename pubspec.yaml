@@ -36,10 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   curl_parser: ^0.1.2
   dio: ^5.4.0
-  flutter_highlight2: ^0.8.3
   highlight: ^0.7.0
   webview_flutter: ^4.13.1
   url_launcher: ^6.3.2
+  package_info_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:
