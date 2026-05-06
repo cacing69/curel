@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:Curel/presentation/theme/terminal_colors.dart';
+import 'package:flutter/material.dart';
+
 class CurlResponse {
   final int? statusCode;
   final String statusMessage;
@@ -20,6 +23,11 @@ class CurlResponse {
     if (ct.contains('json')) return 'JSON';
     if (ct.contains('xml')) return 'XML';
     if (ct.contains('html')) return 'HTML';
+    if (ct.contains('javascript')) return 'JS';
+    if (ct.contains('css')) return 'CSS';
+    if (ct.contains('yaml')) return 'YAML';
+    if (ct.contains('markdown')) return 'MD';
+    if (ct.contains('graphql')) return 'GQL';
     return 'Text';
   }
 
@@ -30,6 +38,12 @@ class CurlResponse {
     if (ct.contains('json')) return 'json';
     if (ct.contains('xml')) return 'xml';
     if (ct.contains('html')) return 'xml';
+    if (ct.contains('javascript')) return 'javascript';
+    if (ct.contains('css')) return 'css';
+    if (ct.contains('yaml')) return 'yaml';
+    if (ct.contains('markdown')) return 'markdown';
+    if (ct.contains('graphql')) return 'graphql';
+    if (ct.contains('text/plain')) return 'plaintext';
     return null;
   }
 
@@ -51,10 +65,44 @@ class CurlResponse {
 
     if (headers.isNotEmpty) {
       headers.forEach((key, values) {
-        buffer.writeln('$key: ${values.join(", ")}');
+        buffer.writeln('  $key: ${values.join(", ")}');
       });
     }
 
     return buffer.toString();
+  }
+
+  TextSpan formatHeadersSpan() {
+    final children = <TextSpan>[];
+
+    children.add(TextSpan(
+      text: 'Status: ',
+      style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+    ));
+    final code = statusCode ?? 0;
+    children.add(TextSpan(
+      text: '$statusCode $statusMessage',
+      style: TextStyle(
+        color: code >= 200 && code < 300 ? TColors.green : TColors.red,
+        fontFamily: 'monospace',
+        fontSize: 12,
+      ),
+    ));
+    children.add(const TextSpan(text: '\n\n'));
+
+    if (headers.isNotEmpty) {
+      headers.forEach((key, values) {
+        children.add(TextSpan(
+          text: '  $key',
+          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
+        ));
+        children.add(TextSpan(
+          text: ': ${values.join(", ")}\n',
+          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        ));
+      });
+    }
+
+    return TextSpan(children: children);
   }
 }

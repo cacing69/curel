@@ -387,26 +387,16 @@ class _SearchableTextState extends State<SearchableText> {
     final hasSyntax = widget.syntaxLanguage != null;
     final isSearching = widget.searchActive && _query.isNotEmpty;
 
-    if (hasSyntax && !isSearching) {
+    if (hasSyntax || isSearching) {
       return SingleChildScrollView(
         key: _contentKey,
         controller: _scrollController,
         padding: widget.padding,
-        child: RichText(
-          text: _buildSpan(),
-          softWrap: true,
-        ),
-      );
-    }
-
-    if (isSearching) {
-      return SingleChildScrollView(
-        key: _contentKey,
-        controller: _scrollController,
-        padding: widget.padding,
-        child: RichText(
-          text: _buildSpan(),
-          softWrap: true,
+        child: SelectionArea(
+          child: RichText(
+            text: _buildSpan(),
+            softWrap: true,
+          ),
         ),
       );
     }

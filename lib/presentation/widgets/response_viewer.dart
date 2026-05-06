@@ -52,14 +52,13 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
-        return SearchableText(
-          text: response!.formatHeaders(),
-          searchActive: searchActive,
-          onClose: onCloseSearch,
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: TColors.mutedText,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: SelectionArea(
+            child: RichText(
+              text: response!.formatHeadersSpan(),
+              softWrap: true,
+            ),
           ),
         );
       }

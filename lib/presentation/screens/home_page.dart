@@ -133,12 +133,6 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: Row(
                 children: [
-                  // TermButton(
-                  //   icon: Icons.history,
-                  //   label: 'History',
-                  //   onTap: () {},
-                  // ),
-                  // const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.content_paste,
                     label: 'Paste',
@@ -153,6 +147,18 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const Spacer(),
+                  GestureDetector(
+                    onTap: null,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.history,
+                        size: 18,
+                        color: TColors.mutedText,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.play_arrow,
                     label: 'Execute',
