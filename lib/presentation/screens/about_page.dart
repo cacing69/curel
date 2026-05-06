@@ -48,8 +48,8 @@ class AboutPage extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'A lightweight networking utility focused on loading, '
-                        'fetching, and streaming data efficiently over HTTP.',
+                        'A lightweight curl client for sending HTTP requests '
+                        'and inspecting responses with syntax highlighting.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: TColors.foreground,

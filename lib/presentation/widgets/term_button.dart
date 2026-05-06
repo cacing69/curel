@@ -18,6 +18,7 @@ class TermButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
+    final accentColor = enabled ? TColors.green : TColors.mutedText;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -34,9 +35,7 @@ class TermButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 14,
-                color: accent
-                    ? TColors.green
-                    : (enabled ? TColors.foreground : TColors.mutedText),
+                color: accent ? accentColor : (enabled ? TColors.foreground : TColors.mutedText),
               ),
               const SizedBox(width: 4),
             ],
@@ -45,9 +44,7 @@ class TermButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontFamily: 'monospace',
-                color: accent
-                    ? TColors.green
-                    : (enabled ? TColors.foreground : TColors.mutedText),
+                color: accent ? accentColor : (enabled ? TColors.foreground : TColors.mutedText),
               ),
             ),
           ],

@@ -154,6 +154,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const Spacer(),
                   TermButton(
+                    icon: Icons.play_arrow,
                     label: 'Execute',
                     onTap: _isLoading ? null : _executeCurl,
                     accent: true,
