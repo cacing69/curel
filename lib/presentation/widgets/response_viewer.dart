@@ -1,7 +1,7 @@
-import 'package:Curel/data/models/curl_response.dart';
-import 'package:Curel/presentation/theme/terminal_theme.dart';
-import 'package:Curel/presentation/widgets/html_preview.dart';
-import 'package:Curel/presentation/widgets/searchable_text.dart';
+import 'package:curel/data/models/curl_response.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/html_preview.dart';
+import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' show highlight;

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:Curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:highlight/highlight.dart' show highlight, Node;
 

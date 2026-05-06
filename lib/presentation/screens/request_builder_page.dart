@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:Curel/data/models/curl_response.dart';
-import 'package:Curel/data/services/curl_http_client.dart';
-import 'package:Curel/presentation/theme/terminal_theme.dart';
-import 'package:Curel/presentation/widgets/term_button.dart';
-import 'package:curl_parser/curl_parser.dart';
+import 'package:curel/data/models/curl_response.dart';
+import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
+import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -106,7 +106,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       final trimmed = curlText.trim();
       if (!trimmed.startsWith('curl')) return;
 
-      final curl = Curl.parse(trimmed);
+      final curl = parseCurl(trimmed);
 
       _method = HttpMethod.values.firstWhere(
         (m) => m.name.toUpperCase() == curl.method.toUpperCase(),

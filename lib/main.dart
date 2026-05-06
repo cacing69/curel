@@ -1,7 +1,7 @@
-import 'package:Curel/data/services/curl_http_client.dart';
-import 'package:Curel/domain/services/clipboard_service.dart';
-import 'package:Curel/presentation/screens/home_page.dart';
-import 'package:Curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/domain/services/clipboard_service.dart';
+import 'package:curel/presentation/screens/home_page.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 
 void main() {

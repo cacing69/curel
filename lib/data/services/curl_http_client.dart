@@ -1,4 +1,4 @@
-import 'package:Curel/data/models/curl_response.dart';
+import 'package:curel/data/models/curl_response.dart';
 import 'package:curl_parser/curl_parser.dart';
 import 'package:dio/dio.dart';
 
