@@ -3,8 +3,9 @@ import 'package:Curel/presentation/theme/terminal_colors.dart';
 import 'package:Curel/presentation/widgets/html_preview.dart';
 import 'package:Curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_highlight2/themes/atom-one-dark.dart';
-import 'package:flutter_highlight2/flutter_highlight.dart';
+import 'package:highlight/highlight.dart' show highlight;
 
 enum ResponseTab { headers, body }
 
@@ -31,16 +32,7 @@ class ResponseViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: TColors.green,
-          ),
-        ),
-      );
+      return const Center(child: _TerminalLoader());
     }
 
     if (error != null) {
@@ -63,14 +55,13 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
-        return SearchableText(
-          text: response!.formatHeaders(),
-          searchActive: searchActive,
-          onClose: onCloseSearch,
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: TColors.mutedText,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: SelectionArea(
+            child: RichText(
+              text: response!.formatHeadersSpan(),
+              softWrap: true,
+            ),
           ),
         );
       }
@@ -80,13 +71,12 @@ class ResponseViewer extends StatelessWidget {
           text: response!.bodyText,
           searchActive: true,
           onClose: onCloseSearch,
+          syntaxLanguage: response!.highlightLanguage,
           style: const TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
             color: TColors.text,
           ),
-          syntaxLanguage: response!.highlightLanguage,
-          syntaxTheme: atomOneDarkTheme,
         );
       }
 
@@ -108,13 +98,23 @@ class ResponseViewer extends StatelessWidget {
     final lang = response.highlightLanguage;
 
     if (lang != null) {
+      final result = highlight.parse(response.bodyText, language: lang);
+      final spans = _buildSpans(result.nodes, atomOneDarkTheme);
+
       return SingleChildScrollView(
         padding: const EdgeInsets.all(8),
-        child: HighlightView(
-          response.bodyText,
-          language: lang,
-          theme: atomOneDarkTheme,
-          textStyle: const TextStyle(fontSize: 12),
+        child: SelectionArea(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: TColors.text,
+              ),
+              children: spans,
+            ),
+            softWrap: true,
+          ),
         ),
       );
     }
@@ -130,6 +130,47 @@ class ResponseViewer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static List<TextSpan> _buildSpans(
+    List<dynamic>? nodes,
+    Map<String, TextStyle> theme,
+  ) {
+    final spans = <TextSpan>[];
+
+    void traverse(dynamic n) {
+      final node = n as dynamic;
+      if (node.value != null) {
+        final className = node.className as String?;
+        spans.add(TextSpan(
+          text: node.value as String,
+          style: className != null && theme[className] != null
+              ? theme[className]
+              : null,
+        ));
+      } else if (node.children != null) {
+        final className = node.className as String?;
+        final childNodes = node.children as List;
+        if (className != null && theme[className] != null) {
+          spans.add(TextSpan(
+            style: theme[className],
+            children: _buildSpans(childNodes, theme),
+          ));
+        } else {
+          for (final child in childNodes) {
+            traverse(child);
+          }
+        }
+      }
+    }
+
+    if (nodes != null) {
+      for (final node in nodes) {
+        traverse(node);
+      }
+    }
+
+    return spans;
   }
 }
 
@@ -198,6 +239,18 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     ),
                   ],
                   const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: widget.response.bodyText));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        _terminalSnackBar('copied to clipboard'),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
+                    ),
+                  ),
                   GestureDetector(
                     onTap: () => setState(() {
                       _searchActive = !_searchActive;
@@ -295,4 +348,87 @@ void openFullscreenResponse(BuildContext context, CurlResponse response) {
       builder: (_) => FullscreenResponseViewer(response: response),
     ),
   );
+}
+
+SnackBar _terminalSnackBar(String message) {
+  return SnackBar(
+    content: Text(
+      message,
+      style: const TextStyle(
+        color: TColors.green,
+        fontFamily: 'monospace',
+        fontSize: 12,
+      ),
+    ),
+    backgroundColor: TColors.surface,
+    behavior: SnackBarBehavior.floating,
+    margin: const EdgeInsets.all(12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    duration: const Duration(seconds: 2),
+    shape: RoundedRectangleBorder(
+      side: const BorderSide(color: TColors.border),
+      borderRadius: BorderRadius.circular(4),
+    ),
+  );
+}
+
+class _TerminalLoader extends StatefulWidget {
+  const _TerminalLoader();
+
+  @override
+  State<_TerminalLoader> createState() => _TerminalLoaderState();
+}
+
+class _TerminalLoaderState extends State<_TerminalLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  static const _frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final index = (_controller.value * _frames.length).floor() % _frames.length;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _frames[index],
+              style: const TextStyle(
+                color: TColors.green,
+                fontFamily: 'monospace',
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'loading',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

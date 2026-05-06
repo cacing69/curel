@@ -387,26 +387,16 @@ class _SearchableTextState extends State<SearchableText> {
     final hasSyntax = widget.syntaxLanguage != null;
     final isSearching = widget.searchActive && _query.isNotEmpty;
 
-    if (hasSyntax && !isSearching) {
+    if (hasSyntax || isSearching) {
       return SingleChildScrollView(
         key: _contentKey,
         controller: _scrollController,
         padding: widget.padding,
-        child: RichText(
-          text: _buildSpan(),
-          softWrap: true,
-        ),
-      );
-    }
-
-    if (isSearching) {
-      return SingleChildScrollView(
-        key: _contentKey,
-        controller: _scrollController,
-        padding: widget.padding,
-        child: RichText(
-          text: _buildSpan(),
-          softWrap: true,
+        child: SelectionArea(
+          child: RichText(
+            text: _buildSpan(),
+            softWrap: true,
+          ),
         ),
       );
     }
@@ -461,19 +451,29 @@ class _SearchableTextState extends State<SearchableText> {
             ),
             const SizedBox(width: 4),
             GestureDetector(
-              onTap: _prevMatch,
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.keyboard_arrow_up,
-                    size: 20, color: TColors.mutedText),
+              onTap: _activeIndex > 0 ? _prevMatch : null,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.keyboard_arrow_up,
+                  size: 20,
+                  color: _activeIndex > 0
+                      ? TColors.mutedText
+                      : TColors.mutedText.withValues(alpha: 0.3),
+                ),
               ),
             ),
             GestureDetector(
-              onTap: _nextMatch,
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.keyboard_arrow_down,
-                    size: 20, color: TColors.mutedText),
+              onTap: _activeIndex < _matches.length - 1 ? _nextMatch : null,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: _activeIndex < _matches.length - 1
+                      ? TColors.mutedText
+                      : TColors.mutedText.withValues(alpha: 0.3),
+                ),
               ),
             ),
           ],
