@@ -7,6 +7,7 @@ import 'package:Curel/presentation/theme/terminal_colors.dart';
 import 'package:Curel/presentation/widgets/response_viewer.dart';
 import 'package:Curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   final CurlHttpClient httpClient;
@@ -73,6 +74,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _clear() {
+    _curlController.clear();
+    setState(() {
+      _response = null;
+      _error = null;
+      _showHtmlPreview = false;
+      _searchActive = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,44 +96,71 @@ class _HomePageState extends State<HomePage> {
             Container(
               color: TColors.surface,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 0),
-                    child: Text(
-                      '❯ ',
-                      style: TextStyle(
-                        color: TColors.green,
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _curlController,
-                      maxLines: null,
-                      minLines: 3,
-                      cursorColor: TColors.green,
-                      style: const TextStyle(
-                        color: TColors.text,
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'paste or type a curl command...',
-                        hintStyle: TextStyle(
-                          color: TColors.mutedText,
-                          fontFamily: 'monospace',
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 0),
+                        child: Text(
+                          '❯ ',
+                          style: TextStyle(
+                            color: TColors.green,
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
                       ),
+                      Expanded(
+                        child: TextField(
+                          controller: _curlController,
+                          maxLines: 8,
+                          minLines: 3,
+                          cursorColor: TColors.green,
+                          style: const TextStyle(
+                            color: TColors.text,
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: 'paste or type a curl command...',
+                            hintStyle: TextStyle(
+                              color: TColors.mutedText,
+                              fontFamily: 'monospace',
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: ListenableBuilder(
+                      listenable: _curlController,
+                      builder: (context, _) {
+                        if (_curlController.text.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return GestureDetector(
+                          onTap: _clear,
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: TColors.red,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -147,18 +185,18 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.history,
-                        size: 18,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
+                  // GestureDetector(
+                  //   onTap: null,
+                  //   child: Padding(
+                  //     padding: const EdgeInsets.all(4),
+                  //     child: Icon(
+                  //       Icons.history,
+                  //       size: 18,
+                  //       color: TColors.mutedText,
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.play_arrow,
                     label: 'Execute',
@@ -252,10 +290,28 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(
+                            ClipboardData(text: _response!.bodyText),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            _terminalSnackBar('copied to clipboard'),
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.copy,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
                         onTap: () =>
                             setState(() => _searchActive = !_searchActive),
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.only(left: 4),
                           child: Icon(
                             _searchActive ? Icons.search_off : Icons.search,
                             size: 16,
@@ -337,4 +393,26 @@ class _FlatTab extends StatelessWidget {
       ),
     );
   }
+}
+
+SnackBar _terminalSnackBar(String message) {
+  return SnackBar(
+    content: Text(
+      message,
+      style: const TextStyle(
+        color: TColors.green,
+        fontFamily: 'monospace',
+        fontSize: 12,
+      ),
+    ),
+    backgroundColor: TColors.surface,
+    behavior: SnackBarBehavior.floating,
+    margin: const EdgeInsets.all(12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    duration: const Duration(seconds: 2),
+    shape: RoundedRectangleBorder(
+      side: const BorderSide(color: TColors.border),
+      borderRadius: BorderRadius.circular(4),
+    ),
+  );
 }
