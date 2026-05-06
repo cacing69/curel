@@ -1,5 +1,6 @@
 import 'package:Curel/data/models/curl_response.dart';
 import 'package:Curel/presentation/screens/about_page.dart';
+import 'package:Curel/presentation/screens/request_builder_page.dart';
 import 'package:Curel/data/services/curl_http_client.dart';
 import 'package:Curel/domain/services/clipboard_service.dart';
 import 'package:Curel/domain/services/curl_parser_service.dart';
@@ -56,14 +57,23 @@ class _HomePageState extends State<HomePage> {
       _showHtmlPreview = false;
     });
 
+    final sw = Stopwatch()..start();
     try {
       final curl = parseCurl(text);
       final result = await widget.httpClient.execute(curl);
-      setState(() => _response = result);
+      final elapsed = sw.elapsedMilliseconds;
+      if (elapsed < 500) {
+        await Future.delayed(Duration(milliseconds: 500 - elapsed));
+      }
+      if (mounted) setState(() => _response = result);
     } catch (e) {
-      setState(() => _error = e.toString());
+      final elapsed = sw.elapsedMilliseconds;
+      if (elapsed < 500) {
+        await Future.delayed(Duration(milliseconds: 500 - elapsed));
+      }
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -82,6 +92,38 @@ class _HomePageState extends State<HomePage> {
       _showHtmlPreview = false;
       _searchActive = false;
     });
+  }
+
+  Future<void> _openBuilder() async {
+    final result = await Navigator.of(context).push<dynamic>(
+      MaterialPageRoute(
+        builder: (_) => RequestBuilderPage(
+          httpClient: widget.httpClient,
+          initialCurl: _curlController.text.trim().isEmpty
+              ? null
+              : _curlController.text.trim(),
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      if (result is String) {
+        setState(() {
+          _curlController.text = result;
+          _response = null;
+          _error = null;
+          _showHtmlPreview = false;
+          _searchActive = false;
+        });
+        _executeCurl();
+      } else if (result is CurlResponse) {
+        setState(() {
+          _response = result;
+          _error = null;
+          _showHtmlPreview = false;
+          _searchActive = false;
+        });
+      }
+    }
   }
 
   @override
@@ -176,8 +218,13 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 children: [
                   TermButton(
+                    icon: Icons.http,
+                    onTap: _openBuilder,
+                  ),
+                  const SizedBox(width: 6),
+                  TermButton(
                     icon: Icons.content_paste,
-                    label: 'Paste',
+                    label: 'paste',
                     onTap: _paste,
                   ),
                   const SizedBox(width: 6),
@@ -188,14 +235,11 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const Spacer(),
-                  TermButton(
-                    icon: Icons.history,
-                    onTap: null,
-                  ),
+                  TermButton(icon: Icons.history, onTap: null),
                   const SizedBox(width: 6),
                   TermButton(
                     icon: Icons.play_arrow,
-                    label: 'Execute',
+                    label: 'exec',
                     onTap: _isLoading ? null : _executeCurl,
                     accent: true,
                   ),
@@ -290,10 +334,7 @@ class _HomePageState extends State<HomePage> {
                           Clipboard.setData(
                             ClipboardData(text: _response!.bodyText),
                           );
-                          showTerminalToast(
-                            context,
-                            'copied to clipboard',
-                          );
+                          showTerminalToast(context, 'copied to clipboard');
                         },
                         child: const Padding(
                           padding: EdgeInsets.only(left: 8),
