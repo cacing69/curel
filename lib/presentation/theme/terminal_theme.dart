@@ -127,7 +127,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
       child: FadeTransition(
         opacity: _controller,
         child: Material(
-          color: TColors.surface,
+          color: TColors.background,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Text(

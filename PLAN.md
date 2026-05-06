@@ -6,6 +6,7 @@ Environment variables — Definisikan {{base_url}}, {{api_key}}, dll. yang bisa 
 
 Request body editor — Untuk POST/PUT, sediakan editor body terpisah (JSON/form-data) dengan syntax highlighting, alih-alih harus ketik full curl command manual.
 
-Response diff — Bandingkan 2 response secara side-by-side. Sangat berguna untuk debugging API changes.
+ada fitur save sample response, yang terikat dengan collection/history
+--
 
-Import/export — Import curl dari clipboard/file, export history sebagai curl commands atau Postman collection JSON.
+pada saat response, ada tombol save, utk write ke internal disk atau save, atau share ke social lainnya
