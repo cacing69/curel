@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 children: [
                   TermButton(
-                    icon: Icons.http,
+                    icon: Icons.science,
                     onTap: _openBuilder,
                   ),
                   const SizedBox(width: 6),
