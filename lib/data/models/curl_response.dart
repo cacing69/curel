@@ -9,6 +9,7 @@ class CurlResponse {
   final Map<String, List<String>> headers;
   final dynamic body;
   final String? verboseLog;
+  final String? traceLog;
 
   const CurlResponse({
     this.statusCode,
@@ -16,6 +17,7 @@ class CurlResponse {
     this.headers = const {},
     this.body,
     this.verboseLog,
+    this.traceLog,
   });
 
   String? get contentType => headers['content-type']?.firstOrNull;

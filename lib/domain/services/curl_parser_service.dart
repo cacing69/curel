@@ -31,6 +31,7 @@ String _stripUnsupportedFlags(String input) {
   const stripWithValueLong = {
     'output',
     'write-out',
+    'trace',
     'connect-timeout',
     'max-time',
     'retry',
@@ -195,13 +196,30 @@ class ParsedCurl {
   final String? outputFileName;
   final bool verbose;
   final bool followRedirects;
+  final String? traceFileName;
 
   const ParsedCurl({
     required this.curl,
     this.outputFileName,
     this.verbose = false,
     this.followRedirects = false,
+    this.traceFileName,
   });
+}
+
+/// Extracts the trace filename from `--trace` flag in [input].
+String? _extractTraceFile(String input) {
+  final tokens = _tokenize(input);
+  for (var i = 0; i < tokens.length; i++) {
+    final tok = tokens[i];
+    if (tok == '--trace' && i + 1 < tokens.length) {
+      return _unquote(tokens[i + 1]);
+    }
+    if (tok.startsWith('--trace=')) {
+      return _unquote(tok.substring(8));
+    }
+  }
+  return null;
 }
 
 /// Extracts the output filename from `-o` / `--output` flags in [input].
@@ -271,11 +289,13 @@ ParsedCurl parseCurl(String input) {
   final outputFile = _extractOutputFile(input);
   final verbose = _hasVerbose(input);
   final followRedirects = _hasLocation(input);
+  final traceFile = _extractTraceFile(input);
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
     outputFileName: outputFile,
     verbose: verbose,
     followRedirects: followRedirects,
+    traceFileName: traceFile,
   );
 }

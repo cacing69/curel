@@ -281,10 +281,7 @@ class _HomePageState extends State<HomePage> {
 
   // ── Shared Builders ─────────────────────────────────────────────
 
-  Widget _buildInputField({
-    int? maxLines = 8,
-    int minLines = 3,
-  }) {
+  Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
     final unlimited = maxLines == null;
     Widget editor = Stack(
       children: [
@@ -486,18 +483,7 @@ class _HomePageState extends State<HomePage> {
                               fontSize: 11,
                             ),
                           ),
-                          if (_response!.verboseLog != null &&
-                              _response!.verboseLog!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            _FlatTab(
-                              label: 'verbose',
-                              selected: _selectedTab == ResponseTab.verbose,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.verbose;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
+
                           const SizedBox(width: 8),
                           _FlatTab(
                             label: 'headers',
@@ -518,6 +504,18 @@ class _HomePageState extends State<HomePage> {
                               _showHtmlPreview = false;
                             }),
                           ),
+                          if (_response!.verboseLog != null &&
+                              _response!.verboseLog!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            _FlatTab(
+                              label: 'verbose',
+                              selected: _selectedTab == ResponseTab.verbose,
+                              onTap: () => setState(() {
+                                _selectedTab = ResponseTab.verbose;
+                                _showHtmlPreview = false;
+                              }),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -627,8 +625,10 @@ class _HomePageState extends State<HomePage> {
             if (_isFullscreenInput) ...[
               Container(
                 color: TColors.surface,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     _WindowDot(
@@ -675,8 +675,10 @@ class _HomePageState extends State<HomePage> {
                 onTap: _enterFullscreen,
                 child: Container(
                   color: TColors.surface,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: _buildInputField(),
                 ),
               ),
