@@ -95,28 +95,49 @@ class _HomePageState extends State<HomePage> {
     try {
       final parsed = parseCurl(text);
       final hasOutput = parsed.outputFileName != null;
+      final hasTrace = parsed.traceFileName != null;
       final result = hasOutput
           ? await widget.httpClient.executeBinary(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
+              trace: hasTrace,
+              traceAscii: parsed.traceAscii,
             )
           : await widget.httpClient.execute(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
+              trace: hasTrace,
+              traceAscii: parsed.traceAscii,
             );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
       }
       if (hasOutput) {
-        if (parsed.verbose && mounted) {
-          setState(() => _response = result);
+        if ((parsed.verbose || hasTrace) && mounted) {
+          setState(() {
+            _response = result;
+            if (hasTrace && result.traceLog != null) {
+              _selectedTab = ResponseTab.trace;
+            }
+          });
         }
         await _downloadFile(result, parsed.outputFileName!);
       } else if (mounted) {
-        setState(() => _response = result);
+        setState(() {
+          _response = result;
+          if (hasTrace && result.traceLog != null) {
+            _selectedTab = ResponseTab.trace;
+          }
+        });
+      }
+      if (hasTrace &&
+          result.traceLog != null &&
+          result.traceLog!.isNotEmpty &&
+          mounted) {
+        await _saveTraceFile(result.traceLog!, parsed.traceFileName!);
       }
     } catch (e) {
       final elapsed = sw.elapsedMilliseconds;
@@ -218,6 +239,23 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  // ── Save trace file (--trace flag) ───────────────────────────────
+
+  Future<void> _saveTraceFile(String traceContent, String fileName) async {
+    try {
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save trace log',
+        fileName: fileName,
+        bytes: Uint8List.fromList(utf8.encode(traceContent)),
+      );
+      if (path != null && mounted) {
+        showTerminalToast(context, 'trace saved to $fileName');
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error saving trace: $e');
     }
   }
 
@@ -512,6 +550,18 @@ class _HomePageState extends State<HomePage> {
                               selected: _selectedTab == ResponseTab.verbose,
                               onTap: () => setState(() {
                                 _selectedTab = ResponseTab.verbose;
+                                _showHtmlPreview = false;
+                              }),
+                            ),
+                          ],
+                          if (_response!.traceLog != null &&
+                              _response!.traceLog!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            _FlatTab(
+                              label: 'trace',
+                              selected: _selectedTab == ResponseTab.trace,
+                              onTap: () => setState(() {
+                                _selectedTab = ResponseTab.trace;
                                 _showHtmlPreview = false;
                               }),
                             ),

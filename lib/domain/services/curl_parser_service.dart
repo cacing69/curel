@@ -32,6 +32,7 @@ String _stripUnsupportedFlags(String input) {
     'output',
     'write-out',
     'trace',
+    'trace-ascii',
     'connect-timeout',
     'max-time',
     'retry',
@@ -197,6 +198,7 @@ class ParsedCurl {
   final bool verbose;
   final bool followRedirects;
   final String? traceFileName;
+  final bool traceAscii;
 
   const ParsedCurl({
     required this.curl,
@@ -204,10 +206,11 @@ class ParsedCurl {
     this.verbose = false,
     this.followRedirects = false,
     this.traceFileName,
+    this.traceAscii = false,
   });
 }
 
-/// Extracts the trace filename from `--trace` flag in [input].
+/// Extracts the trace filename from `--trace` or `--trace-ascii` flag in [input].
 String? _extractTraceFile(String input) {
   final tokens = _tokenize(input);
   for (var i = 0; i < tokens.length; i++) {
@@ -217,6 +220,12 @@ String? _extractTraceFile(String input) {
     }
     if (tok.startsWith('--trace=')) {
       return _unquote(tok.substring(8));
+    }
+    if (tok == '--trace-ascii' && i + 1 < tokens.length) {
+      return _unquote(tokens[i + 1]);
+    }
+    if (tok.startsWith('--trace-ascii=')) {
+      return _unquote(tok.substring(14));
     }
   }
   return null;
@@ -283,6 +292,16 @@ bool _hasLocation(String input) {
   return false;
 }
 
+/// Checks if the input contains `--trace-ascii` flag.
+bool _hasTraceAscii(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--trace-ascii') return true;
+    if (tok.startsWith('--trace-ascii=')) return true;
+  }
+  return false;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
@@ -290,6 +309,7 @@ ParsedCurl parseCurl(String input) {
   final verbose = _hasVerbose(input);
   final followRedirects = _hasLocation(input);
   final traceFile = _extractTraceFile(input);
+  final traceAscii = _hasTraceAscii(input);
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
@@ -297,5 +317,6 @@ ParsedCurl parseCurl(String input) {
     verbose: verbose,
     followRedirects: followRedirects,
     traceFileName: traceFile,
+    traceAscii: traceAscii,
   );
 }

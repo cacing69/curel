@@ -151,4 +151,76 @@ class CurlResponse {
     }
     return TextSpan(children: children);
   }
+
+  String formatTraceLog() {
+    return traceLog ?? '';
+  }
+
+  TextSpan formatTraceLogSpan() {
+    if (traceLog == null || traceLog!.isEmpty) {
+      return const TextSpan();
+    }
+    final children = <TextSpan>[];
+    for (final line in traceLog!.split('\n')) {
+      if (line.startsWith('== Info:')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('=> Send')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('<= Recv')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (_isHexDumpLine(line)) {
+        children.addAll(_formatHexDumpLineSpans(line));
+      } else if (line.isNotEmpty) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
+        ));
+      }
+    }
+    return TextSpan(children: children);
+  }
+
+  static bool _isHexDumpLine(String line) {
+    return line.length > 5 &&
+        RegExp(r'^[0-9a-fA-F]{4}:\s').hasMatch(line);
+  }
+
+  static List<TextSpan> _formatHexDumpLineSpans(String line) {
+    final colonIdx = line.indexOf(': ');
+    if (colonIdx < 0) {
+      return [TextSpan(text: '$line\n', style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12))];
+    }
+
+    final offset = line.substring(0, colonIdx + 2);
+    final rest = line.substring(colonIdx + 2);
+
+    // Hex portion is ~49 chars (16 bytes as "HH " with grouping), then ASCII
+    final hexEnd = rest.length >= 49 ? 49 : rest.length;
+    final hexPart = rest.substring(0, hexEnd);
+    final asciiPart = hexEnd < rest.length ? rest.substring(hexEnd) : '';
+
+    return [
+      TextSpan(
+        text: offset,
+        style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+      ),
+      TextSpan(
+        text: hexPart,
+        style: const TextStyle(color: TColors.orange, fontFamily: 'monospace', fontSize: 12),
+      ),
+      TextSpan(
+        text: '$asciiPart\n',
+        style: const TextStyle(color: TColors.purple, fontFamily: 'monospace', fontSize: 12),
+      ),
+    ];
+  }
 }

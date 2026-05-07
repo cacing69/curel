@@ -110,6 +110,16 @@ class HelpSheet extends StatelessWidget {
                     onUse: onUse,
                   ),
                   _HelpSection(
+                    title: 'Trace request (hex dump)',
+                    command: 'curl --trace trace.log https://httpbin.org/get',
+                    onUse: onUse,
+                  ),
+                  _HelpSection(
+                    title: 'Trace request (ASCII)',
+                    command: 'curl --trace-ascii trace.log https://httpbin.org/get',
+                    onUse: onUse,
+                  ),
+                  _HelpSection(
                     title: 'Status code',
                     command: 'curl https://httpbin.org/status/404',
                     onUse: onUse,
