@@ -1,4 +1,0 @@
-- add full --trace and --trace-ascii support with hex dump format
-- add trace tab with syntax highlighting in response viewer
-- save trace to file when filename specified
-- add trace entries to help sheet
