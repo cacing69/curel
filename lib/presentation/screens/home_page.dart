@@ -448,7 +448,7 @@ class _HomePageState extends State<HomePage> {
                       child: Row(
                         children: [
                           const Text(
-                            'response',
+                            'res',
                             style: TextStyle(
                               color: TColors.purple,
                               fontFamily: 'monospace',
@@ -478,7 +478,19 @@ class _HomePageState extends State<HomePage> {
                               fontSize: 11,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          if (_response!.verboseLog != null &&
+                              _response!.verboseLog!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            _FlatTab(
+                              label: 'verbose',
+                              selected: _selectedTab == ResponseTab.verbose,
+                              onTap: () => setState(() {
+                                _selectedTab = ResponseTab.verbose;
+                                _showHtmlPreview = false;
+                              }),
+                            ),
+                          ],
+                          const SizedBox(width: 8),
                           _FlatTab(
                             label: 'headers',
                             selected: _selectedTab == ResponseTab.headers,
@@ -487,7 +499,7 @@ class _HomePageState extends State<HomePage> {
                               _showHtmlPreview = false;
                             }),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 8),
                           _FlatTab(
                             label: 'body',
                             selected:
@@ -498,34 +510,27 @@ class _HomePageState extends State<HomePage> {
                               _showHtmlPreview = false;
                             }),
                           ),
-                          if (_response!.isHtml) ...[
-                            const SizedBox(width: 4),
-                            _FlatTab(
-                              label: 'preview',
-                              selected: _showHtmlPreview,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.body;
-                                _showHtmlPreview = true;
-                                _searchActive = false;
-                              }),
-                            ),
-                          ],
-                          if (_response!.verboseLog != null &&
-                              _response!.verboseLog!.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            _FlatTab(
-                              label: 'verbose',
-                              selected: _selectedTab == ResponseTab.verbose,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.verbose;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
                         ],
                       ),
                     ),
                   ),
+                  if (_response!.isHtml) ...[
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _selectedTab = ResponseTab.body;
+                        _showHtmlPreview = true;
+                        _searchActive = false;
+                      }),
+                      child: const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(
+                          Icons.visibility,
+                          size: 16,
+                          color: TColors.mutedText,
+                        ),
+                      ),
+                    ),
+                  ],
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(
@@ -736,10 +741,7 @@ class _CurlHighlight extends StatelessWidget {
   final String text;
   final int? maxLines;
 
-  const _CurlHighlight({
-    required this.text,
-    this.maxLines,
-  });
+  const _CurlHighlight({required this.text, this.maxLines});
 
   static const _methods = {
     'GET',
@@ -970,7 +972,11 @@ class _MoreMenu extends StatelessWidget {
               height: 36,
               child: Row(
                 children: [
-                  Icon(Icons.settings_outlined, size: 14, color: TColors.mutedText),
+                  Icon(
+                    Icons.settings_outlined,
+                    size: 14,
+                    color: TColors.mutedText,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'settings',
