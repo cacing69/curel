@@ -38,6 +38,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final _curlController = TextEditingController();
   final _focusNode = FocusNode();
+  final _textFieldKey = GlobalKey();
   CurlResponse? _response;
   bool _isLoading = false;
   String? _error;
@@ -51,7 +52,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _focusNode.addListener(() {
       if (_focusNode.hasFocus && !_isFullscreenInput) {
-        setState(() => _isFullscreenInput = true);
+        _enterFullscreen();
       }
     });
   }
@@ -280,7 +281,10 @@ class _HomePageState extends State<HomePage> {
 
   // ── Shared Builders ─────────────────────────────────────────────
 
-  Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
+  Widget _buildInputField({
+    int? maxLines = 8,
+    int minLines = 3,
+  }) {
     final unlimited = maxLines == null;
     Widget editor = Stack(
       children: [
@@ -294,7 +298,7 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(
                   color: TColors.green,
                   fontFamily: 'monospace',
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -317,6 +321,7 @@ class _HomePageState extends State<HomePage> {
                     },
                   ),
                   TextField(
+                    key: _textFieldKey,
                     focusNode: _focusNode,
                     controller: _curlController,
                     maxLines: unlimited ? null : maxLines,
@@ -329,12 +334,15 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.transparent,
                       fontFamily: 'monospace',
                       fontSize: 13,
+                      height: 1.4,
                     ),
                     decoration: const InputDecoration(
                       hintText: 'paste or type a curl command...',
                       hintStyle: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
+                        fontSize: 13,
+                        height: 1.4,
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -373,10 +381,10 @@ class _HomePageState extends State<HomePage> {
         ),
       ],
     );
-    if (unlimited) {
-      return SingleChildScrollView(child: editor);
-    }
-    return editor;
+    return SingleChildScrollView(
+      physics: unlimited ? const NeverScrollableScrollPhysics() : null,
+      child: editor,
+    );
   }
 
   Widget _buildActionButtons({bool fullscreen = false}) {
@@ -608,81 +616,93 @@ class _HomePageState extends State<HomePage> {
 
   // ── Layout Modes ────────────────────────────────────────────────
 
-  Widget _buildFullscreenInput() {
-    return Scaffold(
-      backgroundColor: TColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header bar
-            Container(
-              color: TColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  _WindowDot(
-                    color: TColors.red,
-                    icon: Icons.close,
-                    onTap: _exitFullscreen,
-                  ),
-                  const SizedBox(width: 6),
-                  const _WindowDot(color: TColors.yellow),
-                  const SizedBox(width: 6),
-                  const _WindowDot(color: TColors.green),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'curl input',
-                    style: TextStyle(
-                      color: TColors.mutedText,
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
-                  ),
-                  const Spacer(),
-                  _HelpButton(onTap: () => _showHelp(context)),
-                ],
-              ),
-            ),
-            // Input field (expanded)
-            Expanded(
-              child: Container(
-                color: TColors.surface,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: _buildInputField(maxLines: null, minLines: 1),
-              ),
-            ),
-            // Bottom action bar
-            Container(
-              color: TColors.background,
-              child: _buildActionButtons(fullscreen: true),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVerticalLayout() {
+  Widget _buildPortraitLayout() {
     return Scaffold(
       backgroundColor: TColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              color: TColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: _buildInputField(),
-            ),
-            _buildActionButtons(),
-            Expanded(child: _buildResponseSection(isHorizontal: false)),
+            // Fullscreen header
+            if (_isFullscreenInput) ...[
+              Container(
+                color: TColors.surface,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    _WindowDot(
+                      color: TColors.red,
+                      icon: Icons.close,
+                      onTap: _exitFullscreen,
+                    ),
+                    const SizedBox(width: 6),
+                    const _WindowDot(color: TColors.yellow),
+                    const SizedBox(width: 6),
+                    const _WindowDot(color: TColors.green),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'curl input',
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                      ),
+                    ),
+                    const Spacer(),
+                    _HelpButton(onTap: () => _showHelp(context)),
+                  ],
+                ),
+              ),
+              Container(height: 1, color: TColors.border),
+            ],
+
+            // Input area
+            if (_isFullscreenInput)
+              Expanded(
+                child: Container(
+                  color: TColors.surface,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: _buildInputField(maxLines: null, minLines: 1),
+                ),
+              )
+            else
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _enterFullscreen,
+                child: Container(
+                  color: TColors.surface,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: _buildInputField(),
+                ),
+              ),
+
+            // Actions
+            _isFullscreenInput
+                ? Container(
+                    color: TColors.background,
+                    child: _buildActionButtons(fullscreen: true),
+                  )
+                : _buildActionButtons(),
+
+            // Response section (compact only)
+            if (!_isFullscreenInput)
+              Expanded(child: _buildResponseSection(isHorizontal: false)),
           ],
         ),
       ),
     );
+  }
+
+  void _enterFullscreen() {
+    setState(() => _isFullscreenInput = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   Widget _buildHorizontalLayout() {
@@ -698,13 +718,17 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    color: TColors.surface,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _focusNode.requestFocus(),
+                    child: Container(
+                      color: TColors.surface,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: _buildInputField(maxLines: 12, minLines: 5),
                     ),
-                    child: _buildInputField(maxLines: 12, minLines: 5),
                   ),
                   _buildActionButtons(),
                   const Spacer(),
@@ -725,13 +749,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isFullscreenInput) return _buildFullscreenInput();
-
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     if (isLandscape) return _buildHorizontalLayout();
 
-    return _buildVerticalLayout();
+    return _buildPortraitLayout();
   }
 }
 
@@ -778,6 +800,7 @@ class _CurlHighlight extends StatelessWidget {
     const baseStyle = TextStyle(
       fontFamily: 'monospace',
       fontSize: 13,
+      height: 1.4,
       color: TColors.text,
     );
     final spans = <TextSpan>[];

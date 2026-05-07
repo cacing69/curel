@@ -1,0 +1,3 @@
+- fix response preview long text getting clipped by enabling auto-wrap in ChunkedTextViewer (chunked_text_viewer.dart)
+- add DNS lookup, TLS connection info, and redirect chain tracking to verbose mode (curl_http_client.dart)
+- make redirect follow behavior match real curl: requires -L/--location flag, default is no follow (curl_parser_service.dart, curl_http_client.dart, home_page.dart)

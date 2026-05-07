@@ -116,6 +116,15 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
       _url = curl.uri.toString();
 
+      // Parse query params from URL into the params tab
+      if (curl.uri.hasQuery && curl.uri.queryParametersAll.isNotEmpty) {
+        _url = curl.uri.replace(queryParameters: {}).toString();
+        _queryParams = curl.uri.queryParametersAll.entries
+            .expand((e) =>
+                e.value.map((v) => KeyValueEntry(key: e.key, value: v)))
+            .toList();
+      }
+
       if (curl.headers != null && curl.headers!.isNotEmpty) {
         _headers = curl.headers!.entries
             .map((e) => KeyValueEntry(key: e.key, value: e.value))

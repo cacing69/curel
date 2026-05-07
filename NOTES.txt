@@ -1,3 +1,6 @@
 - fix response preview long text getting clipped by enabling auto-wrap in ChunkedTextViewer (chunked_text_viewer.dart)
 - add DNS lookup, TLS connection info, and redirect chain tracking to verbose mode (curl_http_client.dart)
 - make redirect follow behavior match real curl: requires -L/--location flag, default is no follow (curl_parser_service.dart, curl_http_client.dart, home_page.dart)
+- fix cursor alignment in curl editor by matching font size (13) and line height (1.4) across prompt, TextField, and syntax highlight overlay (home_page.dart)
+- parse URL query params into builder params tab instead of leaving them embedded in the URL (request_builder_page.dart)
+- auto-focus curl input when tapping editor area using GlobalKey to preserve FocusNode across layout transitions (home_page.dart)
