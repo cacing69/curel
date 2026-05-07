@@ -54,18 +54,6 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
-        if (response!.verboseLog != null &&
-            response!.verboseLog!.isNotEmpty) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(8),
-            child: SelectionArea(
-              child: RichText(
-                text: response!.formatVerboseLogSpan(),
-                softWrap: true,
-              ),
-            ),
-          );
-        }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(8),
           child: SelectionArea(
@@ -155,8 +143,11 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back,
-                        size: 18, color: TColors.mutedText),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      size: 18,
+                      color: TColors.mutedText,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   _FlatTab(
@@ -192,15 +183,18 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
-                      Clipboard.setData(ClipboardData(text: widget.response.bodyText));
-                      showTerminalToast(
-                        context,
-                        'copied to clipboard',
+                      Clipboard.setData(
+                        ClipboardData(text: widget.response.bodyText),
                       );
+                      showTerminalToast(context, 'copied to clipboard');
                     },
                     child: const Padding(
                       padding: EdgeInsets.only(right: 8),
-                      child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
+                      child: Icon(
+                        Icons.copy,
+                        size: 16,
+                        color: TColors.mutedText,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -231,9 +225,9 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       fontFamily: 'monospace',
                       color:
                           (widget.response.statusCode ?? 0) >= 200 &&
-                                  (widget.response.statusCode ?? 0) < 300
-                              ? TColors.green
-                              : TColors.red,
+                              (widget.response.statusCode ?? 0) < 300
+                          ? TColors.green
+                          : TColors.red,
                     ),
                   ),
                 ],
@@ -335,7 +329,8 @@ class _TerminalLoaderState extends State<_TerminalLoader>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final index = (_controller.value * _frames.length).floor() % _frames.length;
+        final index =
+            (_controller.value * _frames.length).floor() % _frames.length;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
