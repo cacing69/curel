@@ -1,0 +1,10 @@
+- Add MIT license
+- Fix curl editor text wrapping and scroll sync in fullscreen mode
+- Add settings page with configurable User-Agent header
+- Add shared_preferences for persistent settings storage
+- Default User-Agent follows app version (Curel/x.y.z)
+- Inject User-Agent header into all HTTP requests via DioCurlHttpClient
+- Fix request builder loading state to fill available screen space
+- Optimize large response rendering with chunked line-by-line ListView.builder
+- Skip JSON prettify and syntax highlighting for responses over 500KB
+- Support --data-raw curl flag by normalizing to --data in parser

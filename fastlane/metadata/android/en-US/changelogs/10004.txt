@@ -1,0 +1,5 @@
+- Add request builder page for constructing HTTP requests
+- Add save response to file with timestamped filename
+- Add curl cheat sheet with httpbin.org examples
+- Improve syntax highlighting for curl commands
+- Update terminal-style UI with better theming

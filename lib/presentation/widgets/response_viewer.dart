@@ -1,10 +1,10 @@
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
 import 'package:curel/presentation/widgets/html_preview.dart';
 import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:highlight/highlight.dart' show highlight;
 
 enum ResponseTab { headers, body }
 
@@ -94,82 +94,10 @@ class ResponseViewer extends StatelessWidget {
   }
 
   static Widget _buildHighlightedBody(CurlResponse response) {
-    final lang = response.highlightLanguage;
-
-    if (lang != null) {
-      final result = highlight.parse(response.bodyText, language: lang);
-      final spans = _buildSpans(result.nodes, syntaxTheme);
-
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(8),
-        child: SelectionArea(
-          child: RichText(
-            text: TextSpan(
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TColors.text,
-              ),
-              children: spans,
-            ),
-            softWrap: true,
-          ),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(8),
-      child: SelectableText(
-        response.bodyText,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          color: TColors.text,
-        ),
-      ),
+    return ChunkedTextViewer(
+      text: response.bodyText,
+      language: response.highlightLanguage,
     );
-  }
-
-  static List<TextSpan> _buildSpans(
-    List<dynamic>? nodes,
-    Map<String, TextStyle> theme,
-  ) {
-    final spans = <TextSpan>[];
-
-    void traverse(dynamic n) {
-      final node = n as dynamic;
-      if (node.value != null) {
-        final className = node.className as String?;
-        spans.add(TextSpan(
-          text: node.value as String,
-          style: className != null && theme[className] != null
-              ? theme[className]
-              : null,
-        ));
-      } else if (node.children != null) {
-        final className = node.className as String?;
-        final childNodes = node.children as List;
-        if (className != null && theme[className] != null) {
-          spans.add(TextSpan(
-            style: theme[className],
-            children: _buildSpans(childNodes, theme),
-          ));
-        } else {
-          for (final child in childNodes) {
-            traverse(child);
-          }
-        }
-      }
-    }
-
-    if (nodes != null) {
-      for (final node in nodes) {
-        traverse(node);
-      }
-    }
-
-    return spans;
   }
 }
 

@@ -42,9 +42,20 @@ String _stripUnsupportedFlags(String input) {
 
     // --long-flag  or --long-flag=value
     if (tok.startsWith('--')) {
-      final body = tok.substring(2);
+      var body = tok.substring(2);
       final eq = body.indexOf('=');
       final name = eq >= 0 ? body.substring(0, eq) : body;
+
+      // Normalize --data-raw → --data (same semantics, just no @-file)
+      if (name == 'data-raw') {
+        if (eq >= 0) {
+          result.add('--data=${body.substring(eq + 1)}');
+        } else {
+          result.add('--data');
+        }
+        i++;
+        continue;
+      }
 
       if (stripLong.contains(name)) {
         i++;

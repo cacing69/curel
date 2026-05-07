@@ -33,7 +33,10 @@ class CurlResponse {
 
   bool get isHtml => contentType?.toLowerCase().contains('html') ?? false;
 
+  static const _prettifyLimit = 500 * 1024;
+
   String? get highlightLanguage {
+    if (_rawBodyLength > _prettifyLimit) return null;
     final ct = contentType?.toLowerCase() ?? '';
     if (ct.contains('json')) return 'json';
     if (ct.contains('xml')) return 'xml';
@@ -47,9 +50,13 @@ class CurlResponse {
     return null;
   }
 
+  int get _rawBodyLength => (body?.toString() ?? '').length;
+
+  bool get isLargeResponse => _rawBodyLength > _prettifyLimit;
+
   String get bodyText {
     final raw = body?.toString() ?? '';
-    if (highlightLanguage == 'json') {
+    if (highlightLanguage == 'json' && raw.length <= _prettifyLimit) {
       try {
         final decoded = json.decode(raw);
         return const JsonEncoder.withIndent('  ').convert(decoded);
