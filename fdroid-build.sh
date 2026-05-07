@@ -80,15 +80,10 @@ echo "Copied 3 APKs to $FDROID_REPO"
 # Write changelog to fdroid metadata (subshell)
 if [ -n "$CHANGELOG" ]; then
   LOCAL_CHANGELOG_FILE="./fastlane/metadata/android/en-US/changelogs/$NEW_BUILD.txt"
-  FDROID_CHANGELOG_DIR="$FDROID_REPO/metadata/dev.cacing69.curel/changelogs"
 
   mkdir -p "$(dirname "$LOCAL_CHANGELOG_FILE")"
   echo "$CHANGELOG" > "$LOCAL_CHANGELOG_FILE"
   echo "Changelog written to $LOCAL_CHANGELOG_FILE"
-
-  mkdir -p "$FDROID_CHANGELOG_DIR"
-  cp "$LOCAL_CHANGELOG_FILE" "$FDROID_CHANGELOG_DIR/$NEW_BUILD.txt"
-  echo "Changelog copied to $FDROID_CHANGELOG_DIR/$NEW_BUILD.txt"
 fi
 
 # Commit and push to fdroid repo (subshell so cwd returns after)
