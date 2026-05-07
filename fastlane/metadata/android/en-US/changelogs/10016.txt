@@ -1,0 +1,6 @@
+- fix trace scroll performance with ListView.builder lazy rendering
+- fix input field cursor misalignment by using custom TextEditingController with buildTextSpan
+- replace InputDecoration with InputDecoration.collapsed for zero internal padding
+- fix fullscreen input area sizing with Flexible instead of Expanded
+- add paste toast notification
+- add gradle distributionSha256Sum verification

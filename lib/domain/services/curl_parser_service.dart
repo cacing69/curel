@@ -32,6 +32,7 @@ String _stripUnsupportedFlags(String input) {
     'output',
     'write-out',
     'trace',
+    'trace-ascii',
     'connect-timeout',
     'max-time',
     'retry',
@@ -65,7 +66,12 @@ String _stripUnsupportedFlags(String input) {
       }
       if (stripWithValueLong.contains(name)) {
         // --flag=value consumes 1 token; --flag value consumes 2
-        if (eq < 0 && i + 1 < tokens.length) i++;
+        // But skip consuming the value if it looks like a URL
+        if (eq < 0 && i + 1 < tokens.length) {
+          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+            i++;
+          }
+        }
         i++;
         continue;
       }
@@ -79,8 +85,12 @@ String _stripUnsupportedFlags(String input) {
         continue;
       }
       if (stripWithValueShort.contains(ch)) {
-        // skip the value token too
-        if (i + 1 < tokens.length) i++;
+        // skip the value token too (but not if it looks like a URL)
+        if (i + 1 < tokens.length) {
+          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+            i++;
+          }
+        }
         i++;
         continue;
       }
@@ -115,6 +125,12 @@ String _stripUnsupportedFlags(String input) {
   }
 
   return result.join(' ');
+}
+
+/// Checks if a string looks like a URL (starts with http:// or https://).
+bool _isUrlLike(String s) {
+  final lower = s.toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://');
 }
 
 /// Shell-style tokenizer that respects single/double quotes and
@@ -197,6 +213,8 @@ class ParsedCurl {
   final bool verbose;
   final bool followRedirects;
   final String? traceFileName;
+  final bool traceAscii;
+  final bool traceEnabled;
 
   const ParsedCurl({
     required this.curl,
@@ -204,19 +222,32 @@ class ParsedCurl {
     this.verbose = false,
     this.followRedirects = false,
     this.traceFileName,
+    this.traceAscii = false,
+    this.traceEnabled = false,
   });
 }
 
-/// Extracts the trace filename from `--trace` flag in [input].
+/// Extracts the trace filename from `--trace` or `--trace-ascii` flag in [input].
+/// Returns null if no filename is specified or if the next token looks like a URL.
 String? _extractTraceFile(String input) {
   final tokens = _tokenize(input);
   for (var i = 0; i < tokens.length; i++) {
     final tok = tokens[i];
     if (tok == '--trace' && i + 1 < tokens.length) {
-      return _unquote(tokens[i + 1]);
+      final value = _unquote(tokens[i + 1]);
+      return _isUrlLike(value) ? null : value;
     }
     if (tok.startsWith('--trace=')) {
-      return _unquote(tok.substring(8));
+      final value = _unquote(tok.substring(8));
+      return _isUrlLike(value) ? null : value;
+    }
+    if (tok == '--trace-ascii' && i + 1 < tokens.length) {
+      final value = _unquote(tokens[i + 1]);
+      return _isUrlLike(value) ? null : value;
+    }
+    if (tok.startsWith('--trace-ascii=')) {
+      final value = _unquote(tok.substring(14));
+      return _isUrlLike(value) ? null : value;
     }
   }
   return null;
@@ -283,6 +314,26 @@ bool _hasLocation(String input) {
   return false;
 }
 
+/// Checks if the input contains `--trace-ascii` flag.
+bool _hasTraceAscii(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--trace-ascii') return true;
+    if (tok.startsWith('--trace-ascii=')) return true;
+  }
+  return false;
+}
+
+/// Checks if the input contains `--trace` or `--trace-ascii` flag.
+bool _hasTraceFlag(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--trace' || tok.startsWith('--trace=')) return true;
+    if (tok == '--trace-ascii' || tok.startsWith('--trace-ascii=')) return true;
+  }
+  return false;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
@@ -290,6 +341,8 @@ ParsedCurl parseCurl(String input) {
   final verbose = _hasVerbose(input);
   final followRedirects = _hasLocation(input);
   final traceFile = _extractTraceFile(input);
+  final traceAscii = _hasTraceAscii(input);
+  final traceEnabled = _hasTraceFlag(input);
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
@@ -297,5 +350,7 @@ ParsedCurl parseCurl(String input) {
     verbose: verbose,
     followRedirects: followRedirects,
     traceFileName: traceFile,
+    traceAscii: traceAscii,
+    traceEnabled: traceEnabled,
   );
 }

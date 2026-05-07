@@ -6,7 +6,7 @@ import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-enum ResponseTab { headers, body, verbose }
+enum ResponseTab { headers, body, verbose, trace }
 
 class ResponseViewer extends StatelessWidget {
   final CurlResponse? response;
@@ -74,6 +74,19 @@ class ResponseViewer extends StatelessWidget {
               softWrap: true,
             ),
           ),
+        );
+      }
+
+      if (selectedTab == ResponseTab.trace) {
+        final lines = response!.traceLogLines;
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: lines.length,
+          itemBuilder: (context, index) {
+            return Text.rich(
+              TextSpan(children: lines[index]),
+            );
+          },
         );
       }
 
@@ -176,6 +189,19 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       onTap: () => setState(() {
                         _selectedTab = ResponseTab.body;
                         _showHtmlPreview = true;
+                        _searchActive = false;
+                      }),
+                    ),
+                  ],
+                  if (widget.response.traceLog != null &&
+                      widget.response.traceLog!.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    _FlatTab(
+                      label: 'trace',
+                      selected: _selectedTab == ResponseTab.trace,
+                      onTap: () => setState(() {
+                        _selectedTab = ResponseTab.trace;
+                        _showHtmlPreview = false;
                         _searchActive = false;
                       }),
                     ),
