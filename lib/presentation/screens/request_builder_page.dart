@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:Curel/data/models/curl_response.dart';
-import 'package:Curel/data/services/curl_http_client.dart';
-import 'package:Curel/presentation/theme/terminal_theme.dart';
-import 'package:Curel/presentation/widgets/term_button.dart';
-import 'package:curl_parser/curl_parser.dart';
+import 'package:curel/data/models/curl_response.dart';
+import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
+import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -106,7 +106,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       final trimmed = curlText.trim();
       if (!trimmed.startsWith('curl')) return;
 
-      final curl = Curl.parse(trimmed);
+      final parsed = parseCurl(trimmed);
+      final curl = parsed.curl;
 
       _method = HttpMethod.values.firstWhere(
         (m) => m.name.toUpperCase() == curl.method.toUpperCase(),
@@ -114,6 +115,15 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       );
 
       _url = curl.uri.toString();
+
+      // Parse query params from URL into the params tab
+      if (curl.uri.hasQuery && curl.uri.queryParametersAll.isNotEmpty) {
+        _url = curl.uri.replace(queryParameters: {}).toString();
+        _queryParams = curl.uri.queryParametersAll.entries
+            .expand((e) =>
+                e.value.map((v) => KeyValueEntry(key: e.key, value: v)))
+            .toList();
+      }
 
       if (curl.headers != null && curl.headers!.isNotEmpty) {
         _headers = curl.headers!.entries
@@ -400,34 +410,34 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
         Container(height: 1, color: TColors.border),
         _buildTabBar(),
         Container(height: 1, color: TColors.border),
-        if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: TColors.green,
+        Expanded(
+          child: _isLoading
+              ? Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: TColors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'executing...',
+                        style: TextStyle(
+                          color: TColors.mutedText,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'executing...',
-                  style: TextStyle(
-                    color: TColors.mutedText,
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Expanded(child: _buildTabContent()),
+                )
+              : _buildTabContent(),
+        ),
         Container(height: 1, color: TColors.border),
         _buildFooter(),
       ],
@@ -452,34 +462,34 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                     Container(height: 1, color: TColors.border),
                     _buildTabBar(),
                     Container(height: 1, color: TColors.border),
-                    if (_isLoading)
-                      const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: TColors.green,
+                    Expanded(
+                      child: _isLoading
+                          ? Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: TColors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'executing...',
+                                    style: TextStyle(
+                                      color: TColors.mutedText,
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'executing...',
-                              style: TextStyle(
-                                color: TColors.mutedText,
-                                fontFamily: 'monospace',
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Expanded(child: _buildTabContent()),
+                            )
+                          : _buildTabContent(),
+                    ),
                   ],
                 ),
               ),

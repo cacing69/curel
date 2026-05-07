@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 
 class CurlResponse {
@@ -8,12 +8,16 @@ class CurlResponse {
   final String statusMessage;
   final Map<String, List<String>> headers;
   final dynamic body;
+  final String? verboseLog;
+  final String? traceLog;
 
   const CurlResponse({
     this.statusCode,
     this.statusMessage = '',
     this.headers = const {},
     this.body,
+    this.verboseLog,
+    this.traceLog,
   });
 
   String? get contentType => headers['content-type']?.firstOrNull;
@@ -33,7 +37,10 @@ class CurlResponse {
 
   bool get isHtml => contentType?.toLowerCase().contains('html') ?? false;
 
+  static const _prettifyLimit = 500 * 1024;
+
   String? get highlightLanguage {
+    if (_rawBodyLength > _prettifyLimit) return null;
     final ct = contentType?.toLowerCase() ?? '';
     if (ct.contains('json')) return 'json';
     if (ct.contains('xml')) return 'xml';
@@ -47,9 +54,13 @@ class CurlResponse {
     return null;
   }
 
+  int get _rawBodyLength => (body?.toString() ?? '').length;
+
+  bool get isLargeResponse => _rawBodyLength > _prettifyLimit;
+
   String get bodyText {
     final raw = body?.toString() ?? '';
-    if (highlightLanguage == 'json') {
+    if (highlightLanguage == 'json' && raw.length <= _prettifyLimit) {
       try {
         final decoded = json.decode(raw);
         return const JsonEncoder.withIndent('  ').convert(decoded);
@@ -103,6 +114,41 @@ class CurlResponse {
       });
     }
 
+    return TextSpan(children: children);
+  }
+
+  String formatVerboseLog() {
+    return verboseLog ?? '';
+  }
+
+  TextSpan formatVerboseLogSpan() {
+    if (verboseLog == null || verboseLog!.isEmpty) {
+      return const TextSpan();
+    }
+    final children = <TextSpan>[];
+    for (final line in verboseLog!.split('\n')) {
+      if (line.startsWith('> ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('< ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('* ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
+        ));
+      }
+    }
     return TextSpan(children: children);
   }
 }

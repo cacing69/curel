@@ -1,12 +1,12 @@
-import 'package:Curel/data/models/curl_response.dart';
-import 'package:Curel/presentation/theme/terminal_theme.dart';
-import 'package:Curel/presentation/widgets/html_preview.dart';
-import 'package:Curel/presentation/widgets/searchable_text.dart';
+import 'package:curel/data/models/curl_response.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
+import 'package:curel/presentation/widgets/html_preview.dart';
+import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:highlight/highlight.dart' show highlight;
 
-enum ResponseTab { headers, body }
+enum ResponseTab { headers, body, verbose }
 
 class ResponseViewer extends StatelessWidget {
   final CurlResponse? response;
@@ -65,6 +65,18 @@ class ResponseViewer extends StatelessWidget {
         );
       }
 
+      if (selectedTab == ResponseTab.verbose) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: SelectionArea(
+            child: RichText(
+              text: response!.formatVerboseLogSpan(),
+              softWrap: true,
+            ),
+          ),
+        );
+      }
+
       if (searchActive) {
         return SearchableText(
           text: response!.bodyText,
@@ -94,82 +106,10 @@ class ResponseViewer extends StatelessWidget {
   }
 
   static Widget _buildHighlightedBody(CurlResponse response) {
-    final lang = response.highlightLanguage;
-
-    if (lang != null) {
-      final result = highlight.parse(response.bodyText, language: lang);
-      final spans = _buildSpans(result.nodes, syntaxTheme);
-
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(8),
-        child: SelectionArea(
-          child: RichText(
-            text: TextSpan(
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                color: TColors.text,
-              ),
-              children: spans,
-            ),
-            softWrap: true,
-          ),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(8),
-      child: SelectableText(
-        response.bodyText,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          color: TColors.text,
-        ),
-      ),
+    return ChunkedTextViewer(
+      text: response.bodyText,
+      language: response.highlightLanguage,
     );
-  }
-
-  static List<TextSpan> _buildSpans(
-    List<dynamic>? nodes,
-    Map<String, TextStyle> theme,
-  ) {
-    final spans = <TextSpan>[];
-
-    void traverse(dynamic n) {
-      final node = n as dynamic;
-      if (node.value != null) {
-        final className = node.className as String?;
-        spans.add(TextSpan(
-          text: node.value as String,
-          style: className != null && theme[className] != null
-              ? theme[className]
-              : null,
-        ));
-      } else if (node.children != null) {
-        final className = node.className as String?;
-        final childNodes = node.children as List;
-        if (className != null && theme[className] != null) {
-          spans.add(TextSpan(
-            style: theme[className],
-            children: _buildSpans(childNodes, theme),
-          ));
-        } else {
-          for (final child in childNodes) {
-            traverse(child);
-          }
-        }
-      }
-    }
-
-    if (nodes != null) {
-      for (final node in nodes) {
-        traverse(node);
-      }
-    }
-
-    return spans;
   }
 }
 
@@ -203,8 +143,11 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back,
-                        size: 18, color: TColors.mutedText),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      size: 18,
+                      color: TColors.mutedText,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   _FlatTab(
@@ -240,15 +183,18 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
-                      Clipboard.setData(ClipboardData(text: widget.response.bodyText));
-                      showTerminalToast(
-                        context,
-                        'copied to clipboard',
+                      Clipboard.setData(
+                        ClipboardData(text: widget.response.bodyText),
                       );
+                      showTerminalToast(context, 'copied to clipboard');
                     },
                     child: const Padding(
                       padding: EdgeInsets.only(right: 8),
-                      child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
+                      child: Icon(
+                        Icons.copy,
+                        size: 16,
+                        color: TColors.mutedText,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -279,9 +225,9 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       fontFamily: 'monospace',
                       color:
                           (widget.response.statusCode ?? 0) >= 200 &&
-                                  (widget.response.statusCode ?? 0) < 300
-                              ? TColors.green
-                              : TColors.red,
+                              (widget.response.statusCode ?? 0) < 300
+                          ? TColors.green
+                          : TColors.red,
                     ),
                   ),
                 ],
@@ -383,7 +329,8 @@ class _TerminalLoaderState extends State<_TerminalLoader>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final index = (_controller.value * _frames.length).floor() % _frames.length;
+        final index =
+            (_controller.value * _frames.length).floor() % _frames.length;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [

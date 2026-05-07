@@ -1,4 +1,4 @@
-import 'package:Curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 
 class TermButton extends StatelessWidget {
