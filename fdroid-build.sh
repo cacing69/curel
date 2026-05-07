@@ -37,8 +37,8 @@ esac
 NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_PATCH"
 NEW_BUILD=$((NEW_MAJOR * 10000 + NEW_MINOR * 100 + NEW_PATCH))
 
-# Read changelog from NOTES.md
-NOTES_FILE="NOTES.md"
+# Read changelog from NOTES.txt
+NOTES_FILE="NOTES.txt"
 CHANGELOG=""
 if [ -f "$NOTES_FILE" ] && [ -s "$NOTES_FILE" ]; then
   CHANGELOG=$(cat "$NOTES_FILE")
@@ -88,11 +88,12 @@ fi
 
 # Commit and push to fdroid repo (subshell so cwd returns after)
 (cd "$FDROID_REPO"
+ cd ..
  git add .
  git commit -m "update curel to $NEW_VERSION"
  git push origin main)
 
-# Clear NOTES.md after successful build
+# Clear NOTES.txt after successful build
 if [ -n "$CHANGELOG" ]; then
   > "$NOTES_FILE"
   echo "Cleared $NOTES_FILE"

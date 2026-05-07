@@ -98,10 +98,12 @@ class _HomePageState extends State<HomePage> {
           ? await widget.httpClient.executeBinary(
               parsed.curl,
               verbose: parsed.verbose,
+              followRedirects: parsed.followRedirects,
             )
           : await widget.httpClient.execute(
               parsed.curl,
               verbose: parsed.verbose,
+              followRedirects: parsed.followRedirects,
             );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {

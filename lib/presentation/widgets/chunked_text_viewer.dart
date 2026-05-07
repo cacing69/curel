@@ -21,17 +21,12 @@ class ChunkedTextViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lines = _splitLines();
-    final lineHeight = style.fontSize! * (style.height ?? 1.4) * 1.4 + 2;
     return ListView.builder(
       padding: const EdgeInsets.all(8),
       itemCount: lines.length,
-      itemExtent: lineHeight,
       itemBuilder: (context, index) {
         return Text.rich(
           TextSpan(style: style, children: lines[index]),
-          softWrap: false,
-          maxLines: 1,
-          overflow: TextOverflow.clip,
         );
       },
     );

@@ -12,7 +12,7 @@ String _stripUnsupportedFlags(String input) {
   final result = <String>[];
 
   // Short flags we silently strip (no value after them)
-  const stripShort = {'s', 'S', 'v'};
+  const stripShort = {'s', 'S', 'v', 'L'};
   // Long flags we silently strip (no value after them)
   const stripLong = {
     'silent',
@@ -194,11 +194,13 @@ class ParsedCurl {
   final Curl curl;
   final String? outputFileName;
   final bool verbose;
+  final bool followRedirects;
 
   const ParsedCurl({
     required this.curl,
     this.outputFileName,
     this.verbose = false,
+    this.followRedirects = false,
   });
 }
 
@@ -251,15 +253,29 @@ bool _hasVerbose(String input) {
   return false;
 }
 
+/// Checks if the input contains `--location` or `-L` flag.
+bool _hasLocation(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--location') return true;
+    if (tok.startsWith('-') && !tok.startsWith('--')) {
+      if (tok.contains('L')) return true;
+    }
+  }
+  return false;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
   final outputFile = _extractOutputFile(input);
   final verbose = _hasVerbose(input);
+  final followRedirects = _hasLocation(input);
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
     outputFileName: outputFile,
     verbose: verbose,
+    followRedirects: followRedirects,
   );
 }
