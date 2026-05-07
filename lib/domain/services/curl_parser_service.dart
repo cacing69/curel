@@ -66,7 +66,12 @@ String _stripUnsupportedFlags(String input) {
       }
       if (stripWithValueLong.contains(name)) {
         // --flag=value consumes 1 token; --flag value consumes 2
-        if (eq < 0 && i + 1 < tokens.length) i++;
+        // But skip consuming the value if it looks like a URL
+        if (eq < 0 && i + 1 < tokens.length) {
+          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+            i++;
+          }
+        }
         i++;
         continue;
       }
@@ -80,8 +85,12 @@ String _stripUnsupportedFlags(String input) {
         continue;
       }
       if (stripWithValueShort.contains(ch)) {
-        // skip the value token too
-        if (i + 1 < tokens.length) i++;
+        // skip the value token too (but not if it looks like a URL)
+        if (i + 1 < tokens.length) {
+          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+            i++;
+          }
+        }
         i++;
         continue;
       }
@@ -116,6 +125,12 @@ String _stripUnsupportedFlags(String input) {
   }
 
   return result.join(' ');
+}
+
+/// Checks if a string looks like a URL (starts with http:// or https://).
+bool _isUrlLike(String s) {
+  final lower = s.toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://');
 }
 
 /// Shell-style tokenizer that respects single/double quotes and
@@ -213,21 +228,26 @@ class ParsedCurl {
 }
 
 /// Extracts the trace filename from `--trace` or `--trace-ascii` flag in [input].
+/// Returns null if no filename is specified or if the next token looks like a URL.
 String? _extractTraceFile(String input) {
   final tokens = _tokenize(input);
   for (var i = 0; i < tokens.length; i++) {
     final tok = tokens[i];
     if (tok == '--trace' && i + 1 < tokens.length) {
-      return _unquote(tokens[i + 1]);
+      final value = _unquote(tokens[i + 1]);
+      return _isUrlLike(value) ? null : value;
     }
     if (tok.startsWith('--trace=')) {
-      return _unquote(tok.substring(8));
+      final value = _unquote(tok.substring(8));
+      return _isUrlLike(value) ? null : value;
     }
     if (tok == '--trace-ascii' && i + 1 < tokens.length) {
-      return _unquote(tokens[i + 1]);
+      final value = _unquote(tokens[i + 1]);
+      return _isUrlLike(value) ? null : value;
     }
     if (tok.startsWith('--trace-ascii=')) {
-      return _unquote(tok.substring(14));
+      final value = _unquote(tok.substring(14));
+      return _isUrlLike(value) ? null : value;
     }
   }
   return null;
