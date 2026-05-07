@@ -8,3 +8,6 @@
 - Optimize large response rendering with chunked line-by-line ListView.builder
 - Skip JSON prettify and syntax highlighting for responses over 500KB
 - Support --data-raw curl flag by normalizing to --data in parser
+- Support -o/--output curl flag for downloading files via system save dialog
+- Add binary response type for file downloads with explicit Uint8List handling
+- Support --verbose/-v flag with curl-style request/response log output

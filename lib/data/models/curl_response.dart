@@ -8,12 +8,14 @@ class CurlResponse {
   final String statusMessage;
   final Map<String, List<String>> headers;
   final dynamic body;
+  final String? verboseLog;
 
   const CurlResponse({
     this.statusCode,
     this.statusMessage = '',
     this.headers = const {},
     this.body,
+    this.verboseLog,
   });
 
   String? get contentType => headers['content-type']?.firstOrNull;
@@ -110,6 +112,41 @@ class CurlResponse {
       });
     }
 
+    return TextSpan(children: children);
+  }
+
+  String formatVerboseLog() {
+    return verboseLog ?? '';
+  }
+
+  TextSpan formatVerboseLogSpan() {
+    if (verboseLog == null || verboseLog!.isEmpty) {
+      return const TextSpan();
+    }
+    final children = <TextSpan>[];
+    for (final line in verboseLog!.split('\n')) {
+      if (line.startsWith('> ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('< ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else if (line.startsWith('* ')) {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        ));
+      } else {
+        children.add(TextSpan(
+          text: '$line\n',
+          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
+        ));
+      }
+    }
     return TextSpan(children: children);
   }
 }

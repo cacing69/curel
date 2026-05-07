@@ -6,7 +6,7 @@ import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-enum ResponseTab { headers, body }
+enum ResponseTab { headers, body, verbose }
 
 class ResponseViewer extends StatelessWidget {
   final CurlResponse? response;
@@ -54,11 +54,35 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
+        if (response!.verboseLog != null &&
+            response!.verboseLog!.isNotEmpty) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: SelectionArea(
+              child: RichText(
+                text: response!.formatVerboseLogSpan(),
+                softWrap: true,
+              ),
+            ),
+          );
+        }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(8),
           child: SelectionArea(
             child: RichText(
               text: response!.formatHeadersSpan(),
+              softWrap: true,
+            ),
+          ),
+        );
+      }
+
+      if (selectedTab == ResponseTab.verbose) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: SelectionArea(
+            child: RichText(
+              text: response!.formatVerboseLogSpan(),
               softWrap: true,
             ),
           ),

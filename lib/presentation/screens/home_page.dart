@@ -92,13 +92,29 @@ class _HomePageState extends State<HomePage> {
 
     final sw = Stopwatch()..start();
     try {
-      final curl = parseCurl(text);
-      final result = await widget.httpClient.execute(curl);
+      final parsed = parseCurl(text);
+      final hasOutput = parsed.outputFileName != null;
+      final result = hasOutput
+          ? await widget.httpClient.executeBinary(
+              parsed.curl,
+              verbose: parsed.verbose,
+            )
+          : await widget.httpClient.execute(
+              parsed.curl,
+              verbose: parsed.verbose,
+            );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
       }
-      if (mounted) setState(() => _response = result);
+      if (hasOutput) {
+        if (parsed.verbose && mounted) {
+          setState(() => _response = result);
+        }
+        await _downloadFile(result, parsed.outputFileName!);
+      } else if (mounted) {
+        setState(() => _response = result);
+      }
     } catch (e) {
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -178,6 +194,28 @@ class _HomePageState extends State<HomePage> {
       }
     }
     return 'error: $e';
+  }
+
+  // ── Download file (-o flag) ────────────────────────────────────────
+
+  Future<void> _downloadFile(CurlResponse response, String fileName) async {
+    try {
+      final bytes = response.body is List<int>
+          ? response.body as List<int>
+          : utf8.encode(response.body?.toString() ?? '');
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save file',
+        fileName: fileName,
+        bytes: Uint8List.fromList(bytes),
+      );
+      if (path != null && mounted) {
+        showTerminalToast(context, 'saved to $fileName');
+      } else if (mounted) {
+        showTerminalToast(context, 'download cancelled');
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
   }
 
   // ── Save response ────────────────────────────────────────────────
@@ -467,6 +505,18 @@ class _HomePageState extends State<HomePage> {
                                 _selectedTab = ResponseTab.body;
                                 _showHtmlPreview = true;
                                 _searchActive = false;
+                              }),
+                            ),
+                          ],
+                          if (_response!.verboseLog != null &&
+                              _response!.verboseLog!.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            _FlatTab(
+                              label: 'verbose',
+                              selected: _selectedTab == ResponseTab.verbose,
+                              onTap: () => setState(() {
+                                _selectedTab = ResponseTab.verbose;
+                                _showHtmlPreview = false;
                               }),
                             ),
                           ],

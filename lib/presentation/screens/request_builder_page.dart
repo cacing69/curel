@@ -106,7 +106,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       final trimmed = curlText.trim();
       if (!trimmed.startsWith('curl')) return;
 
-      final curl = parseCurl(trimmed);
+      final parsed = parseCurl(trimmed);
+      final curl = parsed.curl;
 
       _method = HttpMethod.values.firstWhere(
         (m) => m.name.toUpperCase() == curl.method.toUpperCase(),

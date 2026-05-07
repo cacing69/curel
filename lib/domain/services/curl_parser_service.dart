@@ -24,6 +24,7 @@ String _stripUnsupportedFlags(String input) {
     'fail-early',
     'progress-bar',
     'path-as-is',
+    'location',
   };
   // Flags that consume the next token as their value
   const stripWithValueShort = {'o', 'w', 'm'};
@@ -187,9 +188,78 @@ List<String> _tokenize(String input) {
   return tokens;
 }
 
+/// Result of parsing a curl command, including any output filename
+/// extracted from the `-o` / `--output` flag.
+class ParsedCurl {
+  final Curl curl;
+  final String? outputFileName;
+  final bool verbose;
+
+  const ParsedCurl({
+    required this.curl,
+    this.outputFileName,
+    this.verbose = false,
+  });
+}
+
+/// Extracts the output filename from `-o` / `--output` flags in [input].
+String? _extractOutputFile(String input) {
+  final tokens = _tokenize(input);
+  for (var i = 0; i < tokens.length; i++) {
+    final tok = tokens[i];
+    if (tok.startsWith('--')) {
+      final body = tok.substring(2);
+      final eq = body.indexOf('=');
+      final name = eq >= 0 ? body.substring(0, eq) : body;
+      if (name == 'output') {
+        if (eq >= 0) return _unquote(body.substring(eq + 1));
+        if (i + 1 < tokens.length) return _unquote(tokens[i + 1]);
+      }
+    }
+    if (tok == '-o' && i + 1 < tokens.length) {
+      return _unquote(tokens[i + 1]);
+    }
+    // Handle combined flags like -vo file
+    if (tok.length > 2 && tok.startsWith('-') && !tok.startsWith('--')) {
+      final letters = tok.substring(1);
+      final oIndex = letters.indexOf('o');
+      if (oIndex >= 0 && oIndex == letters.length - 1 && i + 1 < tokens.length) {
+        return _unquote(tokens[i + 1]);
+      }
+    }
+  }
+  return null;
+}
+
+String _unquote(String s) {
+  if ((s.startsWith("'") && s.endsWith("'")) ||
+      (s.startsWith('"') && s.endsWith('"'))) {
+    return s.substring(1, s.length - 1);
+  }
+  return s;
+}
+
+/// Checks if the input contains `--verbose` or `-v` flag.
+bool _hasVerbose(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--verbose') return true;
+    if (tok.startsWith('-') && !tok.startsWith('--')) {
+      if (tok.contains('v')) return true;
+    }
+  }
+  return false;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
-/// then parses it into a [Curl] object.
-Curl parseCurl(String input) {
+/// then parses it into a [ParsedCurl] object with optional output filename.
+ParsedCurl parseCurl(String input) {
+  final outputFile = _extractOutputFile(input);
+  final verbose = _hasVerbose(input);
   final cleaned = _stripUnsupportedFlags(input);
-  return Curl.parse(cleaned);
+  return ParsedCurl(
+    curl: Curl.parse(cleaned),
+    outputFileName: outputFile,
+    verbose: verbose,
+  );
 }
