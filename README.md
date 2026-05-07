@@ -15,8 +15,8 @@ A lightweight curl client for sending HTTP requests and inspecting responses wit
 
 |  |  |
 |:---:|:---:|
-| <img src="fastlane/metadata/android/en-US/images/01.jpeg" alt="Screenshot 1" width="280" /> | <img src="fastlane/metadata/android/en-US/images/02.jpeg" alt="Screenshot 2" width="280" /> |
-| <img src="fastlane/metadata/android/en-US/images/03.jpeg" alt="Screenshot 3" width="280" /> | <img src="fastlane/metadata/android/en-US/images/04.jpeg" alt="Screenshot 4" width="280" /> |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01.jpeg" alt="Screenshot 1" width="280" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02.jpeg" alt="Screenshot 2" width="280" /> |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03.jpeg" alt="Screenshot 3" width="280" /> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04.jpeg" alt="Screenshot 4" width="280" /> |
 
 ## Download
 
