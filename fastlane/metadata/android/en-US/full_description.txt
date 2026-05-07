@@ -3,9 +3,9 @@ A lightweight curl client for sending HTTP requests and inspecting responses wit
 Features:
 - Paste and execute curl commands directly
 - Syntax-highlighted response viewer
-- Search within response with match highlighting
-- HTML preview mode
-- Request builder for constructing HTTP requests
+- Search within responses with highlighted matches
+- HTML preview mode for web responses
+- Built-in request builder for HTTP requests
 - Save responses to file
 - Curl cheat sheet with real API examples
-- Terminal-inspired UI with dark theme
+- Terminal-inspired dark UI
