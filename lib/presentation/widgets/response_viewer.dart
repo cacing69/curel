@@ -78,18 +78,15 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.trace) {
-        final plainText = response!.formatTraceLog();
-        if (plainText.length > 500 * 1024) {
-          return ChunkedTextViewer(text: plainText);
-        }
-        return SingleChildScrollView(
+        final lines = response!.traceLogLines;
+        return ListView.builder(
           padding: const EdgeInsets.all(8),
-          child: SelectionArea(
-            child: RichText(
-              text: response!.formatTraceLogSpan(),
-              softWrap: true,
-            ),
-          ),
+          itemCount: lines.length,
+          itemBuilder: (context, index) {
+            return Text.rich(
+              TextSpan(children: lines[index]),
+            );
+          },
         );
       }
 

@@ -156,6 +156,38 @@ class CurlResponse {
     return traceLog ?? '';
   }
 
+  List<List<TextSpan>> get traceLogLines {
+    if (traceLog == null || traceLog!.isEmpty) return const [];
+    final result = <List<TextSpan>>[];
+    for (final line in traceLog!.split('\n')) {
+      if (line.isEmpty) continue;
+      if (line.startsWith('== Info:')) {
+        result.add([TextSpan(
+          text: line,
+          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        )]);
+      } else if (line.startsWith('=> Send')) {
+        result.add([TextSpan(
+          text: line,
+          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
+        )]);
+      } else if (line.startsWith('<= Recv')) {
+        result.add([TextSpan(
+          text: line,
+          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
+        )]);
+      } else if (_isHexDumpLine(line)) {
+        result.add(_formatHexDumpLineSpans(line));
+      } else {
+        result.add([TextSpan(
+          text: line,
+          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
+        )]);
+      }
+    }
+    return result;
+  }
+
   TextSpan formatTraceLogSpan() {
     if (traceLog == null || traceLog!.isEmpty) {
       return const TextSpan();

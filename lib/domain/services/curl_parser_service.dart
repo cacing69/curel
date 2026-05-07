@@ -199,6 +199,7 @@ class ParsedCurl {
   final bool followRedirects;
   final String? traceFileName;
   final bool traceAscii;
+  final bool traceEnabled;
 
   const ParsedCurl({
     required this.curl,
@@ -207,6 +208,7 @@ class ParsedCurl {
     this.followRedirects = false,
     this.traceFileName,
     this.traceAscii = false,
+    this.traceEnabled = false,
   });
 }
 
@@ -302,6 +304,16 @@ bool _hasTraceAscii(String input) {
   return false;
 }
 
+/// Checks if the input contains `--trace` or `--trace-ascii` flag.
+bool _hasTraceFlag(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--trace' || tok.startsWith('--trace=')) return true;
+    if (tok == '--trace-ascii' || tok.startsWith('--trace-ascii=')) return true;
+  }
+  return false;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
@@ -310,6 +322,7 @@ ParsedCurl parseCurl(String input) {
   final followRedirects = _hasLocation(input);
   final traceFile = _extractTraceFile(input);
   final traceAscii = _hasTraceAscii(input);
+  final traceEnabled = _hasTraceFlag(input);
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
@@ -318,5 +331,6 @@ ParsedCurl parseCurl(String input) {
     followRedirects: followRedirects,
     traceFileName: traceFile,
     traceAscii: traceAscii,
+    traceEnabled: traceEnabled,
   );
 }

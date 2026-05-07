@@ -36,7 +36,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _curlController = TextEditingController();
+  final _curlController = _CurlHighlightController();
   final _focusNode = FocusNode();
   final _textFieldKey = GlobalKey();
   CurlResponse? _response;
@@ -95,20 +95,20 @@ class _HomePageState extends State<HomePage> {
     try {
       final parsed = parseCurl(text);
       final hasOutput = parsed.outputFileName != null;
-      final hasTrace = parsed.traceFileName != null;
+      final traceEnabled = parsed.traceEnabled;
       final result = hasOutput
           ? await widget.httpClient.executeBinary(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
-              trace: hasTrace,
+              trace: traceEnabled,
               traceAscii: parsed.traceAscii,
             )
           : await widget.httpClient.execute(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
-              trace: hasTrace,
+              trace: traceEnabled,
               traceAscii: parsed.traceAscii,
             );
       final elapsed = sw.elapsedMilliseconds;
@@ -116,10 +116,10 @@ class _HomePageState extends State<HomePage> {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
       }
       if (hasOutput) {
-        if ((parsed.verbose || hasTrace) && mounted) {
+        if ((parsed.verbose || traceEnabled) && mounted) {
           setState(() {
             _response = result;
-            if (hasTrace && result.traceLog != null) {
+            if (traceEnabled && result.traceLog != null) {
               _selectedTab = ResponseTab.trace;
             }
           });
@@ -128,12 +128,12 @@ class _HomePageState extends State<HomePage> {
       } else if (mounted) {
         setState(() {
           _response = result;
-          if (hasTrace && result.traceLog != null) {
+          if (traceEnabled && result.traceLog != null) {
             _selectedTab = ResponseTab.trace;
           }
         });
       }
-      if (hasTrace &&
+      if (parsed.traceFileName != null &&
           result.traceLog != null &&
           result.traceLog!.isNotEmpty &&
           mounted) {
@@ -154,6 +154,7 @@ class _HomePageState extends State<HomePage> {
     final text = await widget.clipboardService.paste();
     if (text != null) {
       setState(() => _curlController.text = text);
+      if (mounted) showTerminalToast(context, 'pasted from clipboard');
     }
   }
 
@@ -339,54 +340,28 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Expanded(
-              child: Stack(
-                children: [
-                  ListenableBuilder(
-                    listenable: _curlController,
-                    builder: (context, _) {
-                      if (_curlController.text.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return IgnorePointer(
-                        child: _CurlHighlight(
-                          text: _curlController.text,
-                          maxLines: maxLines,
-                        ),
-                      );
-                    },
+              child: TextField(
+                key: _textFieldKey,
+                focusNode: _focusNode,
+                controller: _curlController,
+                maxLines: unlimited ? null : maxLines,
+                minLines: minLines,
+                cursorColor: TColors.green,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  height: 1.4,
+                  color: TColors.text,
+                ),
+                decoration: InputDecoration.collapsed(
+                  hintText: 'paste or type a curl command...',
+                  hintStyle: TextStyle(
+                    color: TColors.mutedText.withValues(alpha: 0.5),
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    height: 1.4,
                   ),
-                  TextField(
-                    key: _textFieldKey,
-                    focusNode: _focusNode,
-                    controller: _curlController,
-                    maxLines: unlimited ? null : maxLines,
-                    minLines: minLines,
-                    scrollPhysics: unlimited
-                        ? const NeverScrollableScrollPhysics()
-                        : null,
-                    cursorColor: TColors.green,
-                    style: const TextStyle(
-                      color: Colors.transparent,
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'paste or type a curl command...',
-                      hintStyle: TextStyle(
-                        color: TColors.mutedText,
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
@@ -417,7 +392,7 @@ class _HomePageState extends State<HomePage> {
       ],
     );
     return SingleChildScrollView(
-      physics: unlimited ? const NeverScrollableScrollPhysics() : null,
+      physics: unlimited ? const ClampingScrollPhysics() : null,
       child: editor,
     );
   }
@@ -709,7 +684,8 @@ class _HomePageState extends State<HomePage> {
 
             // Input area
             if (_isFullscreenInput)
-              Expanded(
+              Flexible(
+                flex: 0,
                 child: Container(
                   color: TColors.surface,
                   padding: const EdgeInsets.symmetric(
@@ -734,6 +710,7 @@ class _HomePageState extends State<HomePage> {
               ),
 
             // Actions
+            if (_isFullscreenInput) const Spacer(),
             _isFullscreenInput
                 ? Container(
                     color: TColors.background,
@@ -811,12 +788,7 @@ class _HomePageState extends State<HomePage> {
 
 // ── Curl Syntax Highlighter ───────────────────────────────────────
 
-class _CurlHighlight extends StatelessWidget {
-  final String text;
-  final int? maxLines;
-
-  const _CurlHighlight({required this.text, this.maxLines});
-
+class _CurlHighlightController extends TextEditingController {
   static const _methods = {
     'GET',
     'POST',
@@ -838,76 +810,50 @@ class _CurlHighlight extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      _highlight(text),
-      maxLines: maxLines,
-      overflow: maxLines != null ? TextOverflow.ellipsis : null,
-    );
-  }
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    if (text.isEmpty) {
+      return TextSpan(style: style, text: '');
+    }
 
-  TextSpan _highlight(String input) {
-    if (input.isEmpty) return const TextSpan();
-
-    const baseStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 13,
-      height: 1.4,
-      color: TColors.text,
-    );
     final spans = <TextSpan>[];
 
-    for (final m in _tokenRegex.allMatches(input)) {
+    for (final m in _tokenRegex.allMatches(text)) {
       if (m.group(1) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(1),
-            style: const TextStyle(
-              color: TColors.cyan,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
+        spans.add(TextSpan(
+          text: m.group(1),
+          style: const TextStyle(color: TColors.cyan, fontWeight: FontWeight.bold),
+        ));
       } else if (m.group(2) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(2),
-            style: const TextStyle(color: TColors.orange),
-          ),
-        );
+        spans.add(TextSpan(
+          text: m.group(2),
+          style: const TextStyle(color: TColors.orange),
+        ));
       } else if (m.group(4) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(4),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
+        spans.add(TextSpan(
+          text: m.group(4),
+          style: const TextStyle(color: TColors.yellow),
+        ));
       } else if (m.group(5) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
+        spans.add(TextSpan(
+          text: m.group(5),
+          style: const TextStyle(color: TColors.yellow),
+        ));
       } else if (m.group(6) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(6),
-            style: const TextStyle(color: TColors.green),
-          ),
-        );
+        spans.add(TextSpan(
+          text: m.group(6),
+          style: const TextStyle(color: TColors.green),
+        ));
       } else if (m.group(7) != null) {
         final word = m.group(7)!;
         if (_methods.contains(word.toUpperCase())) {
-          spans.add(
-            TextSpan(
-              text: word,
-              style: const TextStyle(
-                color: TColors.purple,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
+          spans.add(TextSpan(
+            text: word,
+            style: const TextStyle(color: TColors.purple, fontWeight: FontWeight.bold),
+          ));
         } else {
           spans.add(TextSpan(text: word));
         }
@@ -916,7 +862,7 @@ class _CurlHighlight extends StatelessWidget {
       }
     }
 
-    return TextSpan(style: baseStyle, children: spans);
+    return TextSpan(style: style, children: spans);
   }
 }
 
