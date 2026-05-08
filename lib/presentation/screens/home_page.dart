@@ -96,6 +96,12 @@ class _HomePageState extends State<HomePage> {
       final parsed = parseCurl(text);
       final hasOutput = parsed.outputFileName != null;
       final traceEnabled = parsed.traceEnabled;
+      final effectiveConnectTimeout = parsed.connectTimeout ??
+          Duration(seconds: await widget.settingsService.getConnectTimeout());
+      final effectiveMaxTime = parsed.maxTime ??
+          ((await widget.settingsService.getMaxTime()) > 0
+              ? Duration(seconds: await widget.settingsService.getMaxTime())
+              : null);
       final result = hasOutput
           ? await widget.httpClient.executeBinary(
               parsed.curl,
@@ -103,8 +109,8 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
-              connectTimeout: parsed.connectTimeout,
-              maxTime: parsed.maxTime,
+              connectTimeout: effectiveConnectTimeout,
+              maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
             )
           : await widget.httpClient.execute(
@@ -113,8 +119,8 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
-              connectTimeout: parsed.connectTimeout,
-              maxTime: parsed.maxTime,
+              connectTimeout: effectiveConnectTimeout,
+              maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
             );
       final elapsed = sw.elapsedMilliseconds;
@@ -160,7 +166,9 @@ class _HomePageState extends State<HomePage> {
     final text = await widget.clipboardService.paste();
     if (text != null && text.trim().isNotEmpty) {
       setState(() => _curlController.text = text);
-      if (mounted) showTerminalToast(context, 'pasted from clipboard', topOffset: 30);
+      if (mounted) {
+        showTerminalToast(context, 'pasted from clipboard', topOffset: 30);
+      }
     }
   }
 
@@ -306,10 +314,7 @@ class _HomePageState extends State<HomePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
+      backgroundColor: TColors.background,
       builder: (_) => HelpSheet(
         onUse: (command) {
           Navigator.of(context).pop();
@@ -375,10 +380,7 @@ class _HomePageState extends State<HomePage> {
     );
     return Stack(
       children: [
-        if (unlimited)
-          SizedBox.expand(child: content)
-        else
-          content,
+        if (unlimited) SizedBox.expand(child: content) else content,
         Positioned(
           top: 0,
           right: 0,
@@ -507,7 +509,7 @@ class _HomePageState extends State<HomePage> {
                           ),
 
                           const SizedBox(width: 8),
-                          _FlatTab(
+                          FlatTab(
                             label: 'headers',
                             selected: _selectedTab == ResponseTab.headers,
                             onTap: () => setState(() {
@@ -516,7 +518,7 @@ class _HomePageState extends State<HomePage> {
                             }),
                           ),
                           const SizedBox(width: 8),
-                          _FlatTab(
+                          FlatTab(
                             label: 'body',
                             selected:
                                 _selectedTab == ResponseTab.body &&
@@ -529,7 +531,7 @@ class _HomePageState extends State<HomePage> {
                           if (_response!.verboseLog != null &&
                               _response!.verboseLog!.isNotEmpty) ...[
                             const SizedBox(width: 8),
-                            _FlatTab(
+                            FlatTab(
                               label: 'verbose',
                               selected: _selectedTab == ResponseTab.verbose,
                               onTap: () => setState(() {
@@ -541,7 +543,7 @@ class _HomePageState extends State<HomePage> {
                           if (_response!.traceLog != null &&
                               _response!.traceLog!.isNotEmpty) ...[
                             const SizedBox(width: 8),
-                            _FlatTab(
+                            FlatTab(
                               label: 'trace',
                               selected: _selectedTab == ResponseTab.trace,
                               onTap: () => setState(() {
@@ -662,7 +664,7 @@ class _HomePageState extends State<HomePage> {
                 color: TColors.surface,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 8,
+                  vertical: 5,
                 ),
                 child: Row(
                   children: [
@@ -671,13 +673,13 @@ class _HomePageState extends State<HomePage> {
                       icon: Icons.close,
                       onTap: _exitFullscreen,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     const _WindowDot(color: TColors.yellow),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     const _WindowDot(color: TColors.green),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     const Text(
-                      'curl input',
+                      'curl editor',
                       style: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
@@ -831,37 +833,55 @@ class _CurlHighlightController extends TextEditingController {
 
     for (final m in _tokenRegex.allMatches(text)) {
       if (m.group(1) != null) {
-        spans.add(TextSpan(
-          text: m.group(1),
-          style: const TextStyle(color: TColors.cyan, fontWeight: FontWeight.bold),
-        ));
+        spans.add(
+          TextSpan(
+            text: m.group(1),
+            style: const TextStyle(
+              color: TColors.cyan,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
       } else if (m.group(2) != null) {
-        spans.add(TextSpan(
-          text: m.group(2),
-          style: const TextStyle(color: TColors.orange),
-        ));
+        spans.add(
+          TextSpan(
+            text: m.group(2),
+            style: const TextStyle(color: TColors.orange),
+          ),
+        );
       } else if (m.group(4) != null) {
-        spans.add(TextSpan(
-          text: m.group(4),
-          style: const TextStyle(color: TColors.yellow),
-        ));
+        spans.add(
+          TextSpan(
+            text: m.group(4),
+            style: const TextStyle(color: TColors.yellow),
+          ),
+        );
       } else if (m.group(5) != null) {
-        spans.add(TextSpan(
-          text: m.group(5),
-          style: const TextStyle(color: TColors.yellow),
-        ));
+        spans.add(
+          TextSpan(
+            text: m.group(5),
+            style: const TextStyle(color: TColors.yellow),
+          ),
+        );
       } else if (m.group(6) != null) {
-        spans.add(TextSpan(
-          text: m.group(6),
-          style: const TextStyle(color: TColors.green),
-        ));
+        spans.add(
+          TextSpan(
+            text: m.group(6),
+            style: const TextStyle(color: TColors.green),
+          ),
+        );
       } else if (m.group(7) != null) {
         final word = m.group(7)!;
         if (_methods.contains(word.toUpperCase())) {
-          spans.add(TextSpan(
-            text: word,
-            style: const TextStyle(color: TColors.purple, fontWeight: FontWeight.bold),
-          ));
+          spans.add(
+            TextSpan(
+              text: word,
+              style: const TextStyle(
+                color: TColors.purple,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          );
         } else {
           spans.add(TextSpan(text: word));
         }
@@ -871,46 +891,6 @@ class _CurlHighlightController extends TextEditingController {
     }
 
     return TextSpan(style: style, children: spans);
-  }
-}
-
-// ── Flat Tab ──────────────────────────────────────────────────────
-
-class _FlatTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FlatTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? TColors.green : Colors.transparent,
-              width: 1,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontFamily: 'monospace',
-            color: selected ? TColors.foreground : TColors.mutedText,
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -924,8 +904,8 @@ class _HelpButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 18,
-        height: 18,
+        width: 12,
+        height: 12,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: TColors.mutedText, width: 1),
@@ -935,7 +915,7 @@ class _HelpButton extends StatelessWidget {
             '?',
             style: TextStyle(
               color: TColors.mutedText,
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: FontWeight.bold,
               height: 1,
             ),
@@ -1062,7 +1042,8 @@ class _MoreMenu extends StatelessWidget {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         color: TColors.surface,
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),

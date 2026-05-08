@@ -19,33 +19,47 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _uaController = TextEditingController();
+  final _connectTimeoutController = TextEditingController();
+  final _maxTimeController = TextEditingController();
   var _loading = true;
   String _defaultUA = '';
 
   @override
   void initState() {
     super.initState();
-    _loadUserAgent();
+    _loadSettings();
   }
 
   @override
   void dispose() {
     _uaController.dispose();
+    _connectTimeoutController.dispose();
+    _maxTimeController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUserAgent() async {
+  Future<void> _loadSettings() async {
     final ua = await widget.settingsService.getUserAgent();
     final defaultUA = await widget.settingsService.getDefaultUserAgent();
+    final connectTimeout = await widget.settingsService.getConnectTimeout();
+    final maxTime = await widget.settingsService.getMaxTime();
     if (mounted) {
       _defaultUA = defaultUA;
       _uaController.text = ua == defaultUA ? '' : ua;
+      _connectTimeoutController.text =
+          connectTimeout == defaultConnectTimeout ? '' : connectTimeout.toString();
+      _maxTimeController.text =
+          maxTime == defaultMaxTime ? '' : maxTime.toString();
       setState(() => _loading = false);
     }
   }
 
   Future<void> _save() async {
     await widget.settingsService.setUserAgent(_uaController.text.trim());
+    final ct = int.tryParse(_connectTimeoutController.text.trim());
+    await widget.settingsService.setConnectTimeout(ct);
+    final mt = int.tryParse(_maxTimeController.text.trim());
+    await widget.settingsService.setMaxTime(mt);
     final ua = await widget.settingsService.getUserAgent();
     widget.onUserAgentChanged(ua);
     if (mounted) Navigator.of(context).pop();
@@ -59,6 +73,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             _buildHeader(),
+            Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
                   ? const Center(
@@ -69,63 +84,40 @@ class _SettingsPageState extends State<SettingsPage> {
                     )
                   : SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 12,
                         vertical: 20,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'User-Agent',
-                            style: TextStyle(
-                              color: TColors.cyan,
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          _buildSection(
+                            label: 'User-Agent',
+                            description:
+                                'Appended to every request as the User-Agent header. '
+                                'Leave empty to use default.',
+                            hint: _defaultUA,
+                            controller: _uaController,
+                            maxLines: 3,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Appended to every request as the User-Agent header. '
-                            'Leave empty to use default.',
-                            style: const TextStyle(
-                              color: TColors.mutedText,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              height: 1.4,
-                            ),
+                          const SizedBox(height: 20),
+                          _buildSection(
+                            label: 'Connect Timeout',
+                            description:
+                                'Max seconds to wait for a connection. '
+                                'Leave empty to use default ($defaultConnectTimeout).',
+                            hint: '$defaultConnectTimeout',
+                            controller: _connectTimeoutController,
+                            keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            color: TColors.surface,
-                            child: TextField(
-                              controller: _uaController,
-                              maxLines: 3,
-                              minLines: 3,
-                              cursorColor: TColors.green,
-                              style: const TextStyle(
-                                color: TColors.foreground,
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: _defaultUA,
-                                hintStyle: const TextStyle(
-                                  color: TColors.mutedText,
-                                  fontFamily: 'monospace',
-                                  fontSize: 13,
-                                ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
+                          const SizedBox(height: 20),
+                          _buildSection(
+                            label: 'Max Time',
+                            description:
+                                'Max seconds for the entire request. '
+                                'Leave empty for no limit.',
+                            hint: '$defaultMaxTime (no limit)',
+                            controller: _maxTimeController,
+                            keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 20),
                           Row(
@@ -142,6 +134,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                 label: 'reset',
                                 onTap: () {
                                   _uaController.clear();
+                                  _connectTimeoutController.clear();
+                                  _maxTimeController.clear();
                                 },
                               ),
                             ],
@@ -153,6 +147,70 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSection({
+    required String label,
+    required String description,
+    required String hint,
+    required TextEditingController controller,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: TColors.cyan,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          description,
+          style: const TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 11,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            maxLines: maxLines,
+            minLines: 1,
+            cursorColor: TColors.green,
+            keyboardType: keyboardType,
+            style: const TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 13,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,1 +1,1 @@
-Curl-like HTTP client with syntax-highlighted responses
+cUrl-like HTTP client with syntax-highlighted responses

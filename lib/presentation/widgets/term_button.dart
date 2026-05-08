@@ -22,7 +22,8 @@ class TermButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         color: accent
             ? (enabled
                   ? TColors.green.withValues(alpha: 0.15)
@@ -50,6 +51,45 @@ class TermButton extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class FlatTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const FlatTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? TColors.green : Colors.transparent,
+              width: 1,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontFamily: 'monospace',
+            color: selected ? TColors.foreground : TColors.mutedText,
+          ),
         ),
       ),
     );

@@ -30,9 +30,10 @@ class _AboutPageState extends State<AboutPage> {
         child: Column(
           children: [
             _buildHeader(context),
+            Container(height: 1, color: TColors.border),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
@@ -62,9 +63,7 @@ class _AboutPageState extends State<AboutPage> {
                         ),
                       ),
                     const SizedBox(height: 20),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
+                    const Text(
                         'A lightweight curl client for sending HTTP requests '
                         'and inspecting responses with syntax highlighting.',
                         textAlign: TextAlign.center,
@@ -75,7 +74,6 @@ class _AboutPageState extends State<AboutPage> {
                           height: 1.5,
                         ),
                       ),
-                    ),
                     const SizedBox(height: 32),
                     TermButton(
                       icon: Icons.code,

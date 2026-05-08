@@ -1,4 +1,4 @@
-A lightweight curl client for sending HTTP requests and inspecting responses with syntax highlighting.
+A lightweight cUrl client for sending HTTP requests and inspecting responses with syntax highlighting.
 
 Features:
 - Paste and execute curl commands directly
