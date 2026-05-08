@@ -1,1 +1,1 @@
-Lightweight curl client for sending HTTP requests and inspecting responses
+Lightweight cUrl client for sending HTTP requests and inspecting responses

@@ -1,5 +1,6 @@
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
 import 'package:curel/presentation/widgets/html_preview.dart';
 import 'package:curel/presentation/widgets/searchable_text.dart';
@@ -163,7 +164,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _FlatTab(
+                  FlatTab(
                     label: 'headers',
                     selected: _selectedTab == ResponseTab.headers,
                     onTap: () => setState(() {
@@ -172,7 +173,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     }),
                   ),
                   const SizedBox(width: 4),
-                  _FlatTab(
+                  FlatTab(
                     label: 'body',
                     selected:
                         _selectedTab == ResponseTab.body && !_showHtmlPreview,
@@ -183,7 +184,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   ),
                   if (widget.response.isHtml) ...[
                     const SizedBox(width: 4),
-                    _FlatTab(
+                    FlatTab(
                       label: 'preview',
                       selected: _showHtmlPreview,
                       onTap: () => setState(() {
@@ -196,7 +197,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   if (widget.response.traceLog != null &&
                       widget.response.traceLog!.isNotEmpty) ...[
                     const SizedBox(width: 4),
-                    _FlatTab(
+                    FlatTab(
                       label: 'trace',
                       selected: _selectedTab == ResponseTab.trace,
                       onTap: () => setState(() {
@@ -270,44 +271,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FlatTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FlatTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? TColors.green : Colors.transparent,
-              width: 1,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontFamily: 'monospace',
-            color: selected ? TColors.foreground : TColors.mutedText,
-          ),
         ),
       ),
     );

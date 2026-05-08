@@ -59,6 +59,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             _buildHeader(),
+            Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
                   ? const Center(
@@ -69,7 +70,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     )
                   : SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 12,
                         vertical: 20,
                       ),
                       child: Column(

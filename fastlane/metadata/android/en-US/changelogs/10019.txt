@@ -1,0 +1,5 @@
+-enlarge window control dots (12x12 -> 18x18) to match help button size in fullscreen
+-add syntax highlighting to curl cheat sheet
+-apply consistent terminal theme to cheat sheet (flat, no radius, terminal look)
+-add distinct background on curl commands in cheat sheet for readability
+-unify all button heights (term button and more menu) to 28px
