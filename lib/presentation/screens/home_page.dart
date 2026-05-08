@@ -16,7 +16,6 @@ import 'package:curel/presentation/screens/settings_page.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 class HomePage extends StatefulWidget {
   final CurlHttpClient httpClient;
@@ -424,14 +423,6 @@ class _HomePageState extends State<HomePage> {
                 Clipboard.setData(ClipboardData(text: text));
                 showTerminalToast(context, 'copied to clipboard');
               }
-            },
-          ),
-          const SizedBox(width: 6),
-          TermButton(
-            icon: Icons.share,
-            onTap: () {
-              final text = _curlController.text.trim();
-              if (text.isNotEmpty) SharePlus.instance.share(ShareParams(text: text));
             },
           ),
           const SizedBox(width: 6),

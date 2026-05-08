@@ -1,0 +1,3 @@
+-add default connect-timeout and max-time settings using SharedPreferences
+-apply default timeouts in executeCurl when not specified in curl command
+-extract settings section builder to reduce duplication in settings page
