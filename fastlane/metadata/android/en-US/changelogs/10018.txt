@@ -1,0 +1,15 @@
+- add full --trace and --trace-ascii support with hex dump format
+- add trace tab with syntax highlighting in response viewer
+- save trace to file when filename specified
+- add trace entries to help sheet
+- fix trace scroll performance with ListView.builder lazy rendering
+- fix input field cursor misalignment by using custom TextEditingController with buildTextSpan
+- fix fullscreen input scroll with TextField(expands: true) + SizedBox.expand
+- revert InputDecoration.collapsed to original InputDecoration to fix maxLines overflow
+- fix --trace and --trace-ascii consuming URL or flag as filename
+- fix default tab after exec to always show body tab
+- add paste toast notification
+- add gradle distributionSha256Sum verification
+- add -O / --remote-name support with filename derived from URL
+- add --connect-timeout and --max-time support via Dio timeout options
+- add -k / --insecure support to skip SSL certificate validation
