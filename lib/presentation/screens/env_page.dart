@@ -85,7 +85,10 @@ class _EnvPageState extends State<EnvPage> {
   Future<void> _addVariable(Environment env) async {
     final result = await _showVarDialog('new variable');
     if (result == null) return;
-    final vars = [...env.variables, EnvVariable(key: result.key, sensitive: result.sensitive)];
+    final vars = [
+      ...env.variables,
+      EnvVariable(key: result.key, sensitive: result.sensitive),
+    ];
     await widget.envService.save(env.copyWith(variables: vars));
     await widget.envService.setValue(env, result.key, result.value);
     await _load();
@@ -163,26 +166,59 @@ class _EnvPageState extends State<EnvPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        title: Text(action, style: const TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+
+        title: Text(
+          action,
+          style: const TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
           cursorColor: TColors.green,
-          style: const TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
-          decoration: const InputDecoration(
+          style: const TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 13,
+          ),
+          decoration: InputDecoration(
             hintText: 'name',
-            hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
+            hintStyle: const TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+            ),
             border: InputBorder.none,
+            filled: true, // Wajib true agar fillColor aktif
+            fillColor: const Color(
+              0xFF1A1A1A,
+            ), // Ganti dengan TColors.inputBg atau warna pilihan Anda
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ), // Agar teks tidak menempel ke pinggir
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: const Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('ok', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+            child: const Text(
+              'ok',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -203,7 +239,17 @@ class _EnvPageState extends State<EnvPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: TColors.surface,
-          title: Text(action, style: const TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          elevation: 0,
+
+          title: Text(
+            action,
+            style: const TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 14,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -211,11 +257,24 @@ class _EnvPageState extends State<EnvPage> {
                 controller: keyCtrl,
                 autofocus: initialKey == null,
                 cursorColor: TColors.green,
-                style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 13),
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: TColors.cyan,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+                decoration: InputDecoration(
                   hintText: 'KEY',
-                  hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
+                  hintStyle: const TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                  ),
                   border: InputBorder.none,
+                  filled: true,
+                  fillColor: TColors.background,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -223,11 +282,24 @@ class _EnvPageState extends State<EnvPage> {
                 controller: valCtrl,
                 autofocus: initialKey != null,
                 cursorColor: TColors.green,
-                style: const TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+                decoration: InputDecoration(
                   hintText: 'value',
-                  hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
+                  hintStyle: const TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                  ),
                   border: InputBorder.none,
+                  filled: true,
+                  fillColor: TColors.background,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -236,12 +308,21 @@ class _EnvPageState extends State<EnvPage> {
                 child: Row(
                   children: [
                     Icon(
-                      sensitive ? Icons.check_box : Icons.check_box_outline_blank,
+                      sensitive
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
                       size: 16,
                       color: sensitive ? TColors.green : TColors.mutedText,
                     ),
                     const SizedBox(width: 8),
-                    const Text('sensitive', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12)),
+                    const Text(
+                      'sensitive',
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -250,7 +331,13 @@ class _EnvPageState extends State<EnvPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+              child: const Text(
+                'cancel',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -259,7 +346,10 @@ class _EnvPageState extends State<EnvPage> {
                 if (k.isEmpty) return;
                 Navigator.of(ctx).pop((key: k, value: v, sensitive: sensitive));
               },
-              child: const Text('ok', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+              child: const Text(
+                'ok',
+                style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+              ),
             ),
           ],
         ),
@@ -280,8 +370,15 @@ class _EnvPageState extends State<EnvPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: TColors.green, strokeWidth: 2))
-                  : _envs.isEmpty ? _buildEmpty() : _buildList(),
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: TColors.green,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : _envs.isEmpty
+                  ? _buildEmpty()
+                  : _buildList(),
             ),
             _buildBottomBar(),
           ],
@@ -298,12 +395,21 @@ class _EnvPageState extends State<EnvPage> {
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
+            child: const Icon(
+              Icons.arrow_back,
+              size: 18,
+              color: TColors.mutedText,
+            ),
           ),
           const SizedBox(width: 8),
           const Text(
             'environments',
-            style: TextStyle(color: TColors.foreground, fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: TColors.foreground,
+              fontSize: 11,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -314,7 +420,11 @@ class _EnvPageState extends State<EnvPage> {
     return Center(
       child: Text(
         'no environments yet',
-        style: TextStyle(color: TColors.mutedText.withValues(alpha: 0.5), fontSize: 12, fontFamily: 'monospace'),
+        style: TextStyle(
+          color: TColors.mutedText.withValues(alpha: 0.5),
+          fontSize: 12,
+          fontFamily: 'monospace',
+        ),
       ),
     );
   }
@@ -344,7 +454,9 @@ class _EnvPageState extends State<EnvPage> {
             GestureDetector(
               onTap: () => _setActive(env.id),
               child: Icon(
-                isActive ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                isActive
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
                 size: 16,
                 color: isActive ? TColors.green : TColors.mutedText,
               ),
@@ -363,7 +475,11 @@ class _EnvPageState extends State<EnvPage> {
             ),
             Text(
               '${env.variables.length}',
-              style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 11),
+              style: const TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 11,
+              ),
             ),
             const SizedBox(width: 8),
             _popupMenu(env),
@@ -380,13 +496,23 @@ class _EnvPageState extends State<EnvPage> {
                 children: [
                   Text(
                     '<<${v.key}>>',
-                    style: const TextStyle(color: TColors.purple, fontFamily: 'monospace', fontSize: 11),
+                    style: const TextStyle(
+                      color: TColors.purple,
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      v.sensitive ? '***' : (_values['${env.id}_${v.key}'] ?? ''),
-                      style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 11),
+                      v.sensitive
+                          ? '***'
+                          : (_values['${env.id}_${v.key}'] ?? ''),
+                      style: const TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -409,8 +535,12 @@ class _EnvPageState extends State<EnvPage> {
             child: GestureDetector(
               onTap: () => _addVariable(env),
               child: const Text(
-                '+ add variable',
-                style: TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 11),
+                '+ add var',
+                style: TextStyle(
+                  color: TColors.cyan,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
@@ -426,6 +556,7 @@ class _EnvPageState extends State<EnvPage> {
         final offset = renderBox.localToGlobal(Offset.zero);
         showMenu<int>(
           context: context,
+          elevation: 0,
           position: RelativeRect.fromLTRB(
             offset.dx,
             details.globalPosition.dy,
@@ -433,10 +564,23 @@ class _EnvPageState extends State<EnvPage> {
             0,
           ),
           color: TColors.surface,
+          shape: const RoundedRectangleBorder(),
           items: [
-            PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
-            PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.copy, 'duplicate')),
-            PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
+            PopupMenuItem(
+              value: 0,
+              height: 36,
+              child: _menuItem(Icons.edit, 'rename'),
+            ),
+            PopupMenuItem(
+              value: 1,
+              height: 36,
+              child: _menuItem(Icons.copy, 'duplicate'),
+            ),
+            PopupMenuItem(
+              value: 2,
+              height: 36,
+              child: _menuItem(Icons.delete, 'delete'),
+            ),
           ],
         ).then((value) {
           if (value == 0) _renameEnv(env);
@@ -458,7 +602,14 @@ class _EnvPageState extends State<EnvPage> {
       children: [
         Icon(icon, size: 14, color: TColors.mutedText),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
@@ -469,7 +620,12 @@ class _EnvPageState extends State<EnvPage> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Row(
         children: [
-          TermButton(icon: Icons.add, label: 'new', onTap: _createEnv, accent: true),
+          TermButton(
+            icon: Icons.add,
+            label: 'new',
+            onTap: _createEnv,
+            accent: true,
+          ),
           const Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _import),
           const SizedBox(width: 6),

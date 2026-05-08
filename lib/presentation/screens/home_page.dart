@@ -105,9 +105,11 @@ class _HomePageState extends State<HomePage> {
       final parsed = parseCurl(resolved);
       final hasOutput = parsed.outputFileName != null;
       final traceEnabled = parsed.traceEnabled;
-      final effectiveConnectTimeout = parsed.connectTimeout ??
+      final effectiveConnectTimeout =
+          parsed.connectTimeout ??
           Duration(seconds: await widget.settingsService.getConnectTimeout());
-      final effectiveMaxTime = parsed.maxTime ??
+      final effectiveMaxTime =
+          parsed.maxTime ??
           ((await widget.settingsService.getMaxTime()) > 0
               ? Duration(seconds: await widget.settingsService.getMaxTime())
               : null);
@@ -987,6 +989,7 @@ class _MoreMenu extends StatelessWidget {
         final offset = renderBox.localToGlobal(Offset.zero);
         showMenu<int>(
           context: context,
+          elevation: 0,
           position: RelativeRect.fromLTRB(
             offset.dx,
             offset.dy + renderBox.size.height,
@@ -994,6 +997,7 @@ class _MoreMenu extends StatelessWidget {
             0,
           ),
           color: TColors.surface,
+          shape: const RoundedRectangleBorder(),
           items: [
             PopupMenuItem<int>(
               value: 0,
@@ -1105,6 +1109,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
         final offset = renderBox.localToGlobal(Offset.zero);
         showMenu<String>(
           context: context,
+          elevation: 0,
           position: RelativeRect.fromLTRB(
             offset.dx,
             offset.dy + renderBox.size.height,
@@ -1112,45 +1117,47 @@ class _EnvSwitchState extends State<_EnvSwitch> {
             0,
           ),
           color: TColors.surface,
+          shape: const RoundedRectangleBorder(),
           items: [
-            ...envs.map((e) => PopupMenuItem<String>(
-                  value: e.id,
-                  height: 36,
-                  child: Row(
-                    children: [
-                      Icon(
-                        e.id == active?.id
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        size: 14,
+            ...envs.map(
+              (e) => PopupMenuItem<String>(
+                value: e.id,
+                height: 36,
+                child: Row(
+                  children: [
+                    Icon(
+                      e.id == active?.id
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      size: 14,
+                      color: e.id == active?.id
+                          ? TColors.green
+                          : TColors.mutedText,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      e.name,
+                      style: TextStyle(
                         color: e.id == active?.id
                             ? TColors.green
-                            : TColors.mutedText,
+                            : TColors.foreground,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        e.name,
-                        style: TextStyle(
-                          color: e.id == active?.id
-                              ? TColors.green
-                              : TColors.foreground,
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-            const PopupMenuDivider(height: 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             PopupMenuItem<String>(
               value: 'manage',
               height: 36,
               child: Row(
                 children: [
-                  Icon(Icons.settings, size: 14, color: TColors.mutedText),
+                  Icon(Icons.widgets, size: 14, color: TColors.mutedText),
                   const SizedBox(width: 8),
                   Text(
-                    'manage',
+                    'env',
                     style: TextStyle(
                       color: TColors.foreground,
                       fontFamily: 'monospace',
@@ -1164,11 +1171,13 @@ class _EnvSwitchState extends State<_EnvSwitch> {
         ).then((value) async {
           if (value == null) return;
           if (value == 'manage') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => EnvPage(envService: widget.envService),
-              ),
-            ).then((_) => _load());
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => EnvPage(envService: widget.envService),
+                  ),
+                )
+                .then((_) => _load());
           } else {
             await widget.envService.setActive(value);
             _load();
@@ -1182,7 +1191,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.language, size: 14, color: TColors.cyan),
+            Icon(Icons.data_object, size: 14, color: TColors.cyan),
             if (_activeName != null) ...[
               const SizedBox(width: 4),
               Text(

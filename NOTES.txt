@@ -24,3 +24,5 @@
 -remove share_plus dependency (not priority)
 -migrate from encrypt+SharedPreferences to flutter_secure_storage for env values
 -remove encrypt dependency, values now stored in platform secure storage (Keychain/Keystore)
+-replace env globe icon with data_object icon for variable relevance
+-flatten all popup menus: elevation 0, no border radius (home_page, env_page)

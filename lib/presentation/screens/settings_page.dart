@@ -136,7 +136,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               color: TColors.surface,
                               child: Row(
                                 children: [
-                                  Icon(Icons.language, size: 14, color: TColors.cyan),
+                                  Icon(Icons.data_object, size: 14, color: TColors.cyan),
                                   const SizedBox(width: 8),
                                   const Text(
                                     'environments',
