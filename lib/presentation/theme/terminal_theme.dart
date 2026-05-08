@@ -64,14 +64,18 @@ const syntaxTheme = {
   'strong': TextStyle(fontWeight: FontWeight.bold),
 };
 
-void showTerminalToast(BuildContext context, String message) {
+void showTerminalToast(
+  BuildContext context,
+  String message, {
+  double topOffset = 8,
+}) {
   final overlay = Overlay.of(context);
   final padding = MediaQuery.of(context).padding;
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => _ToastOverlay(
       message: message,
-      top: padding.top + 8,
+      top: padding.top + topOffset,
       onDismiss: () => entry.remove(),
     ),
   );

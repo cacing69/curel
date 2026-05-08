@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dio/io.dart';
+
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curl_parser/curl_parser.dart';
 import 'package:dio/dio.dart';
@@ -13,6 +15,9 @@ abstract class CurlHttpClient {
     bool followRedirects = false,
     bool trace = false,
     bool traceAscii = false,
+    Duration? connectTimeout,
+    Duration? maxTime,
+    bool insecure = false,
   });
   Future<CurlResponse> executeBinary(
     Curl curl, {
@@ -20,6 +25,9 @@ abstract class CurlHttpClient {
     bool followRedirects = false,
     bool trace = false,
     bool traceAscii = false,
+    Duration? connectTimeout,
+    Duration? maxTime,
+    bool insecure = false,
   });
   void setUserAgent(String value);
 }
@@ -29,6 +37,17 @@ class DioCurlHttpClient implements CurlHttpClient {
   var _userAgent = '';
 
   DioCurlHttpClient({Dio? dio}) : _dio = dio ?? Dio();
+
+  void _applyInsecure(bool insecure) {
+    if (!insecure) return;
+    _dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        client.badCertificateCallback = (_, _, _) => true;
+        return client;
+      },
+    );
+  }
 
   @override
   void setUserAgent(String value) {
@@ -42,6 +61,9 @@ class DioCurlHttpClient implements CurlHttpClient {
     bool followRedirects = false,
     bool trace = false,
     bool traceAscii = false,
+    Duration? connectTimeout,
+    Duration? maxTime,
+    bool insecure = false,
   }) =>
       _doRequest(
         curl,
@@ -50,6 +72,9 @@ class DioCurlHttpClient implements CurlHttpClient {
         followRedirects: followRedirects,
         trace: trace,
         traceAscii: traceAscii,
+        connectTimeout: connectTimeout,
+        maxTime: maxTime,
+        insecure: insecure,
       );
 
   @override
@@ -59,6 +84,9 @@ class DioCurlHttpClient implements CurlHttpClient {
     bool followRedirects = false,
     bool trace = false,
     bool traceAscii = false,
+    Duration? connectTimeout,
+    Duration? maxTime,
+    bool insecure = false,
   }) =>
       _doRequest(
         curl,
@@ -67,6 +95,9 @@ class DioCurlHttpClient implements CurlHttpClient {
         followRedirects: followRedirects,
         trace: trace,
         traceAscii: traceAscii,
+        connectTimeout: connectTimeout,
+        maxTime: maxTime,
+        insecure: insecure,
       );
 
   Future<CurlResponse> _doRequest(
@@ -76,12 +107,22 @@ class DioCurlHttpClient implements CurlHttpClient {
     bool followRedirects = false,
     bool trace = false,
     bool traceAscii = false,
+    Duration? connectTimeout,
+    Duration? maxTime,
+    bool insecure = false,
   }) async {
     final headers = <String, dynamic>{...?curl.headers};
-    headers['User-Agent'] = _userAgent;
+    if (!headers.containsKey('User-Agent') && _userAgent.isNotEmpty) {
+      headers['User-Agent'] = _userAgent;
+    }
 
     final uri = curl.uri;
     final needsDns = verbose || trace || traceAscii;
+
+    // Apply timeouts from --connect-timeout / --max-time
+    _dio.options.connectTimeout = connectTimeout;
+    _dio.options.receiveTimeout = maxTime;
+    _applyInsecure(insecure);
 
     String? resolvedIp;
     if (needsDns) {

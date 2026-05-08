@@ -12,7 +12,7 @@ String _stripUnsupportedFlags(String input) {
   final result = <String>[];
 
   // Short flags we silently strip (no value after them)
-  const stripShort = {'s', 'S', 'v', 'L'};
+  const stripShort = {'s', 'S', 'v', 'L', 'O', 'k'};
   // Long flags we silently strip (no value after them)
   const stripLong = {
     'silent',
@@ -25,6 +25,8 @@ String _stripUnsupportedFlags(String input) {
     'progress-bar',
     'path-as-is',
     'location',
+    'remote-name',
+    'insecure',
   };
   // Flags that consume the next token as their value
   const stripWithValueShort = {'o', 'w', 'm'};
@@ -68,7 +70,8 @@ String _stripUnsupportedFlags(String input) {
         // --flag=value consumes 1 token; --flag value consumes 2
         // But skip consuming the value if it looks like a URL
         if (eq < 0 && i + 1 < tokens.length) {
-          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+          final next = _unquote(tokens[i + 1]);
+          if (!_isUrlLike(next) && !_isFlagLike(next)) {
             i++;
           }
         }
@@ -85,9 +88,9 @@ String _stripUnsupportedFlags(String input) {
         continue;
       }
       if (stripWithValueShort.contains(ch)) {
-        // skip the value token too (but not if it looks like a URL)
         if (i + 1 < tokens.length) {
-          if (!_isUrlLike(_unquote(tokens[i + 1]))) {
+          final next = _unquote(tokens[i + 1]);
+          if (!_isUrlLike(next) && !_isFlagLike(next)) {
             i++;
           }
         }
@@ -131,6 +134,11 @@ String _stripUnsupportedFlags(String input) {
 bool _isUrlLike(String s) {
   final lower = s.toLowerCase();
   return lower.startsWith('http://') || lower.startsWith('https://');
+}
+
+/// Checks if a string looks like a flag (starts with -).
+bool _isFlagLike(String s) {
+  return s.startsWith('-');
 }
 
 /// Shell-style tokenizer that respects single/double quotes and
@@ -215,6 +223,9 @@ class ParsedCurl {
   final String? traceFileName;
   final bool traceAscii;
   final bool traceEnabled;
+  final Duration? connectTimeout;
+  final Duration? maxTime;
+  final bool insecure;
 
   const ParsedCurl({
     required this.curl,
@@ -224,30 +235,37 @@ class ParsedCurl {
     this.traceFileName,
     this.traceAscii = false,
     this.traceEnabled = false,
+    this.connectTimeout,
+    this.maxTime,
+    this.insecure = false,
   });
 }
 
 /// Extracts the trace filename from `--trace` or `--trace-ascii` flag in [input].
-/// Returns null if no filename is specified or if the next token looks like a URL.
+/// Returns null if the next token looks like a URL or a flag.
 String? _extractTraceFile(String input) {
   final tokens = _tokenize(input);
   for (var i = 0; i < tokens.length; i++) {
     final tok = tokens[i];
     if (tok == '--trace' && i + 1 < tokens.length) {
       final value = _unquote(tokens[i + 1]);
-      return _isUrlLike(value) ? null : value;
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      return value;
     }
     if (tok.startsWith('--trace=')) {
       final value = _unquote(tok.substring(8));
-      return _isUrlLike(value) ? null : value;
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      return value;
     }
     if (tok == '--trace-ascii' && i + 1 < tokens.length) {
       final value = _unquote(tokens[i + 1]);
-      return _isUrlLike(value) ? null : value;
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      return value;
     }
     if (tok.startsWith('--trace-ascii=')) {
       final value = _unquote(tok.substring(14));
-      return _isUrlLike(value) ? null : value;
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      return value;
     }
   }
   return null;
@@ -302,6 +320,72 @@ bool _hasVerbose(String input) {
   return false;
 }
 
+/// Extracts timeout in seconds from `--connect-timeout` or `--max-time`.
+Duration? _extractSeconds(String input, String flagName, [String? shortFlag]) {
+  final tokens = _tokenize(input);
+  for (var i = 0; i < tokens.length; i++) {
+    final tok = tokens[i];
+    if (tok == '--$flagName' && i + 1 < tokens.length) {
+      final value = _unquote(tokens[i + 1]);
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      final seconds = double.tryParse(value);
+      if (seconds == null) return null;
+      return Duration(milliseconds: (seconds * 1000).round());
+    }
+    if (tok.startsWith('--$flagName=')) {
+      final value = _unquote(tok.substring(flagName.length + 3));
+      final seconds = double.tryParse(value);
+      if (seconds == null) return null;
+      return Duration(milliseconds: (seconds * 1000).round());
+    }
+    if (shortFlag != null && tok == '-$shortFlag' && i + 1 < tokens.length) {
+      final value = _unquote(tokens[i + 1]);
+      if (_isUrlLike(value) || _isFlagLike(value)) return null;
+      final seconds = double.tryParse(value);
+      if (seconds == null) return null;
+      return Duration(milliseconds: (seconds * 1000).round());
+    }
+  }
+  return null;
+}
+
+/// Checks if the input contains `-k` or `--insecure` flag.
+bool _hasInsecure(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--insecure') return true;
+    if (tok.startsWith('-') && !tok.startsWith('--')) {
+      if (tok.contains('k')) return true;
+    }
+  }
+  return false;
+}
+
+/// Checks if the input contains `-O` or `--remote-name` flag.
+bool _hasRemoteName(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--remote-name') return true;
+    if (tok.startsWith('-') && !tok.startsWith('--') && tok.length == 2) {
+      if (tok[1] == 'O') return true;
+    }
+  }
+  return false;
+}
+
+/// Extracts filename from URL path for `-O` / `--remote-name`.
+String? _remoteNameFromUrl(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    final unquoted = _unquote(tok);
+    if (_isUrlLike(unquoted)) {
+      final path = Uri.tryParse(unquoted)?.pathSegments;
+      if (path != null && path.isNotEmpty) return path.last;
+    }
+  }
+  return null;
+}
+
 /// Checks if the input contains `--location` or `-L` flag.
 bool _hasLocation(String input) {
   final tokens = _tokenize(input);
@@ -337,12 +421,19 @@ bool _hasTraceFlag(String input) {
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
-  final outputFile = _extractOutputFile(input);
+  var outputFile = _extractOutputFile(input);
   final verbose = _hasVerbose(input);
   final followRedirects = _hasLocation(input);
   final traceFile = _extractTraceFile(input);
   final traceAscii = _hasTraceAscii(input);
   final traceEnabled = _hasTraceFlag(input);
+  final connectTimeout = _extractSeconds(input, 'connect-timeout');
+  final maxTime = _extractSeconds(input, 'max-time');
+  final insecure = _hasInsecure(input);
+  // -O / --remote-name: derive filename from URL if no explicit -o
+  if (outputFile == null && _hasRemoteName(input)) {
+    outputFile = _remoteNameFromUrl(input);
+  }
   final cleaned = _stripUnsupportedFlags(input);
   return ParsedCurl(
     curl: Curl.parse(cleaned),
@@ -352,5 +443,8 @@ ParsedCurl parseCurl(String input) {
     traceFileName: traceFile,
     traceAscii: traceAscii,
     traceEnabled: traceEnabled,
+    connectTimeout: connectTimeout,
+    maxTime: maxTime,
+    insecure: insecure,
   );
 }
