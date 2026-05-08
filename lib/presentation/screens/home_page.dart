@@ -103,6 +103,9 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
+              connectTimeout: parsed.connectTimeout,
+              maxTime: parsed.maxTime,
+              insecure: parsed.insecure,
             )
           : await widget.httpClient.execute(
               parsed.curl,
@@ -110,6 +113,9 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
+              connectTimeout: parsed.connectTimeout,
+              maxTime: parsed.maxTime,
+              insecure: parsed.insecure,
             );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -119,18 +125,18 @@ class _HomePageState extends State<HomePage> {
         if ((parsed.verbose || traceEnabled) && mounted) {
           setState(() {
             _response = result;
-            if (traceEnabled && result.traceLog != null) {
-              _selectedTab = ResponseTab.trace;
-            }
+            _selectedTab = traceEnabled && result.traceLog != null
+                ? ResponseTab.trace
+                : ResponseTab.body;
           });
         }
         await _downloadFile(result, parsed.outputFileName!);
       } else if (mounted) {
         setState(() {
           _response = result;
-          if (traceEnabled && result.traceLog != null) {
-            _selectedTab = ResponseTab.trace;
-          }
+          _selectedTab = traceEnabled && result.traceLog != null
+              ? ResponseTab.trace
+              : ResponseTab.body;
         });
       }
       if (parsed.traceFileName != null &&
@@ -152,9 +158,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _paste() async {
     final text = await widget.clipboardService.paste();
-    if (text != null) {
+    if (text != null && text.trim().isNotEmpty) {
       setState(() => _curlController.text = text);
-      if (mounted) showTerminalToast(context, 'pasted from clipboard');
+      if (mounted) showTerminalToast(context, 'pasted from clipboard', topOffset: 30);
     }
   }
 
@@ -322,50 +328,57 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
     final unlimited = maxLines == null;
-    Widget editor = Stack(
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 0),
-              child: Text(
-                '❯ ',
-                style: TextStyle(
-                  color: TColors.green,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Expanded(
-              child: TextField(
-                key: _textFieldKey,
-                focusNode: _focusNode,
-                controller: _curlController,
-                maxLines: unlimited ? null : maxLines,
-                minLines: minLines,
-                cursorColor: TColors.green,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  height: 1.4,
-                  color: TColors.text,
-                ),
-                decoration: InputDecoration.collapsed(
-                  hintText: 'paste or type a curl command...',
-                  hintStyle: TextStyle(
-                    color: TColors.mutedText.withValues(alpha: 0.5),
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        const Text(
+          '❯ ',
+          style: TextStyle(
+            color: TColors.green,
+            fontFamily: 'monospace',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        Expanded(
+          child: TextField(
+            key: _textFieldKey,
+            focusNode: _focusNode,
+            controller: _curlController,
+            maxLines: unlimited ? null : maxLines,
+            minLines: unlimited ? null : minLines,
+            expands: unlimited,
+            cursorColor: TColors.green,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+              height: 1.4,
+              color: TColors.text,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'paste or type a curl command...',
+              hintStyle: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 13,
+                height: 1.4,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+      ],
+    );
+    return Stack(
+      children: [
+        if (unlimited)
+          SizedBox.expand(child: content)
+        else
+          content,
         Positioned(
           top: 0,
           right: 0,
@@ -390,10 +403,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ],
-    );
-    return SingleChildScrollView(
-      physics: unlimited ? const ClampingScrollPhysics() : null,
-      child: editor,
     );
   }
 
@@ -564,10 +573,11 @@ class _HomePageState extends State<HomePage> {
                   ],
                   GestureDetector(
                     onTap: () {
-                      Clipboard.setData(
-                        ClipboardData(text: _response!.bodyText),
-                      );
-                      showTerminalToast(context, 'copied to clipboard');
+                      final text = _response!.bodyText.trim();
+                      if (text.isNotEmpty) {
+                        Clipboard.setData(ClipboardData(text: text));
+                        showTerminalToast(context, 'copied to clipboard');
+                      }
                     },
                     child: const Padding(
                       padding: EdgeInsets.only(left: 8),
@@ -684,8 +694,7 @@ class _HomePageState extends State<HomePage> {
 
             // Input area
             if (_isFullscreenInput)
-              Flexible(
-                flex: 0,
+              Expanded(
                 child: Container(
                   color: TColors.surface,
                   padding: const EdgeInsets.symmetric(
@@ -710,7 +719,6 @@ class _HomePageState extends State<HomePage> {
               ),
 
             // Actions
-            if (_isFullscreenInput) const Spacer(),
             _isFullscreenInput
                 ? Container(
                     color: TColors.background,
