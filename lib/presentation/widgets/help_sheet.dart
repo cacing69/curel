@@ -194,7 +194,8 @@ const _methods = {
 };
 
 final _tokenRegex = RegExp(
-  r'''(curl)\b'''
+  r'(<<[A-Za-z_][A-Za-z0-9_]*>>)'
+  r'''|(curl)\b'''
   r'|(-(-?[A-Za-z][\w-]*))'
   r"""|('[^']*')"""
   r'''|("[^"]*")'''
@@ -209,18 +210,18 @@ TextSpan _highlightCurl(String text) {
     if (m.group(1) != null) {
       spans.add(TextSpan(
         text: m.group(1),
-        style: const TextStyle(
-            color: TColors.cyan, fontWeight: FontWeight.bold),
+        style: const TextStyle(color: TColors.purple),
       ));
     } else if (m.group(2) != null) {
       spans.add(TextSpan(
         text: m.group(2),
-        style: const TextStyle(color: TColors.orange),
+        style: const TextStyle(
+            color: TColors.cyan, fontWeight: FontWeight.bold),
       ));
-    } else if (m.group(4) != null) {
+    } else if (m.group(3) != null) {
       spans.add(TextSpan(
-        text: m.group(4),
-        style: const TextStyle(color: TColors.yellow),
+        text: m.group(3),
+        style: const TextStyle(color: TColors.orange),
       ));
     } else if (m.group(5) != null) {
       spans.add(TextSpan(
@@ -230,10 +231,15 @@ TextSpan _highlightCurl(String text) {
     } else if (m.group(6) != null) {
       spans.add(TextSpan(
         text: m.group(6),
-        style: const TextStyle(color: TColors.green),
+        style: const TextStyle(color: TColors.yellow),
       ));
     } else if (m.group(7) != null) {
-      final word = m.group(7)!;
+      spans.add(TextSpan(
+        text: m.group(7),
+        style: const TextStyle(color: TColors.green),
+      ));
+    } else if (m.group(8) != null) {
+      final word = m.group(8)!;
       if (_methods.contains(word.toUpperCase())) {
         spans.add(TextSpan(
           text: word,
@@ -243,8 +249,8 @@ TextSpan _highlightCurl(String text) {
       } else {
         spans.add(TextSpan(text: word));
       }
-    } else if (m.group(8) != null) {
-      spans.add(TextSpan(text: m.group(8)));
+    } else if (m.group(9) != null) {
+      spans.add(TextSpan(text: m.group(9)));
     }
   }
   return TextSpan(

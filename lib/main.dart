@@ -1,5 +1,6 @@
 import 'package:curel/data/services/curl_http_client.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
+import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -19,6 +20,7 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   final _httpClient = DioCurlHttpClient();
   final _settingsService = PreferencesSettingsService();
+  final _envService = PreferencesEnvService();
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _AppState extends State<App> {
         httpClient: _httpClient,
         clipboardService: FlutterClipboardService(),
         settingsService: _settingsService,
+        envService: _envService,
         onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
       ),
     );

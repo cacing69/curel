@@ -1,0 +1,26 @@
+-enlarge window control dots (12x12 -> 18x18 -> 15x15 -> 12x12) to match help button size in fullscreen
+-add syntax highlighting to curl cheat sheet
+-apply consistent terminal theme to cheat sheet (flat, no radius, terminal look)
+-add distinct background on curl commands in cheat sheet for readability
+-unify all button heights (term button and more menu) to 28px
+-remove rounded corners from bottom sheet, use flat terminal look
+-add header separator to settings and about pages
+-standardize horizontal padding to 12px across all pages
+-extract FlatTab to shared widget in term_button.dart, remove duplication
+-reduce fullscreen header vertical padding and dot spacing
+-add default connect-timeout and max-time settings using SharedPreferences
+-apply default timeouts in executeCurl when not specified in curl command
+-extract settings section builder to reduce duplication in settings page
+-add environment variables feature with <<VAR>> syntax
+-create env_model.dart with Environment and EnvVariable data models
+-create env_service.dart with CRUD, variable resolution using flutter_secure_storage for values
+-create env_page.dart with full env management UI (CRUD, duplicate, import/export)
+-add variable resolution in _executeCurl before curl parsing
+-add <<VAR>> syntax highlighting in input field and cheat sheet
+-add quick env switch button in action bar
+-add undefined variable warning toast
+-add link to env page from settings page
+-add AI-built note to README.md
+-remove share_plus dependency (not priority)
+-migrate from encrypt+SharedPreferences to flutter_secure_storage for env values
+-remove encrypt dependency, values now stored in platform secure storage (Keychain/Keystore)

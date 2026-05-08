@@ -7,6 +7,8 @@
 
 A lightweight curl client for sending HTTP requests and inspecting responses with syntax highlighting.
 
+> This application is fully developed with AI assistance.
+
 ## GitAds Sponsored
 
 [![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=cacing69/curel@github)](https://gitads.dev/v1/ad-track?source=cacing69/curel@github)

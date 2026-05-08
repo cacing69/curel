@@ -4,8 +4,10 @@ import 'package:curel/data/models/curl_response.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
+import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -21,12 +23,14 @@ class HomePage extends StatefulWidget {
   final CurlHttpClient httpClient;
   final ClipboardService clipboardService;
   final SettingsService settingsService;
+  final EnvService envService;
   final void Function(String userAgent) onUserAgentChanged;
 
   const HomePage({
     required this.httpClient,
     required this.clipboardService,
     required this.settingsService,
+    required this.envService,
     required this.onUserAgentChanged,
     super.key,
   });
@@ -93,7 +97,12 @@ class _HomePageState extends State<HomePage> {
 
     final sw = Stopwatch()..start();
     try {
-      final parsed = parseCurl(text);
+      final resolved = await widget.envService.resolve(text);
+      final undefined = await widget.envService.findUndefinedVars(text);
+      if (undefined.isNotEmpty && mounted) {
+        showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
+      }
+      final parsed = parseCurl(resolved);
       final hasOutput = parsed.outputFileName != null;
       final traceEnabled = parsed.traceEnabled;
       final effectiveConnectTimeout = parsed.connectTimeout ??
@@ -428,6 +437,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 6),
           TermButton(icon: Icons.content_paste, label: 'paste', onTap: _paste),
           const Spacer(),
+          _EnvSwitch(envService: widget.envService),
           TermButton(
             icon: Icons.play_arrow,
             label: 'exec',
@@ -445,6 +455,7 @@ class _HomePageState extends State<HomePage> {
                 MaterialPageRoute(
                   builder: (_) => SettingsPage(
                     settingsService: widget.settingsService,
+                    envService: widget.envService,
                     onUserAgentChanged: widget.onUserAgentChanged,
                   ),
                 ),
@@ -810,7 +821,8 @@ class _CurlHighlightController extends TextEditingController {
   };
 
   static final _tokenRegex = RegExp(
-    r'''(curl)\b'''
+    r'(<<[A-Za-z_][A-Za-z0-9_]*>>)'
+    r'''|(curl)\b'''
     r'|(-(-?[A-Za-z][\w-]*))'
     r"""|('[^']*')"""
     r'''|("[^"]*")'''
@@ -836,24 +848,24 @@ class _CurlHighlightController extends TextEditingController {
         spans.add(
           TextSpan(
             text: m.group(1),
-            style: const TextStyle(
-              color: TColors.cyan,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(color: TColors.purple),
           ),
         );
       } else if (m.group(2) != null) {
         spans.add(
           TextSpan(
             text: m.group(2),
-            style: const TextStyle(color: TColors.orange),
+            style: const TextStyle(
+              color: TColors.cyan,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         );
-      } else if (m.group(4) != null) {
+      } else if (m.group(3) != null) {
         spans.add(
           TextSpan(
-            text: m.group(4),
-            style: const TextStyle(color: TColors.yellow),
+            text: m.group(3),
+            style: const TextStyle(color: TColors.orange),
           ),
         );
       } else if (m.group(5) != null) {
@@ -867,11 +879,18 @@ class _CurlHighlightController extends TextEditingController {
         spans.add(
           TextSpan(
             text: m.group(6),
-            style: const TextStyle(color: TColors.green),
+            style: const TextStyle(color: TColors.yellow),
           ),
         );
       } else if (m.group(7) != null) {
-        final word = m.group(7)!;
+        spans.add(
+          TextSpan(
+            text: m.group(7),
+            style: const TextStyle(color: TColors.green),
+          ),
+        );
+      } else if (m.group(8) != null) {
+        final word = m.group(8)!;
         if (_methods.contains(word.toUpperCase())) {
           spans.add(
             TextSpan(
@@ -885,8 +904,8 @@ class _CurlHighlightController extends TextEditingController {
         } else {
           spans.add(TextSpan(text: word));
         }
-      } else if (m.group(8) != null) {
-        spans.add(TextSpan(text: m.group(8)));
+      } else if (m.group(9) != null) {
+        spans.add(TextSpan(text: m.group(9)));
       }
     }
 
@@ -1046,6 +1065,137 @@ class _MoreMenu extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         color: TColors.surface,
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
+      ),
+    );
+  }
+}
+
+class _EnvSwitch extends StatefulWidget {
+  final EnvService envService;
+
+  const _EnvSwitch({required this.envService});
+
+  @override
+  State<_EnvSwitch> createState() => _EnvSwitchState();
+}
+
+class _EnvSwitchState extends State<_EnvSwitch> {
+  String? _activeName;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final active = await widget.envService.getActive();
+    if (mounted) setState(() => _activeName = active?.name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (details) async {
+        final envs = await widget.envService.getAll();
+        if (!mounted) return;
+        final active = await widget.envService.getActive();
+        if (!mounted) return;
+        final renderBox = context.findRenderObject() as RenderBox;
+        final offset = renderBox.localToGlobal(Offset.zero);
+        showMenu<String>(
+          context: context,
+          position: RelativeRect.fromLTRB(
+            offset.dx,
+            offset.dy + renderBox.size.height,
+            offset.dx + renderBox.size.width,
+            0,
+          ),
+          color: TColors.surface,
+          items: [
+            ...envs.map((e) => PopupMenuItem<String>(
+                  value: e.id,
+                  height: 36,
+                  child: Row(
+                    children: [
+                      Icon(
+                        e.id == active?.id
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 14,
+                        color: e.id == active?.id
+                            ? TColors.green
+                            : TColors.mutedText,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        e.name,
+                        style: TextStyle(
+                          color: e.id == active?.id
+                              ? TColors.green
+                              : TColors.foreground,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+            const PopupMenuDivider(height: 1),
+            PopupMenuItem<String>(
+              value: 'manage',
+              height: 36,
+              child: Row(
+                children: [
+                  Icon(Icons.settings, size: 14, color: TColors.mutedText),
+                  const SizedBox(width: 8),
+                  Text(
+                    'manage',
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ).then((value) async {
+          if (value == null) return;
+          if (value == 'manage') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => EnvPage(envService: widget.envService),
+              ),
+            ).then((_) => _load());
+          } else {
+            await widget.envService.setActive(value);
+            _load();
+          }
+        });
+      },
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        color: TColors.surface,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.language, size: 14, color: TColors.cyan),
+            if (_activeName != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                _activeName!,
+                style: const TextStyle(
+                  color: TColors.cyan,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

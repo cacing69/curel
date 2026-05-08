@@ -1,14 +1,18 @@
+import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
+import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
 
 class SettingsPage extends StatefulWidget {
   final SettingsService settingsService;
+  final EnvService envService;
   final void Function(String userAgent) onUserAgentChanged;
 
   const SettingsPage({
     required this.settingsService,
+    required this.envService,
     required this.onUserAgentChanged,
     super.key,
   });
@@ -118,6 +122,36 @@ class _SettingsPageState extends State<SettingsPage> {
                             hint: '$defaultMaxTime (no limit)',
                             controller: _maxTimeController,
                             keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EnvPage(envService: widget.envService),
+                              ),
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              color: TColors.surface,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.language, size: 14, color: TColors.cyan),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'environments',
+                                    style: TextStyle(
+                                      color: TColors.cyan,
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(Icons.chevron_right, size: 14, color: TColors.mutedText),
+                                ],
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
                           Row(
