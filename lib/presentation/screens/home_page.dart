@@ -16,6 +16,7 @@ import 'package:curel/presentation/screens/settings_page.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 class HomePage extends StatefulWidget {
   final CurlHttpClient httpClient;
@@ -96,6 +97,12 @@ class _HomePageState extends State<HomePage> {
       final parsed = parseCurl(text);
       final hasOutput = parsed.outputFileName != null;
       final traceEnabled = parsed.traceEnabled;
+      final effectiveConnectTimeout = parsed.connectTimeout ??
+          Duration(seconds: await widget.settingsService.getConnectTimeout());
+      final effectiveMaxTime = parsed.maxTime ??
+          ((await widget.settingsService.getMaxTime()) > 0
+              ? Duration(seconds: await widget.settingsService.getMaxTime())
+              : null);
       final result = hasOutput
           ? await widget.httpClient.executeBinary(
               parsed.curl,
@@ -103,8 +110,8 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
-              connectTimeout: parsed.connectTimeout,
-              maxTime: parsed.maxTime,
+              connectTimeout: effectiveConnectTimeout,
+              maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
             )
           : await widget.httpClient.execute(
@@ -113,8 +120,8 @@ class _HomePageState extends State<HomePage> {
               followRedirects: parsed.followRedirects,
               trace: traceEnabled,
               traceAscii: parsed.traceAscii,
-              connectTimeout: parsed.connectTimeout,
-              maxTime: parsed.maxTime,
+              connectTimeout: effectiveConnectTimeout,
+              maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
             );
       final elapsed = sw.elapsedMilliseconds;
@@ -160,8 +167,9 @@ class _HomePageState extends State<HomePage> {
     final text = await widget.clipboardService.paste();
     if (text != null && text.trim().isNotEmpty) {
       setState(() => _curlController.text = text);
-      if (mounted)
+      if (mounted) {
         showTerminalToast(context, 'pasted from clipboard', topOffset: 30);
+      }
     }
   }
 
@@ -416,6 +424,14 @@ class _HomePageState extends State<HomePage> {
                 Clipboard.setData(ClipboardData(text: text));
                 showTerminalToast(context, 'copied to clipboard');
               }
+            },
+          ),
+          const SizedBox(width: 6),
+          TermButton(
+            icon: Icons.share,
+            onTap: () {
+              final text = _curlController.text.trim();
+              if (text.isNotEmpty) SharePlus.instance.share(ShareParams(text: text));
             },
           ),
           const SizedBox(width: 6),
