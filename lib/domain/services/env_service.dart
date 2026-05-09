@@ -144,8 +144,20 @@ class FileSystemEnvService implements EnvService {
         ? await _fs.getEnvironmentsDir(projectId)
         : await _getGlobalEnvDir();
 
-    final fileName = '${_sanitizeName(env.name)}.json';
-    final filePath = p.join(envDir, fileName);
+    final newFileName = '${_sanitizeName(env.name)}.json';
+    final newFilePath = p.join(envDir, newFileName);
+
+    final all = await getAll(projectId);
+    final existing = all.where((e) => e.id == env.id).firstOrNull;
+    if (existing != null) {
+      final oldFileName = '${_sanitizeName(existing.name)}.json';
+      if (oldFileName != newFileName) {
+        final oldFilePath = p.join(envDir, oldFileName);
+        if (await _fs.exists(oldFilePath)) {
+          await _fs.renameFile(oldFilePath, newFilePath);
+        }
+      }
+    }
 
     final vars = <Map<String, dynamic>>[];
     for (final v in env.variables) {
@@ -159,7 +171,7 @@ class FileSystemEnvService implements EnvService {
       'variables': vars,
       'updated_at': env.updatedAt.toIso8601String(),
     });
-    await _fs.writeFile(filePath, json);
+    await _fs.writeFile(newFilePath, json);
   }
 
   @override

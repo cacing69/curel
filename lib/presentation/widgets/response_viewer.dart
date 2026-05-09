@@ -52,12 +52,22 @@ class ResponseViewer extends StatelessWidget {
                 Icon(Icons.error_outline, size: 14, color: TColors.red),
                 const SizedBox(width: 8),
                 const Text(
-                  'TERMINAL ERROR',
+                  'terminal error',
                   style: TextStyle(
                     color: TColors.red,
                     fontFamily: 'monospace',
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Builder(
+                  builder: (context) => GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: error!));
+                      showTerminalToast(context, 'copied');
+                    },
+                    child: Icon(Icons.copy, size: 14, color: TColors.mutedText),
                   ),
                 ),
               ],

@@ -80,7 +80,9 @@ class _EnvPageState extends State<EnvPage> {
     await _load();
   }
 
-  Future<void> _renameEnv(Environment env) async {
+  Future<void> _renameEnv(String envId) async {
+    final env = _envs.where((e) => e.id == envId).firstOrNull;
+    if (env == null) return;
     final name = await _showNameDialog('rename', initial: env.name);
     if (name == null || name.trim().isEmpty) return;
     await widget.envService.save(
@@ -90,7 +92,9 @@ class _EnvPageState extends State<EnvPage> {
     await _load();
   }
 
-  Future<void> _duplicateEnv(Environment env) async {
+  Future<void> _duplicateEnv(String envId) async {
+    final env = _envs.where((e) => e.id == envId).firstOrNull;
+    if (env == null) return;
     final copy = widget.envService.duplicate(env);
     await widget.envService.save(_scopeProjectId, copy);
     await _load();
@@ -651,8 +655,8 @@ class _EnvPageState extends State<EnvPage> {
             ),
           ],
         ).then((value) {
-          if (value == 0) _renameEnv(env);
-          if (value == 1) _duplicateEnv(env);
+          if (value == 0) _renameEnv(env.id);
+          if (value == 1) _duplicateEnv(env.id);
           if (value == 2) _deleteEnv(env.id);
         });
       },

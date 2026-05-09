@@ -1,0 +1,3 @@
+- close request drawer when "new" button is pressed
+- add share option to request drawer context menu via share_plus
+- add honest http version warning in verbose output when --http3/--http2 flags are used

@@ -16,6 +16,7 @@ abstract class FileSystemService {
   Future<List<FileSystemEntity>> listFiles(String dirPath);
   Future<bool> exists(String path);
   Future<void> ensureDir(String path);
+  Future<void> renameFile(String oldPath, String newPath);
   Future<String> createProjectStructure(String projectId);
   Future<void> deleteProjectDir(String projectId);
   Future<void> setWorkspaceRoot(String path);
@@ -104,6 +105,14 @@ class LocalFileSystemService implements FileSystemService {
     final dir = Directory(path);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> renameFile(String oldPath, String newPath) async {
+    final file = File(oldPath);
+    if (await file.exists()) {
+      await file.rename(newPath);
     }
   }
 

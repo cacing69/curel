@@ -18,6 +18,7 @@ abstract class CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   });
   Future<CurlResponse> executeBinary(
     Curl curl, {
@@ -28,6 +29,7 @@ abstract class CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   });
   void setUserAgent(String value);
 }
@@ -64,6 +66,7 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   }) =>
       _doRequest(
         curl,
@@ -75,6 +78,7 @@ class DioCurlHttpClient implements CurlHttpClient {
         connectTimeout: connectTimeout,
         maxTime: maxTime,
         insecure: insecure,
+        httpVersion: httpVersion,
       );
 
   @override
@@ -87,6 +91,7 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   }) =>
       _doRequest(
         curl,
@@ -98,6 +103,7 @@ class DioCurlHttpClient implements CurlHttpClient {
         connectTimeout: connectTimeout,
         maxTime: maxTime,
         insecure: insecure,
+        httpVersion: httpVersion,
       );
 
   Future<CurlResponse> _doRequest(
@@ -110,6 +116,7 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   }) async {
     final headers = <String, dynamic>{...?curl.headers};
     if (!headers.containsKey('User-Agent') && _userAgent.isNotEmpty) {
@@ -152,6 +159,9 @@ class DioCurlHttpClient implements CurlHttpClient {
     if (verbose && !hasTrace) {
       final buf = StringBuffer();
 
+      final requestedHttp3 = httpVersion == '3' || httpVersion == '3-only';
+      final effectiveProtocol = 'HTTP/1.1';
+
       if (resolvedIp != null) {
         buf.writeln('* Trying $resolvedIp...');
         buf.writeln(
@@ -160,6 +170,12 @@ class DioCurlHttpClient implements CurlHttpClient {
       }
       if (uri.scheme == 'https') {
         buf.writeln('* SSL connection using TLS');
+      }
+      if (requestedHttp3) {
+        buf.writeln('* warning: --http3 requested but not supported, using $effectiveProtocol');
+      }
+      if (httpVersion == '2' || httpVersion == '2-prior-knowledge') {
+        buf.writeln('* warning: --http2 requested but not supported, using $effectiveProtocol');
       }
 
       for (var i = 0; i <= (followRedirects ? 10 : 0); i++) {
@@ -247,6 +263,14 @@ class DioCurlHttpClient implements CurlHttpClient {
       }
       if (uri.scheme == 'https') {
         traceBuf.writeln('== Info: SSL connection using TLS');
+      }
+      if (httpVersion == '3' || httpVersion == '3-only') {
+        traceBuf.writeln('== Info: warning: --http3 requested but not supported, using HTTP/1.1');
+        verboseBuf?.writeln('* warning: --http3 requested but not supported, using HTTP/1.1');
+      }
+      if (httpVersion == '2' || httpVersion == '2-prior-knowledge') {
+        traceBuf.writeln('== Info: warning: --http2 requested but not supported, using HTTP/1.1');
+        verboseBuf?.writeln('* warning: --http2 requested but not supported, using HTTP/1.1');
       }
 
       for (var i = 0; i <= (followRedirects ? 10 : 0); i++) {

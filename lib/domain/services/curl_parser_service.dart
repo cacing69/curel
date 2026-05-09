@@ -27,6 +27,12 @@ String _stripUnsupportedFlags(String input) {
     'location',
     'remote-name',
     'insecure',
+    'http2',
+    'http2-prior-knowledge',
+    'http1.0',
+    'http1.1',
+    'http3',
+    'http3-only',
   };
   // Flags that consume the next token as their value
   const stripWithValueShort = {'o', 'w', 'm'};
@@ -226,6 +232,7 @@ class ParsedCurl {
   final Duration? connectTimeout;
   final Duration? maxTime;
   final bool insecure;
+  final String? httpVersion;
 
   const ParsedCurl({
     required this.curl,
@@ -238,6 +245,7 @@ class ParsedCurl {
     this.connectTimeout,
     this.maxTime,
     this.insecure = false,
+    this.httpVersion,
   });
 }
 
@@ -418,6 +426,21 @@ bool _hasTraceFlag(String input) {
   return false;
 }
 
+/// Detects HTTP version flags from curl input.
+/// Returns '3', '3-only', '2', '2-prior-knowledge', '1.1', '1.0', or null.
+String? _extractHttpVersion(String input) {
+  final tokens = _tokenize(input);
+  for (final tok in tokens) {
+    if (tok == '--http3-only') return '3-only';
+    if (tok == '--http3') return '3';
+    if (tok == '--http2-prior-knowledge') return '2-prior-knowledge';
+    if (tok == '--http2') return '2';
+    if (tok == '--http1.1') return '1.1';
+    if (tok == '--http1.0') return '1.0';
+  }
+  return null;
+}
+
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
 ParsedCurl parseCurl(String input) {
@@ -430,21 +453,175 @@ ParsedCurl parseCurl(String input) {
   final connectTimeout = _extractSeconds(input, 'connect-timeout');
   final maxTime = _extractSeconds(input, 'max-time');
   final insecure = _hasInsecure(input);
-  // -O / --remote-name: derive filename from URL if no explicit -o
+  final httpVersion = _extractHttpVersion(input);
   if (outputFile == null && _hasRemoteName(input)) {
     outputFile = _remoteNameFromUrl(input);
   }
-  final cleaned = _stripUnsupportedFlags(input);
-  return ParsedCurl(
-    curl: Curl.parse(cleaned),
-    outputFileName: outputFile,
-    verbose: verbose,
-    followRedirects: followRedirects,
-    traceFileName: traceFile,
-    traceAscii: traceAscii,
-    traceEnabled: traceEnabled,
-    connectTimeout: connectTimeout,
-    maxTime: maxTime,
-    insecure: insecure,
+
+  // Extract headers manually to avoid curl_parser's buggy split on `://`
+  final rawHeaders = _extractHeaders(input);
+  // Strip -H/--header from input before passing to curl_parser
+  final cleaned = _stripHeaders(_stripUnsupportedFlags(input));
+
+  try {
+    final curl = Curl.parse(cleaned);
+    return ParsedCurl(
+      curl: _curlWithHeaders(curl, rawHeaders),
+      outputFileName: outputFile,
+      verbose: verbose,
+      followRedirects: followRedirects,
+      traceFileName: traceFile,
+      traceAscii: traceAscii,
+      traceEnabled: traceEnabled,
+      connectTimeout: connectTimeout,
+      maxTime: maxTime,
+      insecure: insecure,
+      httpVersion: httpVersion,
+    );
+  } on FormatException {
+    final curl = Curl.parse(_stripAllUnknownFlags(cleaned));
+    return ParsedCurl(
+      curl: _curlWithHeaders(curl, rawHeaders),
+      outputFileName: outputFile,
+      verbose: verbose,
+      followRedirects: followRedirects,
+      traceFileName: traceFile,
+      traceAscii: traceAscii,
+      traceEnabled: traceEnabled,
+      connectTimeout: connectTimeout,
+      maxTime: maxTime,
+      insecure: insecure,
+      httpVersion: httpVersion,
+    );
+  }
+}
+
+/// Extracts -H/--header values from raw input, correctly handling values with `://`.
+Map<String, String> _extractHeaders(String input) {
+  final tokens = _tokenize(input);
+  final headers = <String, String>{};
+  for (var i = 0; i < tokens.length; i++) {
+    final tok = tokens[i];
+    String? headerValue;
+    if (tok == '-H' && i + 1 < tokens.length) {
+      headerValue = _unquote(tokens[i + 1]);
+    } else if (tok.startsWith('--header=')) {
+      headerValue = _unquote(tok.substring(9));
+    } else if (tok == '--header' && i + 1 < tokens.length) {
+      headerValue = _unquote(tokens[i + 1]);
+    }
+    if (headerValue != null) {
+      final colonIndex = headerValue.indexOf(':');
+      if (colonIndex > 0) {
+        final name = headerValue.substring(0, colonIndex).trim();
+        final value = headerValue.substring(colonIndex + 1).trim();
+        headers[name] = value;
+      }
+    }
+  }
+  return headers;
+}
+
+Curl _curlWithHeaders(Curl curl, Map<String, String> headers) {
+  return Curl(
+    method: curl.method,
+    uri: curl.uri,
+    headers: headers.isEmpty ? null : headers,
+    data: curl.data,
+    cookie: curl.cookie,
+    user: curl.user,
+    referer: curl.referer,
+    userAgent: curl.userAgent,
+    form: curl.form,
+    formData: curl.formData,
+    insecure: curl.insecure,
+    location: curl.location,
   );
+}
+
+/// Strips all -H/--header flags from input so curl_parser doesn't try to parse them.
+String _stripHeaders(String input) {
+  final tokens = _tokenize(input);
+  final result = <String>[];
+  for (var i = 0; i < tokens.length; i++) {
+    final tok = tokens[i];
+    if (tok == '-H' || tok == '--header') {
+      i++; // skip value
+      continue;
+    }
+    if (tok.startsWith('--header=')) {
+      continue;
+    }
+    result.add(tok);
+  }
+  return result.join(' ');
+}
+
+/// Aggressive fallback: only keep tokens that curl_parser natively supports.
+/// This ensures any unknown flag is stripped rather than causing a crash.
+String _stripAllUnknownFlags(String input) {
+  const supportedLong = {
+    'url', 'request', 'header', 'data', 'cookie', 'user',
+    'referer', 'user-agent', 'head', 'form', 'insecure', 'location',
+  };
+  const supportedShort = {'X', 'H', 'd', 'b', 'u', 'e', 'A', 'I', 'F', 'k', 'L'};
+  const valueFlags = {'X', 'H', 'd', 'b', 'u', 'e', 'A', 'F'};
+  const valueFlagsLong = {
+    'request', 'header', 'data', 'cookie', 'user', 'referer', 'user-agent', 'form',
+  };
+
+  final tokens = _tokenize(input);
+  final result = <String>[];
+
+  int i = 0;
+  while (i < tokens.length) {
+    final tok = tokens[i];
+
+    if (tok.startsWith('--')) {
+      final body = tok.substring(2);
+      final eq = body.indexOf('=');
+      final name = eq >= 0 ? body.substring(0, eq) : body;
+      if (!supportedLong.contains(name)) {
+        // Skip value token if this flag takes one and it's not --flag=value form
+        if (valueFlagsLong.contains(name) && eq < 0 && i + 1 < tokens.length) {
+          final next = _unquote(tokens[i + 1]);
+          if (!_isUrlLike(next) && !_isFlagLike(next)) i++;
+        }
+        i++;
+        continue;
+      }
+      result.add(tok);
+      i++;
+      continue;
+    }
+
+    if (tok.length == 2 && tok.startsWith('-')) {
+      final ch = tok[1];
+      if (!supportedShort.contains(ch)) {
+        if (valueFlags.contains(ch) && i + 1 < tokens.length) {
+          final next = _unquote(tokens[i + 1]);
+          if (!_isUrlLike(next) && !_isFlagLike(next)) i++;
+        }
+        i++;
+        continue;
+      }
+      result.add(tok);
+      i++;
+      continue;
+    }
+
+    // Combined short flags like -sSvL
+    if (tok.length > 2 && tok.startsWith('-') && !tok.startsWith('--')) {
+      final kept = tok.substring(1).split('').where((c) => supportedShort.contains(c)).join();
+      if (kept.isEmpty) { i++; continue; }
+      result.add('-$kept');
+      i++;
+      continue;
+    }
+
+    result.add(tok);
+    i++;
+  }
+
+  return result.join(' ');
 }

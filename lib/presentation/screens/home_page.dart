@@ -71,7 +71,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _searchActive = false;
   bool _prettify = true;
   bool _showLineNumbers = false;
-  bool _showPreview = false;
   bool _isFullscreenInput = false;
 
   Project? _activeProject;
@@ -227,6 +226,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               connectTimeout: effectiveConnectTimeout,
               maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
+              httpVersion: parsed.httpVersion,
             )
           : await widget.httpClient.execute(
               parsed.curl,
@@ -237,6 +237,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               connectTimeout: effectiveConnectTimeout,
               maxTime: effectiveMaxTime,
               insecure: parsed.insecure,
+              httpVersion: parsed.httpVersion,
             );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -524,7 +525,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       return;
     }
 
-    final name = await _showSaveDialog();
+    final name = await _showSaveDialog(
+      initialName: _selectedRequestPath?.replaceAll('.curl', ''),
+    );
     if (name == null || name.trim().isEmpty) return;
     final exists = await widget.requestService.requestExists(
       _projectId!,
@@ -570,6 +573,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _newRequest() {
+    Navigator.of(context).maybePop();
     setState(() {
       _curlController.clear();
       _response = null;
@@ -667,7 +671,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Future<String?> _showSaveDialog() async {
+  Future<String?> _showSaveDialog({String? initialName}) async {
     List<String> folders = [];
     if (_projectId != null) {
       final items = await widget.requestService.listRequests(_projectId!);
@@ -680,7 +684,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       folders = folderSet.toList()..sort();
     }
 
-    final controller = TextEditingController();
+    final controller = TextEditingController(text: initialName ?? '');
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -783,51 +787,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   // ── Shared Builders ─────────────────────────────────────────────
 
-  Widget _buildResolvedPreview() {
+  void _openResolvedPreview() async {
     final text = _curlController.text.trim();
-    if (text.isEmpty) return const SizedBox.shrink();
+    if (text.isEmpty) return;
 
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 150),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: TColors.background,
-        border: Border.all(color: TColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'RESOLVED COMMAND PREVIEW',
-            style: TextStyle(
-              color: TColors.purple,
-              fontFamily: 'monospace',
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Expanded(
-            child: SingleChildScrollView(
-              child: FutureBuilder<String>(
-                future: widget.envService.resolve(text, projectId: _projectId),
-                builder: (context, snapshot) {
-                  final resolved = snapshot.data ?? 'resolving...';
-                  return Text(
-                    resolved,
-                    style: TextStyle(
-                      color: TColors.mutedText.withValues(alpha: 0.8),
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+    showDialog(
+      context: context,
+      builder: (ctx) => _ResolvedPreviewDialog(
+        future: widget.envService.resolve(text, projectId: _projectId),
       ),
     );
   }
@@ -875,9 +842,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
-            onChanged: (v) {
-              if (_showPreview) setState(() {});
-            },
+            onChanged: (v) {},
           ),
         ),
       ],
@@ -959,7 +924,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          const SizedBox(width: 8),
+          if (_projectId != null) ...[
+            if (_selectedRequestPath != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _saveRequest,
+                child: Icon(Icons.save, size: 14, color: TColors.green),
+              ),
+            ],
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: _saveRequestAs,
+              child: Icon(Icons.save_as, size: 14, color: TColors.mutedText),
+            ),
+          ],
+          const SizedBox(width: 6),
           _EnvSwitch(envService: widget.envService, projectId: _projectId),
         ],
       ),
@@ -986,17 +965,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
           _CompactIconButton(icon: Icons.content_paste, onTap: _paste),
           _CompactIconButton(
-            icon: _showPreview ? Icons.visibility : Icons.visibility_off,
-            onTap: () => setState(() => _showPreview = !_showPreview),
-            accent: _showPreview,
+            icon: Icons.code,
+            onTap: _openResolvedPreview,
           ),
 
           const Spacer(),
 
           // System Group
-          _CompactIconButton(
-            icon: Icons.history,
-            onTap: () => Navigator.of(context).push(
+          _MoreMenu(
+            onAbout: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutPage()),
+            ),
+            onHelp: () => _showHelp(context),
+            onSettings: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SettingsPage(
+                  settingsService: widget.settingsService,
+                  envService: widget.envService,
+                  fsService: widget.fsService,
+                  onUserAgentChanged: widget.onUserAgentChanged,
+                  onWorkspaceChanged: widget.onWorkspaceChanged,
+                  projectId: _projectId,
+                ),
+              ),
+            ),
+            onHistory: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => HistoryPage(
                   historyService: widget.historyService,
@@ -1013,27 +1006,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
             ),
           ),
-          _CompactIconButton(
-            icon: Icons.settings_outlined,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SettingsPage(
-                  settingsService: widget.settingsService,
-                  envService: widget.envService,
-                  fsService: widget.fsService,
-                  onUserAgentChanged: widget.onUserAgentChanged,
-                  onWorkspaceChanged: widget.onWorkspaceChanged,
-                  projectId: _projectId,
-                ),
-              ),
-            ),
-          ),
 
           const SizedBox(width: 8),
           // Execute Action
           TermButton(
             icon: Icons.play_arrow,
-            label: 'EXEC',
+            label: 'exec',
             onTap: _isLoading ? null : _executeCurl,
             accent: true,
           ),
@@ -1054,207 +1032,213 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
           if (_response != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          const Text(
-                            'res',
-                            style: TextStyle(
-                              color: TColors.purple,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_response!.statusCode ?? '-'}',
-                            style: TextStyle(
-                              color:
-                                  (_response!.statusCode ?? 0) >= 200 &&
-                                      (_response!.statusCode ?? 0) < 300
-                                  ? TColors.green
-                                  : TColors.red,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _response!.timeLabel,
-                            style: const TextStyle(
-                              color: TColors.mutedText,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _response!.bodySizeLabel,
-                            style: const TextStyle(
-                              color: TColors.mutedText,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _response!.contentTypeLabel,
-                            style: const TextStyle(
-                              color: TColors.cyan,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-                          FlatTab(
-                            label: 'headers',
-                            selected: _selectedTab == ResponseTab.headers,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.headers;
-                              _showHtmlPreview = false;
-                            }),
-                          ),
-                          const SizedBox(width: 8),
-                          FlatTab(
-                            label: 'body',
-                            selected:
-                                _selectedTab == ResponseTab.body &&
-                                !_showHtmlPreview,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.body;
-                              _showHtmlPreview = false;
-                            }),
-                          ),
-                          if (_response!.verboseLog != null &&
-                              _response!.verboseLog!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            FlatTab(
-                              label: 'verbose',
-                              selected: _selectedTab == ResponseTab.verbose,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.verbose;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
-                          if (_response!.traceLog != null &&
-                              _response!.traceLog!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            FlatTab(
-                              label: 'trace',
-                              selected: _selectedTab == ResponseTab.trace,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.trace;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
-                        ],
+                  Row(
+                    children: [
+                      const Text(
+                        'res',
+                        style: TextStyle(
+                          color: TColors.purple,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ),
-                  if (_response!.isHtml) ...[
-                    GestureDetector(
-                      onTap: () => setState(() {
-                        _selectedTab = ResponseTab.body;
-                        _showHtmlPreview = true;
-                        _searchActive = false;
-                      }),
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.visibility,
-                          size: 16,
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_response!.statusCode ?? '-'}',
+                        style: TextStyle(
+                          color:
+                              (_response!.statusCode ?? 0) >= 200 &&
+                                  (_response!.statusCode ?? 0) < 300
+                              ? TColors.green
+                              : TColors.red,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _response!.timeLabel,
+                        style: const TextStyle(
                           color: TColors.mutedText,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
                         ),
                       ),
-                    ),
-                  ],
-                  GestureDetector(
-                    onTap: () {
-                      final text = _response!.bodyText.trim();
-                      if (text.isNotEmpty) {
-                        Clipboard.setData(ClipboardData(text: text));
-                        showTerminalToast(context, 'copied to clipboard');
-                      }
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(
-                        Icons.copy,
-                        size: 16,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _saveResponse,
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.save,
-                        size: 16,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _searchActive = !_searchActive),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        _searchActive ? Icons.search_off : Icons.search,
-                        size: 16,
-                        color: _searchActive
-                            ? TColors.green
-                            : TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  if (_response?.highlightLanguage == 'json') ...[
-                    GestureDetector(
-                      onTap: () => setState(() => _prettify = !_prettify),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Icon(
-                          _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
-                          size: 16,
-                          color: _prettify ? TColors.green : TColors.mutedText,
+                      const SizedBox(width: 8),
+                      Text(
+                        _response!.bodySizeLabel,
+                        style: const TextStyle(
+                          color: TColors.mutedText,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
                         ),
                       ),
-                    ),
-                  ],
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _showLineNumbers = !_showLineNumbers),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.format_list_numbered,
-                        size: 16,
-                        color: _showLineNumbers
-                            ? TColors.green
-                            : TColors.mutedText,
+                      const SizedBox(width: 8),
+                      Text(
+                        _response!.contentTypeLabel,
+                        style: const TextStyle(
+                          color: TColors.cyan,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      if (_response!.isHtml) ...[
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.body;
+                            _showHtmlPreview = true;
+                            _searchActive = false;
+                          }),
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.visibility,
+                              size: 16,
+                              color: TColors.mutedText,
+                            ),
+                          ),
+                        ),
+                      ],
+                      GestureDetector(
+                        onTap: () {
+                          final text = _response!.bodyText.trim();
+                          if (text.isNotEmpty) {
+                            Clipboard.setData(ClipboardData(text: text));
+                            showTerminalToast(context, 'copied to clipboard');
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.copy,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _saveResponse,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.save,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _searchActive = !_searchActive),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            _searchActive ? Icons.search_off : Icons.search,
+                            size: 16,
+                            color: _searchActive
+                                ? TColors.green
+                                : TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                      if (_response?.highlightLanguage == 'json') ...[
+                        GestureDetector(
+                          onTap: () => setState(() => _prettify = !_prettify),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              _prettify
+                                  ? Icons.auto_fix_high
+                                  : Icons.auto_fix_off,
+                              size: 16,
+                              color: _prettify
+                                  ? TColors.green
+                                  : TColors.mutedText,
+                            ),
+                          ),
+                        ),
+                      ],
+                      GestureDetector(
+                        onTap: () => setState(
+                          () => _showLineNumbers = !_showLineNumbers,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.format_list_numbered,
+                            size: 16,
+                            color: _showLineNumbers
+                                ? TColors.green
+                                : TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () =>
+                            openFullscreenResponse(context, _response!),
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.fullscreen,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () => openFullscreenResponse(context, _response!),
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.fullscreen,
-                        size: 16,
-                        color: TColors.mutedText,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      FlatTab(
+                        label: 'headers',
+                        selected: _selectedTab == ResponseTab.headers,
+                        onTap: () => setState(() {
+                          _selectedTab = ResponseTab.headers;
+                          _showHtmlPreview = false;
+                        }),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      FlatTab(
+                        label: 'body',
+                        selected:
+                            _selectedTab == ResponseTab.body &&
+                            !_showHtmlPreview,
+                        onTap: () => setState(() {
+                          _selectedTab = ResponseTab.body;
+                          _showHtmlPreview = false;
+                        }),
+                      ),
+                      if (_response!.verboseLog != null &&
+                          _response!.verboseLog!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        FlatTab(
+                          label: 'verbose',
+                          selected: _selectedTab == ResponseTab.verbose,
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.verbose;
+                            _showHtmlPreview = false;
+                          }),
+                        ),
+                      ],
+                      if (_response!.traceLog != null &&
+                          _response!.traceLog!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        FlatTab(
+                          label: 'trace',
+                          selected: _selectedTab == ResponseTab.trace,
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.trace;
+                            _showHtmlPreview = false;
+                          }),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -1360,13 +1344,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               _EditorDashboard(
                 envBar: _buildEnvBar(),
                 actionBar: _buildActionToolbar(),
-                preview: _showPreview ? _buildResolvedPreview() : null,
               )
             else
               _EditorDashboard(
                 envBar: _buildEnvBar(),
                 actionBar: _buildActionToolbar(),
-                preview: _showPreview ? _buildResolvedPreview() : null,
               ),
 
             // Response section (compact only)
@@ -1417,7 +1399,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   _EditorDashboard(
                     envBar: _buildEnvBar(),
                     actionBar: _buildActionToolbar(),
-                    preview: _showPreview ? _buildResolvedPreview() : null,
                   ),
                   const Spacer(),
                 ],
@@ -1768,6 +1749,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
         showMenu<String>(
           context: context,
           elevation: 0,
+          constraints: const BoxConstraints(maxWidth: 180),
           position: RelativeRect.fromLTRB(
             offset.dx,
             offset.dy + renderBox.size.height,
@@ -1793,14 +1775,17 @@ class _EnvSwitchState extends State<_EnvSwitch> {
                           : TColors.mutedText,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      e.name,
-                      style: TextStyle(
-                        color: e.id == active?.id
-                            ? TColors.green
-                            : TColors.foreground,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
+                    Expanded(
+                      child: Text(
+                        e.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: e.id == active?.id
+                              ? TColors.green
+                              : TColors.foreground,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -1847,7 +1832,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
       },
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         color: TColors.surface,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1856,11 +1841,13 @@ class _EnvSwitchState extends State<_EnvSwitch> {
             if (_activeName != null) ...[
               const SizedBox(width: 4),
               Text(
-                _activeName!,
+                _activeName!.length > 6
+                    ? '${_activeName!.substring(0, 4)}…'
+                    : _activeName!,
                 style: const TextStyle(
                   color: TColors.cyan,
                   fontFamily: 'monospace',
-                  fontSize: 11,
+                  fontSize: 10,
                 ),
               ),
             ],
@@ -1874,12 +1861,10 @@ class _EnvSwitchState extends State<_EnvSwitch> {
 class _EditorDashboard extends StatelessWidget {
   final Widget envBar;
   final Widget actionBar;
-  final Widget? preview;
 
   const _EditorDashboard({
     required this.envBar,
     required this.actionBar,
-    this.preview,
   });
 
   @override
@@ -1896,12 +1881,6 @@ class _EditorDashboard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           envBar,
-          if (preview != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: preview!,
-            ),
-          ],
           actionBar,
         ],
       ),
@@ -2048,5 +2027,127 @@ class _FolderChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ResolvedPreviewDialog extends StatelessWidget {
+  final Future<String> future;
+
+  const _ResolvedPreviewDialog({required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: TColors.background,
+      insetPadding: EdgeInsets.zero,
+      alignment: Alignment.centerLeft,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: TColors.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  const Text(
+                    'resolved command',
+                    style: TextStyle(
+                      color: TColors.purple,
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Icon(Icons.close, size: 14, color: TColors.mutedText),
+                  ),
+                ],
+              ),
+            ),
+            Container(height: 1, color: TColors.border),
+            Expanded(
+              child: FutureBuilder<String>(
+                future: future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: TColors.green,
+                        strokeWidth: 2,
+                      ),
+                    );
+                  }
+                  final text = snapshot.data ?? '';
+                  final lines = _splitToHighlightLines(text);
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: lines.length,
+                    itemBuilder: (context, index) {
+                      return Text.rich(
+                        TextSpan(
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                          children: lines[index],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static List<List<TextSpan>> _splitToHighlightLines(String text) {
+    final allSpans = <TextSpan>[];
+    for (final m in _CurlHighlightController._tokenRegex.allMatches(text)) {
+      if (m.group(1) != null) {
+        allSpans.add(TextSpan(text: m.group(1), style: const TextStyle(color: TColors.purple)));
+      } else if (m.group(2) != null) {
+        allSpans.add(TextSpan(text: m.group(2), style: const TextStyle(color: TColors.cyan, fontWeight: FontWeight.bold)));
+      } else if (m.group(3) != null) {
+        allSpans.add(TextSpan(text: m.group(3), style: const TextStyle(color: TColors.orange)));
+      } else if (m.group(5) != null) {
+        allSpans.add(TextSpan(text: m.group(5), style: const TextStyle(color: TColors.yellow)));
+      } else if (m.group(6) != null) {
+        allSpans.add(TextSpan(text: m.group(6), style: const TextStyle(color: TColors.yellow)));
+      } else if (m.group(7) != null) {
+        allSpans.add(TextSpan(text: m.group(7), style: const TextStyle(color: TColors.green)));
+      } else if (m.group(8) != null) {
+        final word = m.group(8)!;
+        if (_CurlHighlightController._methods.contains(word.toUpperCase())) {
+          allSpans.add(TextSpan(text: word, style: const TextStyle(color: TColors.purple, fontWeight: FontWeight.bold)));
+        } else {
+          allSpans.add(TextSpan(text: word));
+        }
+      } else if (m.group(9) != null) {
+        allSpans.add(TextSpan(text: m.group(9)));
+      }
+    }
+
+    final lines = <List<TextSpan>>[[]];
+    for (final span in allSpans) {
+      final spanText = span.text ?? '';
+      if (!spanText.contains('\n')) {
+        lines.last.add(span);
+        continue;
+      }
+      final parts = spanText.split('\n');
+      for (var i = 0; i < parts.length; i++) {
+        if (i > 0) lines.add([]);
+        if (parts[i].isNotEmpty) {
+          lines.last.add(TextSpan(text: parts[i], style: span.style));
+        }
+      }
+    }
+    return lines;
   }
 }
