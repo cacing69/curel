@@ -129,7 +129,6 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           'reset app',
           style: TextStyle(

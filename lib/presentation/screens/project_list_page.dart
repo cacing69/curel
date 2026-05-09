@@ -246,7 +246,6 @@ class _ProjectListPageState extends State<ProjectListPage> {
             0,
           ),
           color: TColors.surface,
-          shape: const RoundedRectangleBorder(),
           items: [
             PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
             PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.delete, 'delete')),
@@ -304,7 +303,6 @@ class _ProjectListPageState extends State<ProjectListPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           action,
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
@@ -342,7 +340,6 @@ class _ProjectListPageState extends State<ProjectListPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           title,
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),

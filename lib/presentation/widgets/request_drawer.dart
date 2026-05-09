@@ -296,7 +296,6 @@ class _RequestDrawerState extends State<RequestDrawer> {
         0,
       ),
       color: TColors.surface,
-      shape: const RoundedRectangleBorder(),
       items: [
         PopupMenuItem(value: 'share', height: 36, child: _menuItem(Icons.share, 'share')),
         PopupMenuItem(value: 'rename', height: 36, child: _menuItem(Icons.edit, 'rename')),
@@ -354,7 +353,6 @@ class _RequestDrawerState extends State<RequestDrawer> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
         content: TextField(
           controller: controller,

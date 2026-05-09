@@ -1,6 +1,7 @@
 import 'package:curel/data/services/curl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
+import 'package:curel/domain/services/bookmark_service.dart';
 import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/history_service.dart';
 import 'package:curel/domain/services/project_service.dart';
@@ -26,6 +27,7 @@ class _AppState extends State<App> {
   final _settingsService = PreferencesSettingsService();
   final _fsService = LocalFileSystemService();
   final _historyService = HistoryService();
+  final _bookmarkService = BookmarkService();
   late final EnvService _envService;
   late final ProjectService _projectService;
   late final RequestService _requestService;
@@ -68,6 +70,53 @@ class _AppState extends State<App> {
           bodyMedium: TextStyle(fontFamily: 'monospace'),
           bodyLarge: TextStyle(fontFamily: 'monospace'),
         ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: ButtonStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: ButtonStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+        ),
+        popupMenuTheme: PopupMenuThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        cardTheme: CardThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        bottomSheetTheme: BottomSheetThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        chipTheme: ChipThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
       ),
       home: HomePage(
         httpClient: _httpClient,
@@ -77,6 +126,7 @@ class _AppState extends State<App> {
         projectService: _projectService,
         requestService: _requestService,
         historyService: _historyService,
+        bookmarkService: _bookmarkService,
         onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
         fsService: _fsService,
         onWorkspaceChanged: _onWorkspaceChanged,

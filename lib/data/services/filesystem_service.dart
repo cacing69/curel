@@ -110,10 +110,19 @@ class LocalFileSystemService implements FileSystemService {
 
   @override
   Future<void> renameFile(String oldPath, String newPath) async {
-    final file = File(oldPath);
-    if (await file.exists()) {
-      await file.rename(newPath);
+    final src = File(oldPath);
+    if (!await src.exists()) {
+      throw FileSystemException('File not found', oldPath);
     }
+
+    await ensureDir(p.dirname(newPath));
+
+    final dst = File(newPath);
+    if (await dst.exists()) {
+      throw FileSystemException('Target already exists', newPath);
+    }
+
+    await src.rename(newPath);
   }
 
   @override

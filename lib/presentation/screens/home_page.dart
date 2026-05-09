@@ -12,12 +12,14 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
 import 'package:curel/presentation/screens/env_page.dart';
+import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
 import 'package:curel/data/services/curl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/history_service.dart';
+import 'package:curel/domain/services/bookmark_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -27,6 +29,7 @@ import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
@@ -37,6 +40,7 @@ class HomePage extends StatefulWidget {
   final ProjectService projectService;
   final RequestService requestService;
   final HistoryService historyService;
+  final BookmarkService bookmarkService;
   final FileSystemService fsService;
   final void Function(String userAgent) onUserAgentChanged;
   final void Function() onWorkspaceChanged;
@@ -49,6 +53,7 @@ class HomePage extends StatefulWidget {
     required this.projectService,
     required this.requestService,
     required this.historyService,
+    required this.bookmarkService,
     required this.fsService,
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
@@ -61,8 +66,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _curlController = _CurlHighlightController();
-  final _focusNode = FocusNode();
+  final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
+  OverlayEntry? _envOverlayEntry;
+  List<String> _envOverlayOptions = const [];
+  Offset _envOverlayOffset = Offset.zero;
   CurlResponse? _response;
   bool _isLoading = false;
   String? _error;
@@ -72,6 +80,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _prettify = true;
   bool _showLineNumbers = false;
   bool _isFullscreenInput = false;
+  String _baselineCurlText = '';
+  List<({String key, String lower})> _envKeyIndex = const [];
+  TextEditingValue _lastEnvAutocompleteValue = const TextEditingValue();
 
   Project? _activeProject;
   String? _selectedRequestPath;
@@ -80,13 +91,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _focusNode.addListener(() {
-      if (_focusNode.hasFocus && !_isFullscreenInput) {
-        _enterFullscreen();
-      }
-    });
+    _editorFocusNode.addListener(_onEditorFocusChanged);
+    _curlController.addListener(_onCurlValueChanged);
     _loadActiveProject();
     _checkClipboard();
+    _refreshEnvKeys();
   }
 
   String? get _projectId => _activeProject?.id;
@@ -101,18 +110,255 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     var project = await widget.projectService.getActiveProject();
     project ??= await widget.projectService.ensureDefaultProject();
     if (mounted) setState(() => _activeProject = project);
+    _refreshEnvKeys();
+  }
+
+  Future<void> _refreshEnvKeys() async {
+    final keys = <String>{};
+    final global = await widget.envService.getActive(null);
+    if (global != null) {
+      keys.addAll(global.variables.map((v) => v.key));
+    }
+    if (_projectId != null) {
+      final project = await widget.envService.getActive(_projectId);
+      if (project != null) {
+        keys.addAll(project.variables.map((v) => v.key));
+      }
+    }
+    if (!mounted) return;
+    final sorted = keys.toList()..sort();
+    setState(() {
+      _envKeyIndex = sorted
+          .map((k) => (key: k, lower: k.toLowerCase()))
+          .toList(growable: false);
+    });
+  }
+
+  RenderEditable? _findRenderEditable(RenderObject root) {
+    RenderEditable? result;
+    void visitor(RenderObject child) {
+      if (result != null) return;
+      if (child is RenderEditable) {
+        result = child;
+        return;
+      }
+      child.visitChildren(visitor);
+    }
+
+    if (root is RenderEditable) return root;
+    root.visitChildren(visitor);
+    return result;
+  }
+
+  Offset _caretBottomInField({
+    required GlobalKey fieldKey,
+    required int caretOffset,
+  }) {
+    final fieldContext = fieldKey.currentContext;
+    if (fieldContext == null) return Offset.zero;
+    final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+    if (fieldBox == null) return Offset.zero;
+    final root = fieldContext.findRenderObject();
+    if (root == null) return Offset.zero;
+    final renderEditable = _findRenderEditable(root);
+    if (renderEditable == null) return Offset.zero;
+    final caretRect = renderEditable.getLocalRectForCaret(
+      TextPosition(offset: caretOffset),
+    );
+    final caretGlobal = renderEditable.localToGlobal(
+      Offset(caretRect.left, caretRect.bottom),
+    );
+    return fieldBox.globalToLocal(caretGlobal);
+  }
+
+  ({int replaceStart, int replaceEnd, String query, bool hasClosing})?
+  _envQueryAtCaret(TextEditingValue value) {
+    final caret = value.selection.baseOffset;
+    if (caret < 0) return null;
+    final text = value.text;
+    if (caret > text.length) return null;
+    final before = text.substring(0, caret);
+    final start = before.lastIndexOf('<<');
+    if (start < 0) return null;
+    if (before.indexOf('>>', start) != -1) return null;
+    final query = before.substring(start + 2);
+    if (query.isNotEmpty &&
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(query)) {
+      return null;
+    }
+    final hasClosing = text.substring(caret).startsWith('>>');
+    return (
+      replaceStart: start + 2,
+      replaceEnd: caret,
+      query: query,
+      hasClosing: hasClosing,
+    );
   }
 
   @override
   void dispose() {
+    _hideEnvOverlay();
     WidgetsBinding.instance.removeObserver(this);
-    _focusNode.dispose();
+    _curlController.removeListener(_onCurlValueChanged);
+    _editorFocusNode.removeListener(_onEditorFocusChanged);
+    _editorFocusNode.dispose();
     _curlController.dispose();
     super.dispose();
   }
 
-  void _exitFullscreen() {
-    _focusNode.unfocus();
+  void _onEditorFocusChanged() {
+    if (!_editorFocusNode.hasFocus) {
+      _hideEnvOverlay();
+      return;
+    }
+    if (!_isFullscreenInput) _enterFullscreen();
+    _updateEnvOverlay();
+  }
+
+  void _onCurlValueChanged() {
+    if (!_editorFocusNode.hasFocus) return;
+    _updateEnvOverlay();
+  }
+
+  void _hideEnvOverlay() {
+    _envOverlayEntry?.remove();
+    _envOverlayEntry = null;
+  }
+
+  void _updateEnvOverlay() {
+    if (!mounted) return;
+    if (_envKeyIndex.isEmpty) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final value = _curlController.value;
+    final q = _envQueryAtCaret(value);
+    if (q == null) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final query = q.query.toLowerCase();
+    final matches = _envKeyIndex
+        .where((e) => query.isEmpty || e.lower.startsWith(query))
+        .map((e) => e.key)
+        .take(12)
+        .toList(growable: false);
+    if (matches.isEmpty) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final fieldContext = _textFieldKey.currentContext;
+    if (fieldContext == null) return;
+    final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+    if (fieldBox == null || !fieldBox.hasSize) return;
+
+    final caret = value.selection.baseOffset;
+    if (caret < 0 || caret > value.text.length) return;
+    final caretLocal = _caretBottomInField(
+      fieldKey: _textFieldKey,
+      caretOffset: caret,
+    );
+
+    const menuMaxWidth = 220.0;
+    const menuMaxHeight = 180.0;
+    final fieldSize = fieldBox.size;
+
+    final maxDx = (fieldSize.width - menuMaxWidth);
+    final dx = (maxDx <= 0 ? 0.0 : caretLocal.dx.clamp(0.0, maxDx));
+
+    var dy = caretLocal.dy + 4;
+    if (dy + menuMaxHeight > fieldSize.height) {
+      dy = (caretLocal.dy - menuMaxHeight - 4).clamp(0.0, fieldSize.height);
+    }
+
+    final overlay = Overlay.of(context);
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (overlayBox == null) return;
+    final globalTopLeft = fieldBox.localToGlobal(Offset(dx, dy));
+    final overlayOffset = overlayBox.globalToLocal(globalTopLeft);
+
+    _envOverlayOptions = matches;
+    _envOverlayOffset = overlayOffset;
+
+    if (_envOverlayEntry == null) {
+      _envOverlayEntry = OverlayEntry(
+        builder: (context) {
+          final list = _envOverlayOptions;
+          return Positioned(
+            left: _envOverlayOffset.dx,
+            top: _envOverlayOffset.dy,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: menuMaxHeight,
+                  maxWidth: menuMaxWidth,
+                ),
+                decoration: BoxDecoration(
+                  color: TColors.surface,
+                  border: Border.all(color: TColors.border),
+                ),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final opt = list[index];
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        final current = _curlController.value;
+                        final currentQ = _envQueryAtCaret(current);
+                        if (currentQ == null) return;
+                        final insert = opt + (currentQ.hasClosing ? '' : '>>');
+                        final nextText = current.text.replaceRange(
+                          currentQ.replaceStart,
+                          currentQ.replaceEnd,
+                          insert,
+                        );
+                        final nextCaret = currentQ.replaceStart + insert.length;
+                        _curlController.value = current.copyWith(
+                          text: nextText,
+                          selection: TextSelection.collapsed(offset: nextCaret),
+                          composing: TextRange.empty,
+                        );
+                        _hideEnvOverlay();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          '<<$opt>>',
+                          style: const TextStyle(
+                            color: TColors.foreground,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      );
+      overlay.insert(_envOverlayEntry!);
+    } else {
+      _envOverlayEntry!.markNeedsBuild();
+    }
+  }
+
+  void _exitFullscreen({bool unfocus = true}) {
+    if (unfocus) {
+      _editorFocusNode.unfocus();
+    }
     setState(() => _isFullscreenInput = false);
   }
 
@@ -180,7 +426,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _response = null;
         _showHtmlPreview = false;
       });
-      _exitFullscreen();
+      _exitFullscreen(unfocus: false);
       return;
     }
 
@@ -190,20 +436,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _error = null;
       _showHtmlPreview = false;
     });
-    _exitFullscreen();
+    if (_isFullscreenInput) {
+      setState(() => _isFullscreenInput = false);
+    }
+    await Future<void>.delayed(Duration.zero);
 
     final sw = Stopwatch()..start();
     try {
-      final resolved = await widget.envService.resolve(
-        text,
-        projectId: _projectId,
-      );
-      final undefined = await widget.envService.findUndefinedVars(
-        text,
-        projectId: _projectId,
-      );
-      if (undefined.isNotEmpty && mounted) {
-        showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
+      final shouldResolve = text.contains('<<');
+      final resolved = shouldResolve
+          ? await widget.envService.resolve(text, projectId: _projectId)
+          : text;
+      final undefined = shouldResolve
+          ? await widget.envService.findUndefinedVars(
+              text,
+              projectId: _projectId,
+            )
+          : const <String>{};
+      if (undefined.isNotEmpty) {
+        if (mounted) {
+          showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
+          setState(
+            () => _error = 'error: undefined vars: ${undefined.join(', ')}',
+          );
+        }
+        return;
       }
       final parsed = parseCurl(resolved);
       final hasOutput = parsed.outputFileName != null;
@@ -294,7 +551,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (elapsed < 500) {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
       }
-      if (mounted) setState(() => _error = _formatError(e));
+      if (mounted) {
+        final msg = _formatError(e);
+        setState(() => _error = msg);
+        showTerminalToast(context, msg);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -326,6 +587,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       MaterialPageRoute(
         builder: (_) => RequestBuilderPage(
           httpClient: widget.httpClient,
+          envService: widget.envService,
+          projectId: _projectId,
           initialCurl: _curlController.text.trim().isEmpty
               ? null
               : _curlController.text.trim(),
@@ -414,13 +677,64 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   // ── Save response ────────────────────────────────────────────────
 
+  ResponseTab get _activePreviewTab =>
+      _showHtmlPreview ? ResponseTab.body : _selectedTab;
+
+  String get _activePreviewTabLabel => switch (_activePreviewTab) {
+    ResponseTab.headers => 'headers',
+    ResponseTab.body => 'body',
+    ResponseTab.verbose => 'verbose',
+    ResponseTab.trace => 'trace',
+  };
+
+  String? _activePreviewText() {
+    final res = _response;
+    if (res == null) return null;
+    switch (_activePreviewTab) {
+      case ResponseTab.headers:
+        return res.formatHeaders();
+      case ResponseTab.body:
+        return res.getBodyText(_prettify);
+      case ResponseTab.verbose:
+        return res.formatVerboseLog();
+      case ResponseTab.trace:
+        return res.formatTraceLog();
+    }
+  }
+
+  void _copyActivePreview() {
+    final text = _activePreviewText()?.trim() ?? '';
+    if (text.isEmpty) {
+      showTerminalToast(context, '$_activePreviewTabLabel empty');
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: text));
+    showTerminalToast(context, '$_activePreviewTabLabel copied');
+  }
+
   Future<void> _saveResponse() async {
     if (_response == null) return;
-    final rawExt = _response!.contentTypeLabel.toLowerCase();
-    final ext = switch (rawExt) {
-      'html' || 'json' || 'xml' || 'txt' || 'csv' => rawExt,
-      _ => 'txt',
+    final tab = _activePreviewTab;
+    final text = _activePreviewText() ?? '';
+    if (text.trim().isEmpty) {
+      showTerminalToast(context, '$_activePreviewTabLabel empty');
+      return;
+    }
+
+    final (dialogTitle, fileStem, ext) = switch (tab) {
+      ResponseTab.headers => ('Save headers', 'headers', 'txt'),
+      ResponseTab.body => () {
+        final rawExt = _response!.contentTypeLabel.toLowerCase();
+        final bodyExt = switch (rawExt) {
+          'html' || 'json' || 'xml' || 'txt' || 'csv' => rawExt,
+          _ => 'txt',
+        };
+        return ('Save response', 'res', bodyExt);
+      }(),
+      ResponseTab.verbose => ('Save verbose log', 'verbose', 'txt'),
+      ResponseTab.trace => ('Save trace log', 'trace', 'txt'),
     };
+
     final now = DateTime.now();
     final ts =
         '${now.year}'
@@ -431,15 +745,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         '${now.minute.toString().padLeft(2, '0')}'
         '${now.second.toString().padLeft(2, '0')}';
     try {
+      final fileName = '$fileStem-$ts.$ext';
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save response',
-        fileName: 'res-$ts.$ext',
+        dialogTitle: dialogTitle,
+        fileName: fileName,
         type: FileType.custom,
         allowedExtensions: [ext],
-        bytes: utf8.encode(_response!.bodyText),
+        bytes: utf8.encode(text),
       );
       if (path != null && mounted) {
-        showTerminalToast(context, 'saved');
+        showTerminalToast(context, '$_activePreviewTabLabel saved');
       }
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
@@ -461,24 +776,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             _response = null;
             _error = null;
           });
-          _focusNode.requestFocus();
+          _editorFocusNode.requestFocus();
         },
       ),
     );
-  }
-
-  Future<void> _openProjects() async {
-    final projectId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => ProjectListPage(
-          projectService: widget.projectService,
-          requestService: widget.requestService,
-        ),
-      ),
-    );
-    if (projectId != null) {
-      await _loadActiveProject();
-    }
   }
 
   Future<void> _saveRequest() async {
@@ -511,6 +812,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ),
       );
     }
+    if (!mounted) return;
+    _baselineCurlText = _curlController.text;
     showTerminalToast(context, 'request saved');
   }
 
@@ -538,6 +841,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'overwrite?',
         '${name.trim()} already exists. overwrite?',
       );
+      if (!mounted) return;
       if (overwrite != true) return;
       final relativePath = widget.requestService.resolvePath(name.trim());
       await widget.requestService.writeCurl(_projectId!, relativePath, text);
@@ -551,7 +855,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         );
       }
-      setState(() => _selectedRequestPath = relativePath);
+      if (!mounted) return;
+      setState(() {
+        _selectedRequestPath = relativePath;
+        _baselineCurlText = _curlController.text;
+      });
       showTerminalToast(context, 'request saved');
     } else {
       final path = await widget.requestService.createRequest(
@@ -567,7 +875,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         path,
         RequestMeta(displayName: displayName),
       );
-      setState(() => _selectedRequestPath = path);
+      if (!mounted) return;
+      setState(() {
+        _selectedRequestPath = path;
+        _baselineCurlText = _curlController.text;
+      });
       showTerminalToast(context, 'request saved');
     }
   }
@@ -576,13 +888,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     Navigator.of(context).maybePop();
     setState(() {
       _curlController.clear();
+      _baselineCurlText = '';
       _response = null;
       _error = null;
       _showHtmlPreview = false;
       _searchActive = false;
       _selectedRequestPath = null;
     });
-    _focusNode.requestFocus();
+    _editorFocusNode.requestFocus();
   }
 
   Future<void> _loadRequest(String relativePath) async {
@@ -593,6 +906,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (content != null && mounted) {
       setState(() {
         _curlController.text = content;
+        _baselineCurlText = content;
         _response = null;
         _error = null;
         _showHtmlPreview = false;
@@ -600,6 +914,149 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _selectedRequestPath = relativePath;
       });
       Navigator.of(context).maybePop();
+    }
+  }
+
+  bool get _hasUnsavedChanges => _curlController.text != _baselineCurlText;
+
+  Future<int?> _confirmClose({required bool closingProject}) {
+    final title = closingProject ? 'close project?' : 'close request?';
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.surface,
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: const Text(
+          'you have unsaved changes. save before closing?',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(0),
+            child: const Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(1),
+            child: const Text(
+              'discard',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(2),
+            child: const Text(
+              'save',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _closeRequest() async {
+    if (_curlController.text.isEmpty && _selectedRequestPath == null) return;
+
+    if (_hasUnsavedChanges) {
+      final choice = await _confirmClose(closingProject: false);
+      if (!mounted) return;
+      if (choice == 0 || choice == null) return;
+      if (choice == 2) {
+        final before = _baselineCurlText;
+        if (_selectedRequestPath != null) {
+          await _saveRequest();
+        } else {
+          await _saveRequestAs();
+        }
+        if (!mounted) return;
+        if (_baselineCurlText == before) return;
+      }
+    }
+
+    setState(() {
+      _curlController.clear();
+      _baselineCurlText = '';
+      _response = null;
+      _error = null;
+      _showHtmlPreview = false;
+      _searchActive = false;
+      _selectedRequestPath = null;
+    });
+  }
+
+  Future<void> _closeProject() async {
+    if (_activeProject == null) return;
+
+    if (_curlController.text.isNotEmpty && _hasUnsavedChanges) {
+      final choice = await _confirmClose(closingProject: true);
+      if (!mounted) return;
+      if (choice == 0 || choice == null) return;
+      if (choice == 2) {
+        final before = _baselineCurlText;
+        if (_selectedRequestPath != null) {
+          await _saveRequest();
+        } else {
+          await _saveRequestAs();
+        }
+        if (!mounted) return;
+        if (_baselineCurlText == before) return;
+      }
+    }
+
+    await widget.projectService.setActiveProject(null);
+    if (!mounted) return;
+    setState(() {
+      _activeProject = null;
+      _selectedRequestPath = null;
+      _curlController.clear();
+      _baselineCurlText = '';
+      _response = null;
+      _error = null;
+      _showHtmlPreview = false;
+      _searchActive = false;
+    });
+    _refreshEnvKeys();
+  }
+
+  Future<void> _openProjects() async {
+    final projectId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ProjectListPage(
+          projectService: widget.projectService,
+          requestService: widget.requestService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (projectId != null) {
+      await _loadActiveProject();
+      if (!mounted) return;
+      setState(() {
+        _selectedRequestPath = null;
+        _curlController.clear();
+        _baselineCurlText = '';
+        _response = null;
+        _error = null;
+        _showHtmlPreview = false;
+        _searchActive = false;
+      });
     }
   }
 
@@ -612,7 +1069,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       context: context,
       isScrollControlled: true,
       backgroundColor: TColors.background,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.7,
         child: RequestDrawer(
@@ -631,7 +1087,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           title,
           style: TextStyle(
@@ -683,13 +1138,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
       folders = folderSet.toList()..sort();
     }
+    if (!mounted) return null;
 
     final controller = TextEditingController(text: initialName ?? '');
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           'save request',
           style: TextStyle(
@@ -816,7 +1271,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         Expanded(
           child: TextField(
             key: _textFieldKey,
-            focusNode: _focusNode,
+            focusNode: _editorFocusNode,
             controller: _curlController,
             maxLines: unlimited ? null : maxLines,
             minLines: unlimited ? null : minLines,
@@ -842,7 +1297,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
-            onChanged: (v) {},
           ),
         ),
       ],
@@ -865,7 +1319,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: TColors.surface,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Icon(Icons.close, size: 12, color: TColors.red),
                 ),
@@ -889,57 +1343,112 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         children: [
           const Icon(Icons.terminal, size: 12, color: TColors.green),
           const SizedBox(width: 8),
-          if (_activeProject != null)
-            Expanded(
-              child: GestureDetector(
-                onTap: _openRequestDrawer,
-                child: Row(
-                  children: [
-                    Text(
-                      _activeProject!.name,
-                      style: const TextStyle(
-                        color: TColors.orange,
+          Expanded(
+            child: GestureDetector(
+              onTap: _openProjects,
+              behavior: HitTestBehavior.translucent,
+              child: Row(
+                children: [
+                  Icon(
+                    _activeProject == null
+                        ? Icons.folder_open
+                        : Icons.folder,
+                    size: 14,
+                    color: TColors.mutedText,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      _activeProject?.name ?? 'no project',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _activeProject == null
+                            ? TColors.mutedText
+                            : TColors.orange,
                         fontFamily: 'monospace',
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: _activeProject == null
+                            ? FontWeight.normal
+                            : FontWeight.bold,
                       ),
                     ),
+                  ),
+                  if (_activeProject != null) ...[
                     const Text(
                       ' › ',
-                      style: TextStyle(color: TColors.mutedText, fontSize: 10),
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontSize: 10,
+                      ),
                     ),
-                    if (_selectedRequestPath != null)
-                      Expanded(
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _openRequestDrawer,
                         child: Text(
-                          _requestDisplayName,
+                          _selectedRequestPath != null
+                              ? _requestDisplayName
+                              : 'no request',
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: TColors.cyan,
+                          style: TextStyle(
+                            color: _selectedRequestPath != null
+                                ? TColors.cyan
+                                : TColors.mutedText,
                             fontFamily: 'monospace',
                             fontSize: 10,
                           ),
                         ),
                       ),
+                    ),
                   ],
+                ],
+              ),
+            ),
+          ),
+          if (_activeProject != null) ...[
+            const SizedBox(width: 6),
+            if (_selectedRequestPath != null || _curlController.text.isNotEmpty)
+              GestureDetector(
+                onTap: _closeRequest,
+                child: const Icon(
+                  Icons.close,
+                  size: 14,
+                  color: TColors.mutedText,
                 ),
               ),
-            ),
-          if (_projectId != null) ...[
-            if (_selectedRequestPath != null) ...[
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: _saveRequest,
-                child: Icon(Icons.save, size: 14, color: TColors.green),
-              ),
-            ],
             const SizedBox(width: 6),
             GestureDetector(
-              onTap: _saveRequestAs,
-              child: Icon(Icons.save_as, size: 14, color: TColors.mutedText),
+              onTap: _closeProject,
+              child: const Icon(
+                Icons.folder_off,
+                size: 14,
+                color: TColors.mutedText,
+              ),
             ),
+            if (_projectId != null) ...[
+              if (_selectedRequestPath != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _saveRequest,
+                  child: const Icon(Icons.save, size: 14, color: TColors.green),
+                ),
+              ],
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _saveRequestAs,
+                child: const Icon(
+                  Icons.save_as,
+                  size: 14,
+                  color: TColors.mutedText,
+                ),
+              ),
+            ],
           ],
           const SizedBox(width: 6),
-          _EnvSwitch(envService: widget.envService, projectId: _projectId),
+          _EnvSwitch(
+            envService: widget.envService,
+            projectId: _projectId,
+            onChanged: _refreshEnvKeys,
+          ),
         ],
       ),
     );
@@ -964,17 +1473,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             },
           ),
           _CompactIconButton(icon: Icons.content_paste, onTap: _paste),
-          _CompactIconButton(
-            icon: Icons.code,
-            onTap: _openResolvedPreview,
-          ),
+          _CompactIconButton(icon: Icons.code, onTap: _openResolvedPreview),
 
           const Spacer(),
 
           // System Group
           _MoreMenu(
-            onAbout: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AboutPage()),
+            onAbout: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
+            onFeedback: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => FeedbackPage(
+                  projectId: _projectId,
+                  projectName: _activeProject?.name,
+                  requestPath: _selectedRequestPath,
+                ),
+              ),
             ),
             onHelp: () => _showHelp(context),
             onSettings: () => Navigator.of(context).push(
@@ -993,6 +1508,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               MaterialPageRoute(
                 builder: (_) => HistoryPage(
                   historyService: widget.historyService,
+                  bookmarkService: widget.bookmarkService,
                   currentProjectId: _projectId,
                   currentProjectName: _activeProject?.name,
                   onSelect: (curl) {
@@ -1105,13 +1621,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         ),
                       ],
                       GestureDetector(
-                        onTap: () {
-                          final text = _response!.bodyText.trim();
-                          if (text.isNotEmpty) {
-                            Clipboard.setData(ClipboardData(text: text));
-                            showTerminalToast(context, 'copied to clipboard');
-                          }
-                        },
+                        onTap: _copyActivePreview,
                         child: const Padding(
                           padding: EdgeInsets.only(left: 4),
                           child: Icon(
@@ -1364,7 +1874,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (_isFullscreenInput) return;
     setState(() => _isFullscreenInput = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) _editorFocusNode.requestFocus();
     });
   }
 
@@ -1383,7 +1893,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 children: [
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => _focusNode.requestFocus(),
+                    onTap: () => _editorFocusNode.requestFocus(),
                     child: Container(
                       color: TColors.surface,
                       padding: const EdgeInsets.symmetric(
@@ -1589,12 +2099,14 @@ class _WindowDot extends StatelessWidget {
 
 class _MoreMenu extends StatelessWidget {
   final VoidCallback onAbout;
+  final VoidCallback onFeedback;
   final VoidCallback onHelp;
   final VoidCallback onSettings;
   final VoidCallback onHistory;
 
   const _MoreMenu({
     required this.onAbout,
+    required this.onFeedback,
     required this.onHelp,
     required this.onSettings,
     required this.onHistory,
@@ -1616,7 +2128,6 @@ class _MoreMenu extends StatelessWidget {
             0,
           ),
           color: TColors.surface,
-          shape: const RoundedRectangleBorder(),
           items: [
             PopupMenuItem<int>(
               value: 3,
@@ -1627,6 +2138,28 @@ class _MoreMenu extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Text(
                     'history',
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem<int>(
+              value: 4,
+              height: 36,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.chat_bubble_outline,
+                    size: 14,
+                    color: TColors.mutedText,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'feedback',
                     style: TextStyle(
                       color: TColors.foreground,
                       fontFamily: 'monospace',
@@ -1700,6 +2233,7 @@ class _MoreMenu extends StatelessWidget {
           if (value == 1) onAbout();
           if (value == 2) onHelp();
           if (value == 3) onHistory();
+          if (value == 4) onFeedback();
         });
       },
       child: Container(
@@ -1715,8 +2249,9 @@ class _MoreMenu extends StatelessWidget {
 class _EnvSwitch extends StatefulWidget {
   final EnvService envService;
   final String? projectId;
+  final VoidCallback? onChanged;
 
-  const _EnvSwitch({required this.envService, this.projectId});
+  const _EnvSwitch({required this.envService, this.projectId, this.onChanged});
 
   @override
   State<_EnvSwitch> createState() => _EnvSwitchState();
@@ -1744,10 +2279,10 @@ class _EnvSwitchState extends State<_EnvSwitch> {
         if (!mounted) return;
         final active = await widget.envService.getActive(widget.projectId);
         if (!mounted) return;
-        final renderBox = context.findRenderObject() as RenderBox;
+        final renderBox = this.context.findRenderObject() as RenderBox;
         final offset = renderBox.localToGlobal(Offset.zero);
         showMenu<String>(
-          context: context,
+          context: this.context,
           elevation: 0,
           constraints: const BoxConstraints(maxWidth: 180),
           position: RelativeRect.fromLTRB(
@@ -1757,7 +2292,6 @@ class _EnvSwitchState extends State<_EnvSwitch> {
             0,
           ),
           color: TColors.surface,
-          shape: const RoundedRectangleBorder(),
           items: [
             ...envs.map(
               (e) => PopupMenuItem<String>(
@@ -1813,8 +2347,9 @@ class _EnvSwitchState extends State<_EnvSwitch> {
           ],
         ).then((value) async {
           if (value == null) return;
+          if (!mounted) return;
           if (value == 'manage') {
-            Navigator.of(context)
+            Navigator.of(this.context)
                 .push(
                   MaterialPageRoute(
                     builder: (_) => EnvPage(
@@ -1823,10 +2358,14 @@ class _EnvSwitchState extends State<_EnvSwitch> {
                     ),
                   ),
                 )
-                .then((_) => _load());
+                .then((_) {
+                  _load();
+                  widget.onChanged?.call();
+                });
           } else {
             await widget.envService.setActive(widget.projectId, value);
             _load();
+            widget.onChanged?.call();
           }
         });
       },
@@ -1862,10 +2401,7 @@ class _EditorDashboard extends StatelessWidget {
   final Widget envBar;
   final Widget actionBar;
 
-  const _EditorDashboard({
-    required this.envBar,
-    required this.actionBar,
-  });
+  const _EditorDashboard({required this.envBar, required this.actionBar});
 
   @override
   Widget build(BuildContext context) {
@@ -1879,10 +2415,7 @@ class _EditorDashboard extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          envBar,
-          actionBar,
-        ],
+        children: [envBar, actionBar],
       ),
     );
   }
@@ -1891,108 +2424,18 @@ class _EditorDashboard extends StatelessWidget {
 class _CompactIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  final bool accent;
 
-  const _CompactIconButton({
-    required this.icon,
-    this.onTap,
-    this.accent = false,
-  });
+  const _CompactIconButton({required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
       icon: Icon(icon, size: 16),
-      color: accent ? TColors.green : TColors.mutedText,
+      color: TColors.mutedText,
       padding: const EdgeInsets.all(8),
       constraints: const BoxConstraints(),
       splashRadius: 20,
-    );
-  }
-}
-
-class _ProjectIndicator extends StatelessWidget {
-  final String name;
-  final VoidCallback? onTap;
-
-  const _ProjectIndicator({required this.name, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 24,
-        constraints: const BoxConstraints(maxWidth: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: TColors.surface,
-          border: Border.all(color: TColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_open, size: 12, color: TColors.orange),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                name,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: const TextStyle(
-                  color: TColors.orange,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestIndicator extends StatelessWidget {
-  final String name;
-  final VoidCallback? onTap;
-
-  const _RequestIndicator({required this.name, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 24,
-        constraints: const BoxConstraints(maxWidth: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: TColors.surface,
-          border: Border.all(color: TColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description_outlined, size: 12, color: TColors.cyan),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                name,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: const TextStyle(
-                  color: TColors.cyan,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -2061,7 +2504,11 @@ class _ResolvedPreviewDialog extends StatelessWidget {
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.close, size: 14, color: TColors.mutedText),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: TColors.mutedText,
+                    ),
                   ),
                 ],
               ),
@@ -2110,21 +2557,62 @@ class _ResolvedPreviewDialog extends StatelessWidget {
     final allSpans = <TextSpan>[];
     for (final m in _CurlHighlightController._tokenRegex.allMatches(text)) {
       if (m.group(1) != null) {
-        allSpans.add(TextSpan(text: m.group(1), style: const TextStyle(color: TColors.purple)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(1),
+            style: const TextStyle(color: TColors.purple),
+          ),
+        );
       } else if (m.group(2) != null) {
-        allSpans.add(TextSpan(text: m.group(2), style: const TextStyle(color: TColors.cyan, fontWeight: FontWeight.bold)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(2),
+            style: const TextStyle(
+              color: TColors.cyan,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
       } else if (m.group(3) != null) {
-        allSpans.add(TextSpan(text: m.group(3), style: const TextStyle(color: TColors.orange)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(3),
+            style: const TextStyle(color: TColors.orange),
+          ),
+        );
       } else if (m.group(5) != null) {
-        allSpans.add(TextSpan(text: m.group(5), style: const TextStyle(color: TColors.yellow)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(5),
+            style: const TextStyle(color: TColors.yellow),
+          ),
+        );
       } else if (m.group(6) != null) {
-        allSpans.add(TextSpan(text: m.group(6), style: const TextStyle(color: TColors.yellow)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(6),
+            style: const TextStyle(color: TColors.yellow),
+          ),
+        );
       } else if (m.group(7) != null) {
-        allSpans.add(TextSpan(text: m.group(7), style: const TextStyle(color: TColors.green)));
+        allSpans.add(
+          TextSpan(
+            text: m.group(7),
+            style: const TextStyle(color: TColors.green),
+          ),
+        );
       } else if (m.group(8) != null) {
         final word = m.group(8)!;
         if (_CurlHighlightController._methods.contains(word.toUpperCase())) {
-          allSpans.add(TextSpan(text: word, style: const TextStyle(color: TColors.purple, fontWeight: FontWeight.bold)));
+          allSpans.add(
+            TextSpan(
+              text: word,
+              style: const TextStyle(
+                color: TColors.purple,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          );
         } else {
           allSpans.add(TextSpan(text: word));
         }

@@ -1,4 +1,5 @@
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -83,6 +84,14 @@ class _AboutPageState extends State<AboutPage> {
                       onTap: () => launchUrl(
                         Uri.parse('https://github.com/cacing69/curel'),
                         mode: LaunchMode.externalApplication,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TermButton(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'feedback',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FeedbackPage()),
                       ),
                     ),
                     const SizedBox(height: 32),

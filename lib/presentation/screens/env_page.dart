@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/services/env_service.dart';
@@ -85,11 +86,23 @@ class _EnvPageState extends State<EnvPage> {
     if (env == null) return;
     final name = await _showNameDialog('rename', initial: env.name);
     if (name == null || name.trim().isEmpty) return;
-    await widget.envService.save(
-      _scopeProjectId,
-      env.copyWith(name: name.trim()),
-    );
-    await _load();
+    try {
+      await widget.envService.save(
+        _scopeProjectId,
+        env.copyWith(name: name.trim()),
+      );
+      await _load();
+    } on FileSystemException catch (e) {
+      if (!mounted) return;
+      if (e.message == 'Target already exists') {
+        showTerminalToast(context, 'name already exists');
+      } else {
+        showTerminalToast(context, 'error: ${e.message}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showTerminalToast(context, 'error: $e');
+    }
   }
 
   Future<void> _duplicateEnv(String envId) async {
@@ -198,7 +211,6 @@ class _EnvPageState extends State<EnvPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
 
         title: Text(
           action,
@@ -271,7 +283,6 @@ class _EnvPageState extends State<EnvPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: TColors.surface,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           elevation: 0,
 
           title: Text(
@@ -636,7 +647,6 @@ class _EnvPageState extends State<EnvPage> {
             0,
           ),
           color: TColors.surface,
-          shape: const RoundedRectangleBorder(),
           items: [
             PopupMenuItem(
               value: 0,
