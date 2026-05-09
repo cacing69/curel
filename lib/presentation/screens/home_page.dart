@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
+import 'package:curel/domain/models/history_model.dart';
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/models/request_model.dart';
@@ -11,10 +12,12 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
 import 'package:curel/presentation/screens/env_page.dart';
+import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
 import 'package:curel/data/services/curl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/services/history_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -33,6 +36,7 @@ class HomePage extends StatefulWidget {
   final EnvService envService;
   final ProjectService projectService;
   final RequestService requestService;
+  final HistoryService historyService;
   final FileSystemService fsService;
   final void Function(String userAgent) onUserAgentChanged;
   final void Function() onWorkspaceChanged;
@@ -44,6 +48,7 @@ class HomePage extends StatefulWidget {
     required this.envService,
     required this.projectService,
     required this.requestService,
+    required this.historyService,
     required this.fsService,
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
@@ -54,7 +59,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _curlController = _CurlHighlightController();
   final _focusNode = FocusNode();
   final _textFieldKey = GlobalKey();
@@ -64,6 +69,9 @@ class _HomePageState extends State<HomePage> {
   var _selectedTab = ResponseTab.body;
   bool _showHtmlPreview = false;
   bool _searchActive = false;
+  bool _prettify = true;
+  bool _showLineNumbers = false;
+  bool _showPreview = false;
   bool _isFullscreenInput = false;
 
   Project? _activeProject;
@@ -72,12 +80,14 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _focusNode.addListener(() {
       if (_focusNode.hasFocus && !_isFullscreenInput) {
         _enterFullscreen();
       }
     });
     _loadActiveProject();
+    _checkClipboard();
   }
 
   String? get _projectId => _activeProject?.id;
@@ -96,6 +106,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _focusNode.dispose();
     _curlController.dispose();
     super.dispose();
@@ -104,6 +115,60 @@ class _HomePageState extends State<HomePage> {
   void _exitFullscreen() {
     _focusNode.unfocus();
     setState(() => _isFullscreenInput = false);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
+  }
+
+  Future<void> _checkClipboard() async {
+    final text = await widget.clipboardService.paste();
+    if (text != null && text.trim().startsWith('curl') && mounted) {
+      if (_curlController.text.trim() != text.trim()) {
+        _showClipboardDetection(text.trim());
+      }
+    }
+  }
+
+  void _showClipboardDetection(String curl) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: TColors.surface,
+        duration: const Duration(seconds: 5),
+        content: Row(
+          children: [
+            Icon(Icons.content_paste, size: 14, color: TColors.green),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'curl detected in clipboard',
+                style: TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'import',
+          textColor: TColors.green,
+          onPressed: () {
+            setState(() {
+              _curlController.text = curl;
+              _response = null;
+              _error = null;
+            });
+            showTerminalToast(context, 'imported');
+          },
+        ),
+      ),
+    );
   }
 
   // ── Actions ─────────────────────────────────────────────────────
@@ -130,8 +195,14 @@ class _HomePageState extends State<HomePage> {
 
     final sw = Stopwatch()..start();
     try {
-      final resolved = await widget.envService.resolve(text, projectId: _projectId);
-      final undefined = await widget.envService.findUndefinedVars(text, projectId: _projectId);
+      final resolved = await widget.envService.resolve(
+        text,
+        projectId: _projectId,
+      );
+      final undefined = await widget.envService.findUndefinedVars(
+        text,
+        projectId: _projectId,
+      );
       if (undefined.isNotEmpty && mounted) {
         showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
       }
@@ -205,6 +276,18 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       }
+
+      // Add to history
+      await widget.historyService.add(
+        HistoryItem(
+          timestamp: DateTime.now(),
+          curlCommand: text,
+          projectId: _projectId,
+          statusCode: result.statusCode,
+          method: parsed.curl.method,
+          url: parsed.curl.uri.toString(),
+        ),
+      );
     } catch (e) {
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -412,7 +495,11 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    await widget.requestService.writeCurl(_projectId!, _selectedRequestPath!, text);
+    await widget.requestService.writeCurl(
+      _projectId!,
+      _selectedRequestPath!,
+      text,
+    );
     if (_response != null) {
       await widget.requestService.updateMeta(
         _projectId!,
@@ -439,7 +526,10 @@ class _HomePageState extends State<HomePage> {
 
     final name = await _showSaveDialog();
     if (name == null || name.trim().isEmpty) return;
-    final exists = await widget.requestService.requestExists(_projectId!, name.trim());
+    final exists = await widget.requestService.requestExists(
+      _projectId!,
+      name.trim(),
+    );
     if (exists && mounted) {
       final overwrite = await _showConfirmDialog(
         'overwrite?',
@@ -461,7 +551,11 @@ class _HomePageState extends State<HomePage> {
       setState(() => _selectedRequestPath = relativePath);
       showTerminalToast(context, 'request saved');
     } else {
-      final path = await widget.requestService.createRequest(_projectId!, name.trim(), text);
+      final path = await widget.requestService.createRequest(
+        _projectId!,
+        name.trim(),
+        text,
+      );
       final posix = name.trim().replaceAll('\\', '/');
       final slash = posix.lastIndexOf('/');
       final displayName = slash >= 0 ? posix.substring(slash + 1) : posix;
@@ -488,7 +582,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadRequest(String relativePath) async {
-    final content = await widget.requestService.readCurl(_projectId!, relativePath);
+    final content = await widget.requestService.readCurl(
+      _projectId!,
+      relativePath,
+    );
     if (content != null && mounted) {
       setState(() {
         _curlController.text = content;
@@ -531,16 +628,39 @@ class _HomePageState extends State<HomePage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: Text(title, style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
-        content: Text(message, style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12)),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('overwrite', style: TextStyle(color: TColors.red, fontFamily: 'monospace')),
+            child: Text(
+              'overwrite',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -566,7 +686,14 @@ class _HomePageState extends State<HomePage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: Text('save request', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
+        title: Text(
+          'save request',
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,19 +702,37 @@ class _HomePageState extends State<HomePage> {
               controller: controller,
               autofocus: true,
               cursorColor: TColors.green,
-              style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+              style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
               decoration: InputDecoration(
                 hintText: 'folder/name (e.g. user/login)',
-                hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 11),
+                hintStyle: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
                 border: InputBorder.none,
                 filled: true,
                 fillColor: TColors.background,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
             if (folders.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text('folders:', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 10)),
+              Text(
+                'folders:',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
               const SizedBox(height: 4),
               Wrap(
                 spacing: 4,
@@ -595,15 +740,19 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   _FolderChip(
                     label: '/ (root)',
-                    onTap: () => controller.text = controller.text.contains('/') ? controller.text : controller.text,
+                    onTap: () => controller.text = controller.text.contains('/')
+                        ? controller.text
+                        : controller.text,
                   ),
-                  ...folders.map((f) => _FolderChip(
-                    label: f,
-                    onTap: () {
-                      final name = controller.text.split('/').last;
-                      controller.text = '$f/${name.isEmpty ? '' : name}';
-                    },
-                  )),
+                  ...folders.map(
+                    (f) => _FolderChip(
+                      label: f,
+                      onTap: () {
+                        final name = controller.text.split('/').last;
+                        controller.text = '$f/${name.isEmpty ? '' : name}';
+                      },
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -612,11 +761,20 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text('save', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+            child: Text(
+              'save',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -624,6 +782,49 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ── Shared Builders ─────────────────────────────────────────────
+
+  Widget _buildResolvedPreview() {
+    final text = _curlController.text.trim();
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    return FutureBuilder<String>(
+      future: widget.envService.resolve(text, projectId: _projectId),
+      builder: (context, snapshot) {
+        final resolved = snapshot.data ?? 'resolving...';
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: TColors.background,
+            border: Border.all(color: TColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'RESOLVED COMMAND PREVIEW',
+                style: TextStyle(
+                  color: TColors.purple,
+                  fontFamily: 'monospace',
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                resolved,
+                style: TextStyle(
+                  color: TColors.mutedText.withValues(alpha: 0.8),
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
     final unlimited = maxLines == null;
@@ -668,6 +869,9 @@ class _HomePageState extends State<HomePage> {
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
+            onChanged: (v) {
+              if (_showPreview) setState(() {});
+            },
           ),
         ),
       ],
@@ -708,10 +912,7 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         children: [
           if (_activeProject != null) ...[
-            _ProjectIndicator(
-              name: _activeProject!.name,
-              onTap: _openProjects,
-            ),
+            _ProjectIndicator(name: _activeProject!.name, onTap: _openProjects),
             if (_selectedRequestPath != null) ...[
               const SizedBox(width: 6),
               _RequestIndicator(
@@ -730,7 +931,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildActionButtons({bool fullscreen = false}) {
-    return Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       child: Row(
         children: [
@@ -748,8 +950,15 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 6),
           TermButton(icon: Icons.content_paste, label: 'paste', onTap: _paste),
-          const Spacer(),
+          const SizedBox(width: 12),
           if (_projectId != null) ...[
+            TermButton(
+              icon: _showPreview ? Icons.visibility : Icons.visibility_off,
+              // label: 'preview',
+              onTap: () => setState(() => _showPreview = !_showPreview),
+              accent: _showPreview,
+            ),
+            const SizedBox(width: 6),
             if (_selectedRequestPath != null) ...[
               TermButton(icon: Icons.save, onTap: _saveRequest),
               const SizedBox(width: 6),
@@ -770,6 +979,20 @@ class _HomePageState extends State<HomePage> {
                 context,
               ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
               onHelp: () => _showHelp(context),
+              onHistory: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => HistoryPage(
+                    historyService: widget.historyService,
+                    onSelect: (curl) {
+                      setState(() {
+                        _curlController.text = curl;
+                        _response = null;
+                        _error = null;
+                      });
+                    },
+                  ),
+                ),
+              ),
               onSettings: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SettingsPage(
@@ -827,6 +1050,24 @@ class _HomePageState extends State<HomePage> {
                                       (_response!.statusCode ?? 0) < 300
                                   ? TColors.green
                                   : TColors.red,
+                              fontFamily: 'monospace',
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _response!.timeLabel,
+                            style: const TextStyle(
+                              color: TColors.mutedText,
+                              fontFamily: 'monospace',
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _response!.bodySizeLabel,
+                            style: const TextStyle(
+                              color: TColors.mutedText,
                               fontFamily: 'monospace',
                               fontSize: 11,
                             ),
@@ -947,6 +1188,33 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
+                  if (_response?.highlightLanguage == 'json') ...[
+                    GestureDetector(
+                      onTap: () => setState(() => _prettify = !_prettify),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(
+                          _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                          size: 16,
+                          color: _prettify ? TColors.green : TColors.mutedText,
+                        ),
+                      ),
+                    ),
+                  ],
+                  GestureDetector(
+                    onTap: () =>
+                        setState(() => _showLineNumbers = !_showLineNumbers),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.format_list_numbered,
+                        size: 16,
+                        color: _showLineNumbers
+                            ? TColors.green
+                            : TColors.mutedText,
+                      ),
+                    ),
+                  ),
                   GestureDetector(
                     onTap: () => openFullscreenResponse(context, _response!),
                     child: const Padding(
@@ -975,6 +1243,8 @@ class _HomePageState extends State<HomePage> {
             selectedTab: _selectedTab,
             showHtmlPreview: _showHtmlPreview,
             searchActive: _searchActive,
+            prettify: _prettify,
+            showLineNumbers: _showLineNumbers,
             onCloseSearch: () => setState(() => _searchActive = false),
           ),
         ),
@@ -1012,7 +1282,9 @@ class _HomePageState extends State<HomePage> {
                     const _WindowDot(color: TColors.green),
                     const SizedBox(width: 10),
                     Text(
-                      _selectedRequestPath != null ? _requestDisplayName : 'curl editor',
+                      _selectedRequestPath != null
+                          ? _requestDisplayName
+                          : 'curl editor',
                       style: const TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
@@ -1036,7 +1308,16 @@ class _HomePageState extends State<HomePage> {
                     horizontal: 12,
                     vertical: 10,
                   ),
-                  child: _buildInputField(maxLines: null, minLines: 1),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(maxLines: null, minLines: 1),
+                      if (_showPreview) ...[
+                        const SizedBox(height: 8),
+                        _buildResolvedPreview(),
+                      ],
+                    ],
+                  ),
                 ),
               )
             else
@@ -1049,7 +1330,16 @@ class _HomePageState extends State<HomePage> {
                     horizontal: 12,
                     vertical: 10,
                   ),
-                  child: _buildInputField(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(),
+                      if (_showPreview) ...[
+                        const SizedBox(height: 8),
+                        _buildResolvedPreview(),
+                      ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -1304,11 +1594,13 @@ class _MoreMenu extends StatelessWidget {
   final VoidCallback onAbout;
   final VoidCallback onHelp;
   final VoidCallback onSettings;
+  final VoidCallback onHistory;
 
   const _MoreMenu({
     required this.onAbout,
     required this.onHelp,
     required this.onSettings,
+    required this.onHistory,
   });
 
   @override
@@ -1330,15 +1622,41 @@ class _MoreMenu extends StatelessWidget {
           shape: const RoundedRectangleBorder(),
           items: [
             PopupMenuItem<int>(
+              value: 3,
+              height: 36,
+              child: Row(
+                children: [
+                  const Icon(Icons.history, size: 14, color: TColors.mutedText),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'history',
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem<int>(
               value: 0,
               height: 36,
               child: Row(
                 children: [
-                  Icon(Icons.settings_outlined, size: 14, color: TColors.mutedText),
+                  Icon(
+                    Icons.settings_outlined,
+                    size: 14,
+                    color: TColors.mutedText,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'settings',
-                    style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12),
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1352,7 +1670,11 @@ class _MoreMenu extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'about',
-                    style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12),
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1366,7 +1688,11 @@ class _MoreMenu extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'help',
-                    style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12),
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1376,6 +1702,7 @@ class _MoreMenu extends StatelessWidget {
           if (value == 0) onSettings();
           if (value == 1) onAbout();
           if (value == 2) onHelp();
+          if (value == 3) onHistory();
         });
       },
       child: Container(
@@ -1489,7 +1816,10 @@ class _EnvSwitchState extends State<_EnvSwitch> {
             Navigator.of(context)
                 .push(
                   MaterialPageRoute(
-                    builder: (_) => EnvPage(envService: widget.envService, projectId: widget.projectId),
+                    builder: (_) => EnvPage(
+                      envService: widget.envService,
+                      projectId: widget.projectId,
+                    ),
                   ),
                 )
                 .then((_) => _load());
@@ -1537,6 +1867,7 @@ class _ProjectIndicator extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 28,
+        constraints: const BoxConstraints(maxWidth: 100),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         color: TColors.surface,
         child: Row(
@@ -1544,12 +1875,15 @@ class _ProjectIndicator extends StatelessWidget {
           children: [
             Icon(Icons.folder, size: 14, color: TColors.orange),
             const SizedBox(width: 4),
-            Text(
-              name,
-              style: const TextStyle(
-                color: TColors.orange,
-                fontFamily: 'monospace',
-                fontSize: 11,
+            Flexible(
+              child: Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: TColors.orange,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
               ),
             ),
           ],

@@ -16,6 +16,8 @@ class ResponseViewer extends StatelessWidget {
   final ResponseTab selectedTab;
   final bool showHtmlPreview;
   final bool searchActive;
+  final bool prettify;
+  final bool showLineNumbers;
   final VoidCallback? onCloseSearch;
 
   const ResponseViewer({
@@ -25,6 +27,8 @@ class ResponseViewer extends StatelessWidget {
     this.selectedTab = ResponseTab.body,
     this.showHtmlPreview = false,
     this.searchActive = false,
+    this.prettify = true,
+    this.showLineNumbers = false,
     this.onCloseSearch,
     super.key,
   });
@@ -36,15 +40,39 @@ class ResponseViewer extends StatelessWidget {
     }
 
     if (error != null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(8),
-        child: SelectableText(
-          error!,
-          style: const TextStyle(
-            color: TColors.error,
-            fontFamily: 'monospace',
-            fontSize: 12,
-          ),
+      return Container(
+        width: double.infinity,
+        color: const Color(0xFF1E1E1E), // Darker background for error
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline, size: 14, color: TColors.red),
+                const SizedBox(width: 8),
+                const Text(
+                  'TERMINAL ERROR',
+                  style: TextStyle(
+                    color: TColors.red,
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              error!,
+              style: const TextStyle(
+                color: TColors.red,
+                fontFamily: 'monospace',
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -84,16 +112,14 @@ class ResponseViewer extends StatelessWidget {
           padding: const EdgeInsets.all(8),
           itemCount: lines.length,
           itemBuilder: (context, index) {
-            return Text.rich(
-              TextSpan(children: lines[index]),
-            );
+            return Text.rich(TextSpan(children: lines[index]));
           },
         );
       }
 
       if (searchActive) {
         return SearchableText(
-          text: response!.bodyText,
+          text: response!.getBodyText(prettify),
           searchActive: true,
           onClose: onCloseSearch,
           syntaxLanguage: response!.highlightLanguage,
@@ -105,7 +131,7 @@ class ResponseViewer extends StatelessWidget {
         );
       }
 
-      return _buildHighlightedBody(response!);
+      return _buildHighlightedBody(response!, prettify, showLineNumbers);
     }
 
     return Center(
@@ -119,10 +145,15 @@ class ResponseViewer extends StatelessWidget {
     );
   }
 
-  static Widget _buildHighlightedBody(CurlResponse response) {
+  static Widget _buildHighlightedBody(
+    CurlResponse response,
+    bool prettify,
+    bool showLineNumbers,
+  ) {
     return ChunkedTextViewer(
-      text: response.bodyText,
+      text: response.getBodyText(prettify),
       language: response.highlightLanguage,
+      showLineNumbers: showLineNumbers,
     );
   }
 }
@@ -141,6 +172,8 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
   var _selectedTab = ResponseTab.body;
   bool _showHtmlPreview = false;
   bool _searchActive = false;
+  bool _prettify = true;
+  bool _showLineNumbers = false;
 
   @override
   Widget build(BuildContext context) {
@@ -235,11 +268,52 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       color: _searchActive ? TColors.green : TColors.mutedText,
                     ),
                   ),
+                  if (widget.response.highlightLanguage == 'json') ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _prettify = !_prettify),
+                      child: Icon(
+                        _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                        size: 16,
+                        color: _prettify ? TColors.green : TColors.mutedText,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () =>
+                        setState(() => _showLineNumbers = !_showLineNumbers),
+                    child: Icon(
+                      Icons.format_list_numbered,
+                      size: 16,
+                      color: _showLineNumbers
+                          ? TColors.green
+                          : TColors.mutedText,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     widget.response.contentTypeLabel,
                     style: const TextStyle(
                       color: TColors.cyan,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.response.timeLabel,
+                    style: const TextStyle(
+                      color: TColors.mutedText,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.response.bodySizeLabel,
+                    style: const TextStyle(
+                      color: TColors.mutedText,
                       fontSize: 11,
                       fontFamily: 'monospace',
                     ),
@@ -267,6 +341,8 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 selectedTab: _selectedTab,
                 showHtmlPreview: _showHtmlPreview,
                 searchActive: _searchActive,
+                prettify: _prettify,
+                showLineNumbers: _showLineNumbers,
                 onCloseSearch: () => setState(() => _searchActive = false),
               ),
             ),

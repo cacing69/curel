@@ -6,6 +6,7 @@ class ChunkedTextViewer extends StatelessWidget {
   final String text;
   final String? language;
   final TextStyle style;
+  final bool showLineNumbers;
 
   const ChunkedTextViewer({
     required this.text,
@@ -15,6 +16,7 @@ class ChunkedTextViewer extends StatelessWidget {
       fontSize: 12,
       color: TColors.text,
     ),
+    this.showLineNumbers = false,
     super.key,
   });
 
@@ -25,8 +27,30 @@ class ChunkedTextViewer extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       itemCount: lines.length,
       itemBuilder: (context, index) {
-        return Text.rich(
-          TextSpan(style: style, children: lines[index]),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showLineNumbers) ...[
+              SizedBox(
+                width: 32,
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: TColors.mutedText.withValues(alpha: 0.5),
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text.rich(
+                TextSpan(style: style, children: lines[index]),
+              ),
+            ),
+          ],
         );
       },
     );

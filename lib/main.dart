@@ -2,6 +2,7 @@ import 'package:curel/data/services/curl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
 import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/services/history_service.dart';
 import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/services/request_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
@@ -24,6 +25,7 @@ class _AppState extends State<App> {
   final _httpClient = DioCurlHttpClient();
   final _settingsService = PreferencesSettingsService();
   final _fsService = LocalFileSystemService();
+  final _historyService = HistoryService();
   late final EnvService _envService;
   late final ProjectService _projectService;
   late final RequestService _requestService;
@@ -31,7 +33,7 @@ class _AppState extends State<App> {
   @override
   void initState() {
     super.initState();
-    _envService = PreferencesEnvService(fs: _fsService);
+    _envService = FileSystemEnvService(_fsService);
     _projectService = FilesystemProjectService(_fsService);
     _requestService = FilesystemRequestService(_fsService);
     _loadSettings();
@@ -74,6 +76,7 @@ class _AppState extends State<App> {
         envService: _envService,
         projectService: _projectService,
         requestService: _requestService,
+        historyService: _historyService,
         onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
         fsService: _fsService,
         onWorkspaceChanged: _onWorkspaceChanged,

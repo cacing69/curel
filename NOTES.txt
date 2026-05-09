@@ -11,3 +11,10 @@
 - fix share_plus build error on Android by adjusting Kotlin version to 2.1.0 in settings.gradle.kts
 - update share_plus to ^10.1.4 and package_info_plus to match compatible versions
 - re-enable share feature in request drawer context menu
+- add Response Meta Info (execution time and body size) to ResponseViewer
+- add JSON Prettify and Line Numbers toggles to ResponseViewer
+- improve Error Handling visuals to look like a terminal output
+- add Clipboard Auto-Detection for curl commands with import prompt
+- add Variable Preview (<<VAR>>) to see resolved command before execution
+- implement Local History using isar_community v3.3.2
+- migrate all Environment storage from SharedPreferences to Filesystem (.global/ folder)

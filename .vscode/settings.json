@@ -1,0 +1,6 @@
+{
+    "dart.flutterSdkPath": "/opt/homebrew/share/flutter",
+    "dart.hotReloadOnSave": "all",
+    "debug.toolBarLocation": "floating",
+    "flutter.hotReloadOnSave": true
+}

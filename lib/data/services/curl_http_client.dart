@@ -420,6 +420,7 @@ class DioCurlHttpClient implements CurlHttpClient {
       body: body,
       verboseLog: verboseLog,
       traceLog: traceLog,
+      executionTime: sw.elapsed,
     );
   }
 
