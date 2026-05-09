@@ -25,8 +25,15 @@ class HistoryService {
     });
   }
 
-  Future<List<HistoryItem>> getAll() async {
+  Future<List<HistoryItem>> getAll({String? projectId}) async {
     final isar = await _db;
+    if (projectId != null) {
+      return isar.historyItems
+          .filter()
+          .projectIdEqualTo(projectId)
+          .sortByTimestampDesc()
+          .findAll();
+    }
     return isar.historyItems.where().sortByTimestampDesc().findAll();
   }
 

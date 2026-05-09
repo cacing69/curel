@@ -23,7 +23,7 @@ class TermButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         color: accent
             ? (enabled
                   ? TColors.green.withValues(alpha: 0.15)

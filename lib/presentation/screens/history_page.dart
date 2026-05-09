@@ -7,10 +7,14 @@ import 'package:intl/intl.dart';
 
 class HistoryPage extends StatefulWidget {
   final HistoryService historyService;
+  final String? currentProjectId;
+  final String? currentProjectName;
   final ValueChanged<String> onSelect;
 
   const HistoryPage({
     required this.historyService,
+    this.currentProjectId,
+    this.currentProjectName,
     required this.onSelect,
     super.key,
   });
@@ -22,15 +26,20 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   List<HistoryItem> _items = [];
   bool _loading = true;
+  bool _showOnlyCurrentProject = false;
 
   @override
   void initState() {
     super.initState();
+    _showOnlyCurrentProject = widget.currentProjectId != null;
     _load();
   }
 
   Future<void> _load() async {
-    final items = await widget.historyService.getAll();
+    setState(() => _loading = true);
+    final items = await widget.historyService.getAll(
+      projectId: _showOnlyCurrentProject ? widget.currentProjectId : null,
+    );
     if (mounted) {
       setState(() {
         _items = items;
@@ -98,6 +107,33 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           ),
           const Spacer(),
+          if (widget.currentProjectId != null) ...[
+            GestureDetector(
+              onTap: () {
+                setState(() => _showOnlyCurrentProject = !_showOnlyCurrentProject);
+                _load();
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    _showOnlyCurrentProject ? Icons.filter_alt : Icons.filter_alt_off,
+                    size: 14,
+                    color: _showOnlyCurrentProject ? TColors.green : TColors.mutedText,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _showOnlyCurrentProject ? (widget.currentProjectName ?? 'project') : 'all',
+                    style: TextStyle(
+                      color: _showOnlyCurrentProject ? TColors.green : TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           GestureDetector(
             onTap: () async {
               final confirm = await showDialog<bool>(
