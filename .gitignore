@@ -47,3 +47,4 @@ app.*.map.json
 # Custom generated files
 memory/
 CLAUDE.md
+PLAN.md
