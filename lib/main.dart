@@ -1,6 +1,9 @@
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
 import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/services/project_service.dart';
+import 'package:curel/domain/services/request_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -20,17 +23,30 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   final _httpClient = DioCurlHttpClient();
   final _settingsService = PreferencesSettingsService();
-  final _envService = PreferencesEnvService();
+  final _fsService = LocalFileSystemService();
+  late final EnvService _envService;
+  late final ProjectService _projectService;
+  late final RequestService _requestService;
 
   @override
   void initState() {
     super.initState();
+    _envService = PreferencesEnvService(fs: _fsService);
+    _projectService = FilesystemProjectService(_fsService);
+    _requestService = FilesystemRequestService(_fsService);
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     final ua = await _settingsService.getUserAgent();
     _httpClient.setUserAgent(ua);
+    final workspace = await _settingsService.getEffectiveWorkspacePath();
+    await _fsService.setWorkspaceRoot(workspace);
+    if (mounted) setState(() {});
+  }
+
+  void _onWorkspaceChanged() {
+    setState(() {});
   }
 
   @override
@@ -56,7 +72,11 @@ class _AppState extends State<App> {
         clipboardService: FlutterClipboardService(),
         settingsService: _settingsService,
         envService: _envService,
+        projectService: _projectService,
+        requestService: _requestService,
         onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
+        fsService: _fsService,
+        onWorkspaceChanged: _onWorkspaceChanged,
       ),
     );
   }

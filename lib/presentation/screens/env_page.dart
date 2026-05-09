@@ -7,20 +7,27 @@ import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+enum _EnvScope { project, global }
+
 class EnvPage extends StatefulWidget {
   final EnvService envService;
+  final String? projectId;
 
-  const EnvPage({required this.envService, super.key});
+  const EnvPage({required this.envService, this.projectId, super.key});
 
   @override
   State<EnvPage> createState() => _EnvPageState();
 }
 
 class _EnvPageState extends State<EnvPage> {
+  var _scope = _EnvScope.project;
   List<Environment> _envs = [];
   String? _activeId;
   var _loading = true;
-  final _values = <String, String>{}; // 'envId_varKey' -> value
+  final _values = <String, String>{};
+
+  String? get _scopeProjectId =>
+      _scope == _EnvScope.project ? widget.projectId : null;
 
   @override
   void initState() {
@@ -29,8 +36,9 @@ class _EnvPageState extends State<EnvPage> {
   }
 
   Future<void> _load() async {
-    final envs = await widget.envService.getAll();
-    final active = await widget.envService.getActive();
+    final scopeId = _scopeProjectId;
+    final envs = await widget.envService.getAll(scopeId);
+    final active = await widget.envService.getActive(scopeId);
     final values = <String, String>{};
     for (final env in envs) {
       for (final v in env.variables) {
@@ -50,15 +58,24 @@ class _EnvPageState extends State<EnvPage> {
     }
   }
 
+  void _switchScope(_EnvScope scope) {
+    if (_scope == scope) return;
+    setState(() {
+      _scope = scope;
+      _loading = true;
+    });
+    _load();
+  }
+
   Future<void> _setActive(String id) async {
-    await widget.envService.setActive(id);
+    await widget.envService.setActive(_scopeProjectId, id);
     setState(() => _activeId = id);
   }
 
   Future<void> _createEnv() async {
     final name = await _showNameDialog('new environment');
     if (name == null || name.trim().isEmpty) return;
-    final env = await widget.envService.create(name.trim());
+    final env = await widget.envService.create(_scopeProjectId, name.trim());
     await _setActive(env.id);
     await _load();
   }
@@ -66,18 +83,21 @@ class _EnvPageState extends State<EnvPage> {
   Future<void> _renameEnv(Environment env) async {
     final name = await _showNameDialog('rename', initial: env.name);
     if (name == null || name.trim().isEmpty) return;
-    await widget.envService.save(env.copyWith(name: name.trim()));
+    await widget.envService.save(
+      _scopeProjectId,
+      env.copyWith(name: name.trim()),
+    );
     await _load();
   }
 
   Future<void> _duplicateEnv(Environment env) async {
     final copy = widget.envService.duplicate(env);
-    await widget.envService.save(copy);
+    await widget.envService.save(_scopeProjectId, copy);
     await _load();
   }
 
   Future<void> _deleteEnv(String id) async {
-    await widget.envService.delete(id);
+    await widget.envService.delete(_scopeProjectId, id);
     if (_activeId == id) _activeId = null;
     await _load();
   }
@@ -89,7 +109,10 @@ class _EnvPageState extends State<EnvPage> {
       ...env.variables,
       EnvVariable(key: result.key, sensitive: result.sensitive),
     ];
-    await widget.envService.save(env.copyWith(variables: vars));
+    await widget.envService.save(
+      _scopeProjectId,
+      env.copyWith(variables: vars),
+    );
     await widget.envService.setValue(env, result.key, result.value);
     await _load();
   }
@@ -104,13 +127,15 @@ class _EnvPageState extends State<EnvPage> {
       initialSensitive: v.sensitive,
     );
     if (result == null) return;
-    // Delete old key if renamed
     if (result.key != v.key) {
       await widget.envService.setValue(env, v.key, '');
     }
     final vars = [...env.variables];
     vars[index] = EnvVariable(key: result.key, sensitive: result.sensitive);
-    await widget.envService.save(env.copyWith(variables: vars));
+    await widget.envService.save(
+      _scopeProjectId,
+      env.copyWith(variables: vars),
+    );
     await widget.envService.setValue(env, result.key, result.value);
     await _load();
   }
@@ -119,15 +144,18 @@ class _EnvPageState extends State<EnvPage> {
     final v = env.variables[index];
     await widget.envService.setValue(env, v.key, '');
     final vars = [...env.variables]..removeAt(index);
-    await widget.envService.save(env.copyWith(variables: vars));
+    await widget.envService.save(
+      _scopeProjectId,
+      env.copyWith(variables: vars),
+    );
     await _load();
   }
 
   Future<void> _export() async {
-    final json = await widget.envService.exportToJson();
+    final json = await widget.envService.exportToJson(_scopeProjectId);
     try {
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Export environments',
+        dialogTitle: 'export env',
         fileName: 'curel-env.json',
         bytes: utf8.encode(json),
       );
@@ -150,7 +178,7 @@ class _EnvPageState extends State<EnvPage> {
       final bytes = file.bytes;
       if (bytes == null) return;
       final json = utf8.decode(bytes);
-      await widget.envService.importFromJson(json);
+      await widget.envService.importFromJson(_scopeProjectId, json);
       await _load();
       if (mounted) showTerminalToast(context, 'imported');
     } catch (e) {
@@ -403,12 +431,52 @@ class _EnvPageState extends State<EnvPage> {
           ),
           const SizedBox(width: 8),
           const Text(
-            'environments',
+            'env',
             style: TextStyle(
               color: TColors.foreground,
               fontSize: 11,
               fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => _switchScope(_EnvScope.project),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              color: _scope == _EnvScope.project
+                  ? TColors.green.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              child: Text(
+                'project',
+                style: TextStyle(
+                  color: _scope == _EnvScope.project
+                      ? TColors.green
+                      : TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () => _switchScope(_EnvScope.global),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              color: _scope == _EnvScope.global
+                  ? TColors.purple.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              child: Text(
+                'global',
+                style: TextStyle(
+                  color: _scope == _EnvScope.global
+                      ? TColors.purple
+                      : TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
             ),
           ),
         ],
@@ -419,7 +487,7 @@ class _EnvPageState extends State<EnvPage> {
   Widget _buildEmpty() {
     return Center(
       child: Text(
-        'no environments yet',
+        'no env yet',
         style: TextStyle(
           color: TColors.mutedText.withValues(alpha: 0.5),
           fontSize: 12,

@@ -1,0 +1,34 @@
+- add path_provider and path packages to pubspec.yaml
+- create Project model (domain/models/project_model.dart)
+- create RequestMeta model (domain/models/request_model.dart)
+- create RequestItem view model (domain/models/request_item_model.dart)
+- create FileSystemService with workspace/project dir management (data/services/filesystem_service.dart)
+- create ProjectService with filesystem-first CRUD (domain/services/project_service.dart)
+- create RequestService with .curl + .meta.json sidecar pattern (domain/services/request_service.dart)
+- update EnvService to support both quick mode (SharedPreferences) and project mode (filesystem)
+- env service now accepts nullable projectId parameter on all methods
+- create RequestDrawer widget with search, context menu, rename/delete (presentation/widgets/request_drawer.dart)
+- create ProjectListPage with create/rename/delete/select (presentation/screens/project_list_page.dart)
+- update HomePage to accept ProjectService and RequestService
+- add project awareness: active project state, save request, open request drawer
+- add project menu item to MoreMenu with active project name display
+- update EnvPage and SettingsPage to pass projectId through
+- update main.dart to initialize FileSystemService, ProjectService, RequestService
+- skip Isar DB for Phase 1 - pure filesystem + SharedPreferences approach
+- move EnvSwitch to own row between curl editor and action buttons
+- add ProjectIndicator (orange) on env bar, aligned left with env switch on right
+- simplify MoreMenu to 3 items only: settings, about, help
+- remove projects from MoreMenu (project access via ProjectIndicator tap)
+- add ensureDefaultProject() - always creates/selects "default" project on first launch
+- remove quick mode concept - always in a project (default if none selected)
+- implement layered env resolution: project env > global env > undefined warning
+- global env (SharedPreferences) acts as base layer shared across all projects
+- project env (filesystem) overrides global env for same variable keys
+- change request drawer icon from folder_open to list_alt
+- add folder support to save dialog — user types 'user/login' to save in folder
+- add _sanitizePath to RequestService for folder/name paths
+- update RequestDrawer to group requests by folder with orange folder headers
+- requests at root shown first, then alphabetically sorted folders
+- write .meta.json on save request with displayName derived from filename
+- update .meta.json after curl execution with lastStatusCode and lastRunAt
+- request drawer now shows status code badges from meta data

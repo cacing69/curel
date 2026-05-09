@@ -1,0 +1,405 @@
+import 'package:curel/domain/models/request_item_model.dart';
+import 'package:curel/domain/services/request_service.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
+import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+
+class RequestDrawer extends StatefulWidget {
+  final String projectId;
+  final RequestService requestService;
+  final ValueChanged<String> onRequestSelected;
+  final VoidCallback? onNewRequest;
+  final String? selectedPath;
+
+  const RequestDrawer({
+    required this.projectId,
+    required this.requestService,
+    required this.onRequestSelected,
+    this.onNewRequest,
+    this.selectedPath,
+    super.key,
+  });
+
+  @override
+  State<RequestDrawer> createState() => _RequestDrawerState();
+}
+
+class _RequestDrawerState extends State<RequestDrawer> {
+  List<RequestItem> _requests = [];
+  bool _loading = true;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final requests = await widget.requestService.listRequests(widget.projectId);
+    if (mounted) {
+      setState(() {
+        _requests = requests;
+        _loading = false;
+      });
+    }
+  }
+
+  List<RequestItem> get _filtered {
+    if (_searchQuery.isEmpty) return _requests;
+    final q = _searchQuery.toLowerCase();
+    return _requests.where((r) => r.displayName.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: TColors.background,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          Container(height: 1, color: TColors.border),
+          _buildSearch(),
+          Container(height: 1, color: TColors.border),
+          Expanded(child: _loading ? _buildLoading() : _buildList()),
+          Container(height: 1, color: TColors.border),
+          _buildFooter(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      color: TColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          const Text(
+            'requests',
+            style: TextStyle(
+              color: TColors.foreground,
+              fontSize: 11,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${_requests.length}',
+            style: const TextStyle(
+              color: TColors.mutedText,
+              fontSize: 10,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Icon(Icons.close, size: 14, color: TColors.mutedText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearch() {
+    return Container(
+      color: TColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: TextField(
+        style: const TextStyle(
+          color: TColors.text,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
+        cursorColor: TColors.green,
+        decoration: InputDecoration(
+          hintText: 'search...',
+          hintStyle: const TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+          prefixIcon: Icon(Icons.search, size: 14, color: TColors.mutedText),
+          prefixIconConstraints: BoxConstraints(minWidth: 20, minHeight: 14),
+        ),
+        onChanged: (v) => setState(() => _searchQuery = v),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: CircularProgressIndicator(
+        color: TColors.green,
+        strokeWidth: 2,
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    final items = _filtered;
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          _searchQuery.isNotEmpty ? 'no match' : 'no requests yet',
+          style: TextStyle(
+            color: TColors.mutedText.withValues(alpha: 0.5),
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
+
+    final grouped = _groupByFolder(items);
+    final slivers = <Widget>[];
+
+    for (final entry in grouped.entries) {
+      final folder = entry.key;
+      final folderItems = entry.value;
+
+      if (folder.isNotEmpty) {
+        slivers.add(SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(
+              children: [
+                Icon(Icons.folder, size: 12, color: TColors.orange),
+                const SizedBox(width: 6),
+                Text(
+                  folder,
+                  style: const TextStyle(
+                    color: TColors.orange,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ));
+      }
+
+      slivers.add(SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => _buildItem(folderItems[i]),
+          childCount: folderItems.length,
+        ),
+      ));
+
+      slivers.add(SliverToBoxAdapter(
+        child: Container(height: 1, color: TColors.border),
+      ));
+    }
+
+    return CustomScrollView(
+      slivers: slivers,
+    );
+  }
+
+  Map<String, List<RequestItem>> _groupByFolder(List<RequestItem> items) {
+    final map = <String, List<RequestItem>>{};
+    for (final item in items) {
+      final posix = item.relativePath.replaceAll('\\', '/');
+      final slash = posix.lastIndexOf('/');
+      final folder = slash >= 0 ? posix.substring(0, slash) : '';
+      map.putIfAbsent(folder, () => []).add(item);
+    }
+    final sorted = <String, List<RequestItem>>{};
+    final folders = map.keys.toList()..sort();
+    if (map.containsKey('')) {
+      sorted[''] = map['']!;
+      folders.remove('');
+    }
+    for (final f in folders) {
+      sorted[f] = map[f]!;
+    }
+    return sorted;
+  }
+
+  Widget _buildItem(RequestItem item) {
+    final selected = item.relativePath == widget.selectedPath;
+    final code = item.lastStatusCode;
+
+    return GestureDetector(
+      onTap: () => widget.onRequestSelected(item.relativePath),
+      child: Container(
+        color: selected ? TColors.surface : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            _methodDot(item),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                item.displayName,
+                style: TextStyle(
+                  color: selected ? TColors.green : TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (code != null) ...[
+              Text(
+                '$code',
+                style: TextStyle(
+                  color: code >= 200 && code < 300 ? TColors.green : TColors.red,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTapDown: (details) => _showContextMenu(context, item, details),
+              child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _methodDot(RequestItem item) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: TColors.green,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context, RequestItem item, TapDownDetails details) {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    showMenu<String>(
+      context: context,
+      elevation: 0,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        details.globalPosition.dy,
+        offset.dx + renderBox.size.width,
+        0,
+      ),
+      color: TColors.surface,
+      shape: const RoundedRectangleBorder(),
+      items: [
+        PopupMenuItem(value: 'share', height: 36, child: _menuItem(Icons.share, 'share')),
+        PopupMenuItem(value: 'rename', height: 36, child: _menuItem(Icons.edit, 'rename')),
+        PopupMenuItem(value: 'delete', height: 36, child: _menuItem(Icons.delete, 'delete')),
+      ],
+    ).then((value) async {
+      if (value == 'share') {
+        final content = await widget.requestService.readCurl(
+          widget.projectId,
+          item.relativePath,
+        );
+        if (content != null && mounted) {
+          Share.share(content);
+        }
+      } else if (value == 'rename') {
+        final name = await _showNameDialog(item.displayName);
+        if (name != null && name.trim().isNotEmpty) {
+          await widget.requestService.renameRequest(
+            widget.projectId,
+            item.relativePath,
+            name.trim(),
+          );
+          _load();
+        }
+      } else if (value == 'delete') {
+        await widget.requestService.deleteRequest(
+          widget.projectId,
+          item.relativePath,
+        );
+        _load();
+      }
+    });
+  }
+
+  Widget _menuItem(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: TColors.mutedText),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<String?> _showNameDialog(String initial) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.surface,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          cursorColor: TColors.green,
+          style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'name',
+            hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
+            border: InputBorder.none,
+            filled: true,
+            fillColor: TColors.background,
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text('ok', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      color: TColors.surface,
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      child: Row(
+        children: [
+          TermButton(
+            icon: Icons.add,
+            label: 'new',
+            onTap: widget.onNewRequest,
+            accent: true,
+          ),
+          const Spacer(),
+          TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
+        ],
+      ),
+    );
+  }
+}

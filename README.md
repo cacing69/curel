@@ -1,5 +1,5 @@
 # Curel
-<sub>/ˈtʃurɛl/</sub>
+<p align="center"><sub>/ˈtʃurɛl/</sub></p>
 
 <p align="center">
   <img src="logo.png" alt="Curel" width="120" />
@@ -27,6 +27,24 @@ Download the latest release from the [Releases](https://github.com/cacing69/cure
 ## Features
 
 - Paste and execute curl commands
-- Syntax-highlighted response
+- Request builder for constructing HTTP requests visually
+- Curl cheat sheet with syntax-highlighted examples
+- Support for common curl flags: `-L`, `-v`, `--data`, `--data-raw`, `-o`, `-O`, `--trace`, `--trace-ascii`, `--connect-timeout`, `--max-time`, `-k`
+- Syntax-highlighted response with JSON prettify
 - Search within response with match highlighting
-- HTML preview
+- HTML preview tab
+- Verbose output with DNS lookup, TLS info, and redirect chain
+- Trace output with hex dump format
+- Save response to file
+- Environment variables with `<<VAR>>` syntax and purple highlighting
+- Multiple environments with quick switch from action bar
+- Layered env resolution: project env > global env > undefined warning
+- Import/export environments as JSON
+- Secure variable storage (Keychain/Keystore)
+- Filesystem-first project organization
+- Save and open requests with folder support
+- Request drawer with search, rename, and delete
+- Status code badges from request metadata
+- Configurable User-Agent, connect-timeout, and max-time
+- Dracula theme with flat, no-shadow terminal design
+- Share curl command via system share sheet

@@ -64,8 +64,10 @@ class _AboutPageState extends State<AboutPage> {
                       ),
                     const SizedBox(height: 20),
                     const Text(
-                        'A lightweight curl client for sending HTTP requests '
-                        'and inspecting responses with syntax highlighting.',
+                        'A git-native, local-first curl workspace.\n'
+                        'Organize requests into projects, manage '
+                        'environments with layered variables, and '
+                        'collaborate via GitHub.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: TColors.foreground,
