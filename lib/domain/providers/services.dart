@@ -10,6 +10,7 @@ import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/services/request_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/domain/services/workspace_service.dart';
+import 'package:curel/application/sync_controller.dart';
 
 final fileSystemProvider = Provider<FileSystemService>(
   (ref) => LocalFileSystemService(),
@@ -54,3 +55,8 @@ final workspaceServiceProvider = Provider<WorkspaceService>(
     requestService: ref.read(requestServiceProvider),
   ),
 );
+
+final syncControllerProvider = Provider<SyncController>(
+  (ref) => SyncController(ref),
+);
+

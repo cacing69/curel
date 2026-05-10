@@ -10,3 +10,4 @@
 - add image compression before feedback submit (quality 80%, maxWidth 720) using flutter_image_compress
 - redesign feedback page: compact layout with inline category tabs, collapsed optional details, tighter spacing
 - standardize JSON serialization: use JsonEncoder.withIndent('  ') for environments, projects, requests, and workspace exports to minimize merge conflicts
+- add SyncController: orchestrates complete filesystem re-sync and UI state refresh (fallback active project/request, clear response) for robust Git Pull support

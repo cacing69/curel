@@ -32,12 +32,12 @@ class _AppState extends ConsumerState<App> {
     httpClient.setUserAgent(ua);
     final workspace = await settings.getEffectiveWorkspacePath();
     await fs.setWorkspaceRoot(workspace);
-    await ref.read(projectServiceProvider).syncFromFilesystem();
+    await ref.read(syncControllerProvider).syncAndRefresh();
     if (mounted) setState(() {});
   }
 
   void _onWorkspaceChanged() async {
-    await ref.read(projectServiceProvider).syncFromFilesystem();
+    await ref.read(syncControllerProvider).syncAndRefresh();
     if (mounted) setState(() => _workspaceKey++);
   }
 
