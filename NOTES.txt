@@ -11,3 +11,4 @@
 - redesign feedback page: compact layout with inline category tabs, collapsed optional details, tighter spacing
 - standardize JSON serialization: use JsonEncoder.withIndent('  ') for environments, projects, requests, and workspace exports to minimize merge conflicts
 - add SyncController: orchestrates complete filesystem re-sync and UI state refresh (fallback active project/request, clear response) for robust Git Pull support
+- update Project metadata schema: add `provider` and `branch` fields to support Git Remote sync in Phase 2

@@ -8,6 +8,8 @@ class Project {
   final DateTime updatedAt;
   final String mode;
   final String? remoteUrl;
+  final String? provider;
+  final String? branch;
 
   const Project({
     required this.id,
@@ -17,6 +19,8 @@ class Project {
     required this.updatedAt,
     this.mode = 'local',
     this.remoteUrl,
+    this.provider,
+    this.branch,
   });
 
   Project copyWith({
@@ -25,6 +29,8 @@ class Project {
     DateTime? updatedAt,
     String? mode,
     String? remoteUrl,
+    String? provider,
+    String? branch,
   }) {
     return Project(
       id: id,
@@ -34,6 +40,8 @@ class Project {
       updatedAt: updatedAt ?? this.updatedAt,
       mode: mode ?? this.mode,
       remoteUrl: remoteUrl ?? this.remoteUrl,
+      provider: provider ?? this.provider,
+      branch: branch ?? this.branch,
     );
   }
 
@@ -45,6 +53,8 @@ class Project {
         'updated_at': updatedAt.toIso8601String(),
         'mode': mode,
         'remote_url': remoteUrl,
+        'provider': provider,
+        'branch': branch,
       };
 
   factory Project.fromJson(Map<String, dynamic> json) => Project(
@@ -55,6 +65,8 @@ class Project {
         updatedAt: DateTime.parse(json['updated_at'] as String),
         mode: json['mode'] as String? ?? 'local',
         remoteUrl: json['remote_url'] as String?,
+        provider: json['provider'] as String?,
+        branch: json['branch'] as String?,
       );
 
   static String encodeList(List<Project> projects) =>
