@@ -16,10 +16,15 @@ bool _looksLikeHost(String s) {
 List<String> _ensureScheme(List<String> tokens) {
   return tokens.map((t) {
     final unquoted = _unquote(t);
+    
+    // If it's the first non-flag token after 'curl', it's likely the URL
     if (_isUrlLike(unquoted) &&
         !unquoted.startsWith('http://') &&
         !unquoted.startsWith('https://')) {
-      return t.replaceFirst(unquoted, 'http://$unquoted');
+      // Re-quote if it was quoted
+      final prefix = t.startsWith("'") ? "'" : (t.startsWith('"') ? '"' : '');
+      final suffix = t.endsWith("'") ? "'" : (t.endsWith('"') ? '"' : '');
+      return '${prefix}http://$unquoted$suffix';
     }
     return t;
   }).toList();

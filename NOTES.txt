@@ -1,15 +1,3 @@
-- connect state providers to home_page: replace 12 local state variables (response, project, editor) with Riverpod providers (responseStateProvider, activeProjectProvider, editorStateProvider, selectedRequestPathProvider)
-- extract widgets from home_page to separate files: CurlHighlightController, HelpButton, WindowDot, MoreMenu, EnvSwitch, EditorDashboard, CompactIconButton, FolderChip, ResolvedPreviewDialog
-- revert resolved preview back to original Dialog approach
-- simplify global env UI: flat variable list instead of named environments, auto-create default env, add var button directly
-- replace getApplicationDocumentsDirectory with getApplicationSupportDirectory to remove "app_flutter" from workspace path
-- add workspace import/export: WorkspaceService bundles all projects, requests, envs into single JSON file
-- add project-level export/import: export per project from popup menu, import from footer
-- add type field (env/project/workspace) to all export formats with validation on import to prevent wrong file type
-- fix workspace switching: sync project list from filesystem on change, force HomePage rebuild via key
-- add image compression before feedback submit (quality 80%, maxWidth 720) using flutter_image_compress
-- redesign feedback page: compact layout with inline category tabs, collapsed optional details, tighter spacing
-- standardize JSON serialization: use JsonEncoder.withIndent('  ') for environments, projects, requests, and workspace exports to minimize merge conflicts
-- add SyncController: orchestrates complete filesystem re-sync and UI state refresh (fallback active project/request, clear response) for robust Git Pull support
-- update Project metadata schema: add `provider` and `branch` fields to support Git Remote sync in Phase 2
-- add Git Provider Support: implement dynamic multi-provider configuration (GitHub, GitLab, self-hosted) with secure token storage via FlutterSecureStorage and dedicated GitProvidersPage in Settings UI
+- [DESIGN GUIDELINE] all TextFields in modals/popups must follow SettingsPage pattern: `filled: true`, `fillColor: TColors.background`, and `contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)`
+- [GIT SYNC] implemented GitProvider architecture, GitHubClient (REST API), and GitSyncService for Phase 2 Pull functionality
+- [GIT SYNC] added GitConnectDialog and Sync indicator in EnvBar

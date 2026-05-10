@@ -68,6 +68,8 @@ void showTerminalToast(
   BuildContext context,
   String message, {
   double topOffset = 8,
+  String? actionLabel,
+  VoidCallback? onAction,
 }) {
   final overlay = Overlay.of(context);
   final padding = MediaQuery.of(context).padding;
@@ -77,6 +79,8 @@ void showTerminalToast(
       message: message,
       top: padding.top + topOffset,
       onDismiss: () => entry.remove(),
+      actionLabel: actionLabel,
+      onAction: onAction,
     ),
   );
   overlay.insert(entry);
@@ -86,11 +90,15 @@ class _ToastOverlay extends StatefulWidget {
   final String message;
   final double top;
   final VoidCallback onDismiss;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const _ToastOverlay({
     required this.message,
     required this.top,
     required this.onDismiss,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -108,7 +116,10 @@ class _ToastOverlayState extends State<_ToastOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     )..forward();
-    Future.delayed(const Duration(seconds: 2), _dismiss);
+    
+    // Auto-dismiss after 2s, but longer if there's an action
+    final duration = widget.actionLabel != null ? 5 : 2;
+    Future.delayed(Duration(seconds: duration), _dismiss);
   }
 
   void _dismiss() {
@@ -126,21 +137,49 @@ class _ToastOverlayState extends State<_ToastOverlay>
   Widget build(BuildContext context) {
     return Positioned(
       top: widget.top,
-      left: 8,
-      right: 8,
+      left: 12,
+      right: 12,
       child: FadeTransition(
         opacity: _controller,
         child: Material(
-          color: TColors.background,
-          child: Padding(
+          color: TColors.surface,
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Text(
-              widget.message,
-              style: const TextStyle(
-                color: TColors.green,
-                fontFamily: 'monospace',
-                fontSize: 12,
-              ),
+            decoration: BoxDecoration(
+              border: Border.all(color: TColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.message,
+                    style: const TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                if (widget.actionLabel != null) ...[
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      widget.onAction?.call();
+                      _dismiss();
+                    },
+                    child: Text(
+                      widget.actionLabel!,
+                      style: const TextStyle(
+                        color: TColors.green,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

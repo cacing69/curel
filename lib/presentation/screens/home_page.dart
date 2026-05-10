@@ -26,7 +26,6 @@ import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
-import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -47,7 +46,8 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends ConsumerState<HomePage>
+    with WidgetsBindingObserver {
   final _curlController = CurlHighlightController();
   final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
@@ -329,7 +329,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (unfocus) {
       _editorFocusNode.unfocus();
     }
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: false));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(isFullscreen: false));
   }
 
   @override
@@ -349,40 +351,17 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   void _showClipboardDetection(String curl) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: TColors.surface,
-        duration: const Duration(seconds: 5),
-        content: Row(
-          children: [
-            Icon(Icons.content_paste, size: 14, color: TColors.green),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'curl detected in clipboard',
-                style: TextStyle(
-                  color: TColors.foreground,
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        action: SnackBarAction(
-          label: 'import',
-          textColor: TColors.green,
-          onPressed: () {
-            setState(() => _curlController.text = curl);
-            ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-              clearResponse: true,
-              clearError: true,
-            ));
-            showTerminalToast(context, 'imported');
-          },
-        ),
-      ),
+    showTerminalToast(
+      context,
+      'curl detected in clipboard',
+      actionLabel: 'import',
+      onAction: () {
+        setState(() => _curlController.text = curl);
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(clearResponse: true, clearError: true));
+        showTerminalToast(context, 'imported');
+      },
     );
   }
 
@@ -391,24 +370,34 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   Future<void> _executeCurl() async {
     final text = _curlController.text.trim();
     if (text.isEmpty || !text.startsWith('curl')) {
-      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-        clearResponse: true,
-        error: 'error: command must start with "curl"',
-        showHtmlPreview: false,
-      ));
+      ref
+          .read(responseStateProvider.notifier)
+          .update(
+            (s) => s.copyWith(
+              clearResponse: true,
+              error: 'error: command must start with "curl"',
+              showHtmlPreview: false,
+            ),
+          );
       _exitFullscreen(unfocus: false);
       return;
     }
 
-    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      isLoading: true,
-      clearResponse: true,
-      clearError: true,
-      showHtmlPreview: false,
-    ));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            isLoading: true,
+            clearResponse: true,
+            clearError: true,
+            showHtmlPreview: false,
+          ),
+        );
     final es = ref.read(editorStateProvider);
     if (es.isFullscreen) {
-      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: false));
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(isFullscreen: false));
     }
     await Future<void>.delayed(Duration.zero);
 
@@ -417,20 +406,25 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       final projectId = ref.read(activeProjectProvider)?.id;
       final shouldResolve = text.contains('<<');
       final resolved = shouldResolve
-          ? await ref.read(envServiceProvider).resolve(text, projectId: projectId)
+          ? await ref
+                .read(envServiceProvider)
+                .resolve(text, projectId: projectId)
           : text;
       final undefined = shouldResolve
-          ? await ref.read(envServiceProvider).findUndefinedVars(
-              text,
-              projectId: projectId,
-            )
+          ? await ref
+                .read(envServiceProvider)
+                .findUndefinedVars(text, projectId: projectId)
           : const <String>{};
       if (undefined.isNotEmpty) {
         if (mounted) {
           showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
-          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-            error: 'error: undefined vars: ${undefined.join(', ')}',
-          ));
+          ref
+              .read(responseStateProvider.notifier)
+              .update(
+                (s) => s.copyWith(
+                  error: 'error: undefined vars: ${undefined.join(', ')}',
+                ),
+              );
         }
         return;
       }
@@ -439,35 +433,41 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       final traceEnabled = parsed.traceEnabled;
       final effectiveConnectTimeout =
           parsed.connectTimeout ??
-          Duration(seconds: await ref.read(settingsProvider).getConnectTimeout());
+          Duration(
+            seconds: await ref.read(settingsProvider).getConnectTimeout(),
+          );
       final effectiveMaxTime =
           parsed.maxTime ??
           ((await ref.read(settingsProvider).getMaxTime()) > 0
               ? Duration(seconds: await ref.read(settingsProvider).getMaxTime())
               : null);
       final result = hasOutput
-          ? await ref.read(httpClientProvider).executeBinary(
-              parsed.curl,
-              verbose: parsed.verbose,
-              followRedirects: parsed.followRedirects,
-              trace: traceEnabled,
-              traceAscii: parsed.traceAscii,
-              connectTimeout: effectiveConnectTimeout,
-              maxTime: effectiveMaxTime,
-              insecure: parsed.insecure,
-              httpVersion: parsed.httpVersion,
-            )
-          : await ref.read(httpClientProvider).execute(
-              parsed.curl,
-              verbose: parsed.verbose,
-              followRedirects: parsed.followRedirects,
-              trace: traceEnabled,
-              traceAscii: parsed.traceAscii,
-              connectTimeout: effectiveConnectTimeout,
-              maxTime: effectiveMaxTime,
-              insecure: parsed.insecure,
-              httpVersion: parsed.httpVersion,
-            );
+          ? await ref
+                .read(httpClientProvider)
+                .executeBinary(
+                  parsed.curl,
+                  verbose: parsed.verbose,
+                  followRedirects: parsed.followRedirects,
+                  trace: traceEnabled,
+                  traceAscii: parsed.traceAscii,
+                  connectTimeout: effectiveConnectTimeout,
+                  maxTime: effectiveMaxTime,
+                  insecure: parsed.insecure,
+                  httpVersion: parsed.httpVersion,
+                )
+          : await ref
+                .read(httpClientProvider)
+                .execute(
+                  parsed.curl,
+                  verbose: parsed.verbose,
+                  followRedirects: parsed.followRedirects,
+                  trace: traceEnabled,
+                  traceAscii: parsed.traceAscii,
+                  connectTimeout: effectiveConnectTimeout,
+                  maxTime: effectiveMaxTime,
+                  insecure: parsed.insecure,
+                  httpVersion: parsed.httpVersion,
+                );
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
@@ -477,17 +477,15 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
           : ResponseTab.body;
       if (hasOutput) {
         if ((parsed.verbose || traceEnabled) && mounted) {
-          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-            response: result,
-            selectedTab: newTab,
-          ));
+          ref
+              .read(responseStateProvider.notifier)
+              .update((s) => s.copyWith(response: result, selectedTab: newTab));
         }
         await _downloadFile(result, parsed.outputFileName!);
       } else if (mounted) {
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-          response: result,
-          selectedTab: newTab,
-        ));
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(response: result, selectedTab: newTab));
       }
       if (parsed.traceFileName != null &&
           result.traceLog != null &&
@@ -498,26 +496,30 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       final projectId2 = ref.read(activeProjectProvider)?.id;
       final selectedPath = ref.read(selectedRequestPathProvider);
       if (projectId2 != null && selectedPath != null) {
-        await ref.read(requestServiceProvider).updateMeta(
-          projectId2,
-          selectedPath,
-          RequestMeta(
-            lastStatusCode: result.statusCode,
-            lastRunAt: DateTime.now(),
-          ),
-        );
+        await ref
+            .read(requestServiceProvider)
+            .updateMeta(
+              projectId2,
+              selectedPath,
+              RequestMeta(
+                lastStatusCode: result.statusCode,
+                lastRunAt: DateTime.now(),
+              ),
+            );
       }
 
-      await ref.read(historyServiceProvider).add(
-        HistoryItem(
-          timestamp: DateTime.now(),
-          curlCommand: text,
-          projectId: projectId,
-          statusCode: result.statusCode,
-          method: parsed.curl.method,
-          url: parsed.curl.uri.toString(),
-        ),
-      );
+      await ref
+          .read(historyServiceProvider)
+          .add(
+            HistoryItem(
+              timestamp: DateTime.now(),
+              curlCommand: text,
+              projectId: projectId,
+              statusCode: result.statusCode,
+              method: parsed.curl.method,
+              url: parsed.curl.uri.toString(),
+            ),
+          );
     } catch (e) {
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -525,12 +527,16 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       }
       if (mounted) {
         final msg = _formatError(e);
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(error: msg));
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(error: msg));
         showTerminalToast(context, msg);
       }
     } finally {
       if (mounted) {
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(isLoading: false));
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(isLoading: false));
       }
     }
   }
@@ -547,12 +553,16 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
   void _clear() {
     _curlController.clear();
-    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      clearResponse: true,
-      clearError: true,
-      showHtmlPreview: false,
-      searchActive: false,
-    ));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
   }
 
   Future<void> _openBuilder() async {
@@ -570,20 +580,28 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (result != null && mounted) {
       if (result is String) {
         setState(() => _curlController.text = result);
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-          clearResponse: true,
-          clearError: true,
-          showHtmlPreview: false,
-          searchActive: false,
-        ));
+        ref
+            .read(responseStateProvider.notifier)
+            .update(
+              (s) => s.copyWith(
+                clearResponse: true,
+                clearError: true,
+                showHtmlPreview: false,
+                searchActive: false,
+              ),
+            );
         _executeCurl();
       } else if (result is CurlResponse) {
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-          response: result,
-          clearError: true,
-          showHtmlPreview: false,
-          searchActive: false,
-        ));
+        ref
+            .read(responseStateProvider.notifier)
+            .update(
+              (s) => s.copyWith(
+                response: result,
+                clearError: true,
+                showHtmlPreview: false,
+                searchActive: false,
+              ),
+            );
       }
     }
   }
@@ -605,7 +623,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
           return 'error: request failed (${e.type.name})';
       }
     }
-    final msg = e.toString().replaceFirst(RegExp(r'^(Exception|FormatException|TypeError):\s*'), '');
+    final msg = e.toString().replaceFirst(
+      RegExp(r'^(Exception|FormatException|TypeError):\s*'),
+      '',
+    );
     return 'error: $msg';
   }
 
@@ -749,10 +770,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
         onUse: (command) {
           Navigator.of(context).pop();
           setState(() => _curlController.text = command);
-          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-            clearResponse: true,
-            clearError: true,
-          ));
+          ref
+              .read(responseStateProvider.notifier)
+              .update((s) => s.copyWith(clearResponse: true, clearError: true));
           _editorFocusNode.requestFocus();
         },
       ),
@@ -776,26 +796,26 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       return;
     }
 
-    await ref.read(requestServiceProvider).writeCurl(
-      projectId,
-      selectedPath,
-      text,
-    );
+    await ref
+        .read(requestServiceProvider)
+        .writeCurl(projectId, selectedPath, text);
     final rs = ref.read(responseStateProvider);
     if (rs.response != null) {
-      await ref.read(requestServiceProvider).updateMeta(
-        projectId,
-        selectedPath,
-        RequestMeta(
-          lastStatusCode: rs.response!.statusCode,
-          lastRunAt: DateTime.now(),
-        ),
-      );
+      await ref
+          .read(requestServiceProvider)
+          .updateMeta(
+            projectId,
+            selectedPath,
+            RequestMeta(
+              lastStatusCode: rs.response!.statusCode,
+              lastRunAt: DateTime.now(),
+            ),
+          );
     }
     if (!mounted) return;
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
-      baselineCurlText: _curlController.text,
-    ));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: _curlController.text));
     showTerminalToast(context, 'request saved');
   }
 
@@ -816,10 +836,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       initialName: selectedPath?.replaceAll('.curl', ''),
     );
     if (name == null || name.trim().isEmpty) return;
-    final exists = await ref.read(requestServiceProvider).requestExists(
-      projectId,
-      name.trim(),
-    );
+    final exists = await ref
+        .read(requestServiceProvider)
+        .requestExists(projectId, name.trim());
     if (exists && mounted) {
       final overwrite = await _showConfirmDialog(
         'overwrite?',
@@ -827,44 +846,46 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       );
       if (!mounted) return;
       if (overwrite != true) return;
-      final relativePath = ref.read(requestServiceProvider).resolvePath(name.trim());
-      await ref.read(requestServiceProvider).writeCurl(projectId, relativePath, text);
+      final relativePath = ref
+          .read(requestServiceProvider)
+          .resolvePath(name.trim());
+      await ref
+          .read(requestServiceProvider)
+          .writeCurl(projectId, relativePath, text);
       final rs = ref.read(responseStateProvider);
       if (rs.response != null) {
-        await ref.read(requestServiceProvider).updateMeta(
-          projectId,
-          relativePath,
-          RequestMeta(
-            lastStatusCode: rs.response!.statusCode,
-            lastRunAt: DateTime.now(),
-          ),
-        );
+        await ref
+            .read(requestServiceProvider)
+            .updateMeta(
+              projectId,
+              relativePath,
+              RequestMeta(
+                lastStatusCode: rs.response!.statusCode,
+                lastRunAt: DateTime.now(),
+              ),
+            );
       }
       if (!mounted) return;
       ref.read(selectedRequestPathProvider.notifier).state = relativePath;
-      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
-        baselineCurlText: _curlController.text,
-      ));
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: _curlController.text));
       showTerminalToast(context, 'request saved');
     } else {
-      final path = await ref.read(requestServiceProvider).createRequest(
-        projectId,
-        name.trim(),
-        text,
-      );
+      final path = await ref
+          .read(requestServiceProvider)
+          .createRequest(projectId, name.trim(), text);
       final posix = name.trim().replaceAll('\\', '/');
       final slash = posix.lastIndexOf('/');
       final displayName = slash >= 0 ? posix.substring(slash + 1) : posix;
-      await ref.read(requestServiceProvider).updateMeta(
-        projectId,
-        path,
-        RequestMeta(displayName: displayName),
-      );
+      await ref
+          .read(requestServiceProvider)
+          .updateMeta(projectId, path, RequestMeta(displayName: displayName));
       if (!mounted) return;
       ref.read(selectedRequestPathProvider.notifier).state = path;
-      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
-        baselineCurlText: _curlController.text,
-      ));
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: _curlController.text));
       showTerminalToast(context, 'request saved');
     }
   }
@@ -872,36 +893,43 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   void _newRequest() {
     Navigator.of(context).maybePop();
     setState(() => _curlController.clear());
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
-      baselineCurlText: '',
-    ));
-    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      clearResponse: true,
-      clearError: true,
-      showHtmlPreview: false,
-      searchActive: false,
-    ));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
     ref.read(selectedRequestPathProvider.notifier).state = null;
     _editorFocusNode.requestFocus();
   }
 
   Future<void> _loadRequest(String relativePath) async {
     final projectId = ref.read(activeProjectProvider)?.id;
-    final content = await ref.read(requestServiceProvider).readCurl(
-      projectId!,
-      relativePath,
-    );
+    final content = await ref
+        .read(requestServiceProvider)
+        .readCurl(projectId!, relativePath);
     if (content != null && mounted) {
       setState(() => _curlController.text = content);
-      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
-        baselineCurlText: content,
-      ));
-      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-        clearResponse: true,
-        clearError: true,
-        showHtmlPreview: false,
-        searchActive: false,
-      ));
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: content));
+      ref
+          .read(responseStateProvider.notifier)
+          .update(
+            (s) => s.copyWith(
+              clearResponse: true,
+              clearError: true,
+              showHtmlPreview: false,
+              searchActive: false,
+            ),
+          );
       ref.read(selectedRequestPathProvider.notifier).state = relativePath;
       Navigator.of(context).maybePop();
     }
@@ -987,13 +1015,19 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     }
 
     setState(() => _curlController.clear());
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
-    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      clearResponse: true,
-      clearError: true,
-      showHtmlPreview: false,
-      searchActive: false,
-    ));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
     ref.read(selectedRequestPathProvider.notifier).state = null;
   }
 
@@ -1024,35 +1058,45 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (!mounted) return;
     ref.read(activeProjectProvider.notifier).set(null);
     setState(() => _curlController.clear());
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
-    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      clearResponse: true,
-      clearError: true,
-      showHtmlPreview: false,
-      searchActive: false,
-    ));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
     ref.read(selectedRequestPathProvider.notifier).state = null;
     _refreshEnvKeys();
   }
 
   Future<void> _openProjects() async {
-    final projectId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => const ProjectListPage(),
-      ),
-    );
+    final projectId = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const ProjectListPage()));
     if (!mounted) return;
     if (projectId != null) {
       await _loadActiveProject();
       if (!mounted) return;
       setState(() => _curlController.clear());
-      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
-      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-        clearResponse: true,
-        clearError: true,
-        showHtmlPreview: false,
-        searchActive: false,
-      ));
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: ''));
+      ref
+          .read(responseStateProvider.notifier)
+          .update(
+            (s) => s.copyWith(
+              clearResponse: true,
+              clearError: true,
+              showHtmlPreview: false,
+              searchActive: false,
+            ),
+          );
       ref.read(selectedRequestPathProvider.notifier).state = null;
     }
   }
@@ -1127,7 +1171,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     final projectId = ref.read(activeProjectProvider)?.id;
     List<String> folders = [];
     if (projectId != null) {
-      final items = await ref.read(requestServiceProvider).listRequests(projectId);
+      final items = await ref
+          .read(requestServiceProvider)
+          .listRequests(projectId);
       final folderSet = <String>{};
       for (final item in items) {
         final posix = item.relativePath.replaceAll('\\', '/');
@@ -1247,7 +1293,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     showDialog(
       context: context,
       builder: (ctx) => ResolvedPreviewDialog(
-        future: ref.read(envServiceProvider).resolve(text, projectId: ref.read(activeProjectProvider)?.id),
+        future: ref
+            .read(envServiceProvider)
+            .resolve(text, projectId: ref.read(activeProjectProvider)?.id),
       ),
     );
   }
@@ -1287,40 +1335,48 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       onExecute: _executeCurl,
       onHistorySelect: (curl) {
         setState(() => _curlController.text = curl);
-        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-          clearResponse: true,
-          clearError: true,
-        ));
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(clearResponse: true, clearError: true));
       },
       onHelp: () => _showHelp(context),
-      onNavigateAbout: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const AboutPage())),
-      onNavigateFeedback: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
-        builder: (_) => FeedbackPage(
-          projectId: ref.read(activeProjectProvider)?.id,
-          projectName: activeProject?.name,
-          requestPath: ref.read(selectedRequestPathProvider),
+      onNavigateAbout: (ctx) => Navigator.of(
+        ctx,
+      ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
+      onNavigateFeedback: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => FeedbackPage(
+            projectId: ref.read(activeProjectProvider)?.id,
+            projectName: activeProject?.name,
+            requestPath: ref.read(selectedRequestPathProvider),
+          ),
         ),
-      )),
-      onNavigateSettings: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
-        builder: (_) => SettingsPage(
-          onUserAgentChanged: widget.onUserAgentChanged,
-          onWorkspaceChanged: widget.onWorkspaceChanged,
-          projectId: ref.read(activeProjectProvider)?.id,
+      ),
+      onNavigateSettings: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => SettingsPage(
+            onUserAgentChanged: widget.onUserAgentChanged,
+            onWorkspaceChanged: widget.onWorkspaceChanged,
+            projectId: ref.read(activeProjectProvider)?.id,
+          ),
         ),
-      )),
-      onNavigateHistory: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
-        builder: (_) => HistoryPage(
-          currentProjectId: ref.read(activeProjectProvider)?.id,
-          currentProjectName: activeProject?.name,
-          onSelect: (curl) {
-            setState(() => _curlController.text = curl);
-            ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-              clearResponse: true,
-              clearError: true,
-            ));
-          },
+      ),
+      onNavigateHistory: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => HistoryPage(
+            currentProjectId: ref.read(activeProjectProvider)?.id,
+            currentProjectName: activeProject?.name,
+            onSelect: (curl) {
+              setState(() => _curlController.text = curl);
+              ref
+                  .read(responseStateProvider.notifier)
+                  .update(
+                    (s) => s.copyWith(clearResponse: true, clearError: true),
+                  );
+            },
+          ),
         ),
-      )),
+      ),
     );
   }
 
@@ -1423,7 +1479,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   void _enterFullscreen() {
     final es = ref.read(editorStateProvider);
     if (es.isFullscreen) return;
-    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: true));
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(isFullscreen: true));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _editorFocusNode.requestFocus();
     });

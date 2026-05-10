@@ -38,11 +38,7 @@ class _AboutPageState extends State<AboutPage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-                    Image.asset(
-                      'logo.png',
-                      width: 80,
-                      height: 80,
-                    ),
+                    Image.asset('logo.png', width: 80, height: 80),
                     const SizedBox(height: 20),
                     const Text(
                       'Curel',
@@ -65,22 +61,22 @@ class _AboutPageState extends State<AboutPage> {
                       ),
                     const SizedBox(height: 20),
                     const Text(
-                        'A git-native, local-first curl workspace.\n'
-                        'Organize requests into projects, manage '
-                        'environments with layered variables, and '
-                        'collaborate via GitHub.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: TColors.foreground,
-                          fontSize: 13,
-                          fontFamily: 'monospace',
-                          height: 1.5,
-                        ),
+                      'a git-native, local-first curl workspace.\n'
+                      'organize requests into projects, manage '
+                      'environments with layered variables, and '
+                      'collaborate via github.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        height: 1.5,
                       ),
+                    ),
                     const SizedBox(height: 32),
                     TermButton(
                       icon: Icons.code,
-                      label: 'Repository',
+                      label: 'repository',
                       onTap: () => launchUrl(
                         Uri.parse('https://github.com/cacing69/curel'),
                         mode: LaunchMode.externalApplication,

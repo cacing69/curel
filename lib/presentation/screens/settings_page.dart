@@ -99,15 +99,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'failed to set workspace: $e',
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
-            backgroundColor: TColors.error,
-          ),
-        );
+        showTerminalToast(context, 'failed to set workspace: $e');
       }
     }
   }

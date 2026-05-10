@@ -7,6 +7,7 @@ class Project {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String mode;
+  final String? lastSyncSha;
   final String? remoteUrl;
   final String? provider;
   final String? branch;
@@ -18,6 +19,7 @@ class Project {
     required this.createdAt,
     required this.updatedAt,
     this.mode = 'local',
+    this.lastSyncSha,
     this.remoteUrl,
     this.provider,
     this.branch,
@@ -28,6 +30,7 @@ class Project {
     String? description,
     DateTime? updatedAt,
     String? mode,
+    String? lastSyncSha,
     String? remoteUrl,
     String? provider,
     String? branch,
@@ -39,6 +42,7 @@ class Project {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       mode: mode ?? this.mode,
+      lastSyncSha: lastSyncSha ?? this.lastSyncSha,
       remoteUrl: remoteUrl ?? this.remoteUrl,
       provider: provider ?? this.provider,
       branch: branch ?? this.branch,
@@ -52,6 +56,7 @@ class Project {
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
         'mode': mode,
+        'last_sync_sha': lastSyncSha,
         'remote_url': remoteUrl,
         'provider': provider,
         'branch': branch,
@@ -64,6 +69,7 @@ class Project {
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
         mode: json['mode'] as String? ?? 'local',
+        lastSyncSha: json['last_sync_sha'] as String?,
         remoteUrl: json['remote_url'] as String?,
         provider: json['provider'] as String?,
         branch: json['branch'] as String?,

@@ -1,6 +1,9 @@
+import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/env_switch.dart';
+import 'package:curel/presentation/widgets/git_connect_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -41,7 +44,7 @@ class EnvBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.terminal, size: 12, color: TColors.green),
+          _GitSyncButton(activeProject: activeProject),
           const SizedBox(width: 8),
           Expanded(
             child: GestureDetector(
@@ -132,6 +135,100 @@ class EnvBar extends ConsumerWidget {
             onChanged: onEnvChanged,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GitSyncButton extends ConsumerStatefulWidget {
+  final Project? activeProject;
+
+  const _GitSyncButton({required this.activeProject});
+
+  @override
+  ConsumerState<_GitSyncButton> createState() => _GitSyncButtonState();
+}
+
+class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
+  bool _isSyncing = false;
+
+  Future<void> _connect() async {
+    final project = widget.activeProject;
+    if (project == null) return;
+
+    final updated = await showDialog(
+      context: context,
+      builder: (_) => GitConnectDialog(project: project),
+    );
+
+    if (updated != null && mounted) {
+      await ref.read(projectServiceProvider).update(updated);
+      ref.read(activeProjectProvider.notifier).set(updated);
+      showTerminalToast(context, 'project connected to remote');
+    }
+  }
+
+  Future<void> _sync() async {
+    final project = widget.activeProject;
+    if (project == null) return;
+
+    setState(() => _isSyncing = true);
+    try {
+      final result = await ref.read(gitSyncServiceProvider).sync(project);
+      if (mounted) {
+        if (result.success) {
+          // Robust re-sync of everything after Sync
+          await ref.read(syncControllerProvider).syncAndRefresh();
+          showTerminalToast(context, result.message);
+        } else {
+          // Show in terminal response area with terminal-style formatting
+          final terminalError = 'git sync\nerror: ${result.message}';
+          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+                clearResponse: true,
+                error: terminalError,
+              ));
+          showTerminalToast(context, 'sync failed (see terminal)');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        final terminalError = 'git sync\ncritical error: $e';
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+              clearResponse: true,
+              error: terminalError,
+            ));
+        showTerminalToast(context, 'sync error');
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.activeProject == null) {
+      return const Icon(Icons.terminal, size: 12, color: TColors.green);
+    }
+
+    final isGit = widget.activeProject!.mode == 'git';
+
+    if (_isSyncing) {
+      return const SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          color: TColors.green,
+          strokeWidth: 1.5,
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: isGit ? _sync : _connect,
+      child: Icon(
+        isGit ? Icons.cloud_download : Icons.cloud_off,
+        size: 14,
+        color: isGit ? TColors.green : TColors.mutedText,
       ),
     );
   }

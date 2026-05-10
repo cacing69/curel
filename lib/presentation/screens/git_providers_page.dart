@@ -81,13 +81,13 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                               fontSize: 13),
                           items: const [
                             DropdownMenuItem(
-                                value: 'github', child: Text('GitHub')),
+                                value: 'github', child: Text('github')),
                             DropdownMenuItem(
-                                value: 'gitlab', child: Text('GitLab')),
+                                value: 'gitlab', child: Text('gitlab')),
                             DropdownMenuItem(
-                                value: 'gitea', child: Text('Gitea')),
+                                value: 'gitea', child: Text('gitea')),
                             DropdownMenuItem(
-                                value: 'bitbucket', child: Text('Bitbucket')),
+                                value: 'bitbucket', child: Text('bitbucket')),
                           ],
                           onChanged: (v) {
                             if (v != null) {
@@ -166,28 +166,29 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             style: const TextStyle(
                 color: TColors.cyan,
                 fontFamily: 'monospace',
-                fontSize: 12)),
+                fontSize: 11)),
         const SizedBox(height: 6),
-        Container(
-          color: TColors.background,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: TextField(
-            controller: controller,
-            obscureText: obscure,
-            cursorColor: TColors.green,
-            style: const TextStyle(
-                color: TColors.foreground,
+        TextField(
+          controller: controller,
+          obscureText: obscure,
+          cursorColor: TColors.green,
+          style: const TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(
+                color: TColors.mutedText,
                 fontFamily: 'monospace',
-                fontSize: 13),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                  color: TColors.mutedText,
-                  fontFamily: 'monospace',
-                  fontSize: 13),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+                fontSize: 11),
+            border: InputBorder.none,
+            filled: true,
+            fillColor: TColors.background,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
           ),
         ),

@@ -36,10 +36,17 @@ class FilesystemProjectService implements ProjectService {
 
   @override
   Future<List<Project>> getAll() async {
+    // Always sync from filesystem before returning to ensure we are up to date
+    await syncFromFilesystem();
+    
     final prefs = await _instance;
     final raw = prefs.getString(_keyProjectList);
     if (raw == null) return [];
-    return Project.decodeList(raw);
+    
+    // Sort projects by name
+    final list = Project.decodeList(raw);
+    list.sort((a, b) => a.name.compareTo(b.name));
+    return list;
   }
 
   @override
@@ -168,7 +175,7 @@ class FilesystemProjectService implements ProjectService {
       return;
     }
 
-    final projects = <Project>[];
+    final Map<String, Project> projectsMap = {};
     await for (final entity in dir.list()) {
       if (entity is! Directory) continue;
       final curelJson = File(p.join(entity.path, 'curel.json'));
@@ -176,10 +183,15 @@ class FilesystemProjectService implements ProjectService {
       try {
         final content = await curelJson.readAsString();
         final json = jsonDecode(content) as Map<String, dynamic>;
-        projects.add(Project.fromJson(json));
+        final project = Project.fromJson(json);
+        
+        // Ensure the ID matches the folder name if possible, or just ensure unique IDs
+        // If we find multiple curel.json with same ID, the last one wins
+        projectsMap[project.id] = project;
       } catch (_) {}
     }
 
+    final projects = projectsMap.values.toList();
     await _saveAll(projects);
 
     final prefs = await _instance;
