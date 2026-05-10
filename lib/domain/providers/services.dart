@@ -11,6 +11,7 @@ import 'package:curel/domain/services/request_service.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/domain/services/workspace_service.dart';
 import 'package:curel/application/sync_controller.dart';
+import 'package:curel/domain/services/git_provider_service.dart';
 
 final fileSystemProvider = Provider<FileSystemService>(
   (ref) => LocalFileSystemService(),
@@ -58,5 +59,9 @@ final workspaceServiceProvider = Provider<WorkspaceService>(
 
 final syncControllerProvider = Provider<SyncController>(
   (ref) => SyncController(ref),
+);
+
+final gitProviderServiceProvider = Provider<GitProviderService>(
+  (ref) => FileSystemGitProviderService(ref.read(fileSystemProvider)),
 );
 

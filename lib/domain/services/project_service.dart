@@ -59,6 +59,11 @@ class FilesystemProjectService implements ProjectService {
     );
 
     await _fs.createProjectStructure(project.id);
+    
+    // Create .gitignore to prevent pushing sensitive environments
+    final projectDir = await _fs.getProjectDir(project.id);
+    final gitignorePath = p.join(projectDir, '.gitignore');
+    await _fs.writeFile(gitignorePath, '# Curel ignore file\n# Ignore environments containing sensitive variables\nenvironments/\n.env\n*.local\n');
 
     final projectJsonPath = await _getProjectJsonPath(project.id);
     await _fs.writeFile(projectJsonPath, jsonEncode(project.toJson()));

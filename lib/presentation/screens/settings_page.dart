@@ -5,6 +5,7 @@ import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/presentation/screens/env_page.dart';
+import 'package:curel/presentation/screens/git_providers_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
@@ -328,6 +329,47 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const GitProvidersPage(),
+                              ),
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              color: TColors.surface,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.hub,
+                                    size: 14,
+                                    color: TColors.cyan,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'git providers',
+                                    style: TextStyle(
+                                      color: TColors.cyan,
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    size: 14,
+                                    color: TColors.mutedText,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
                           _buildWorkspaceSection(),
                           const SizedBox(height: 20),
                           Row(
@@ -395,6 +437,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required TextEditingController controller,
     int maxLines = 1,
     TextInputType? keyboardType,
+    bool obscureText = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,10 +467,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           color: TColors.surface,
           child: TextField(
             controller: controller,
-            maxLines: maxLines,
+            maxLines: obscureText ? 1 : maxLines,
             minLines: 1,
             cursorColor: TColors.green,
             keyboardType: keyboardType,
+            obscureText: obscureText,
             style: const TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',

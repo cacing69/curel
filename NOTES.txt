@@ -12,3 +12,4 @@
 - standardize JSON serialization: use JsonEncoder.withIndent('  ') for environments, projects, requests, and workspace exports to minimize merge conflicts
 - add SyncController: orchestrates complete filesystem re-sync and UI state refresh (fallback active project/request, clear response) for robust Git Pull support
 - update Project metadata schema: add `provider` and `branch` fields to support Git Remote sync in Phase 2
+- add Git Provider Support: implement dynamic multi-provider configuration (GitHub, GitLab, self-hosted) with secure token storage via FlutterSecureStorage and dedicated GitProvidersPage in Settings UI
