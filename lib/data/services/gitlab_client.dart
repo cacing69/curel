@@ -10,27 +10,28 @@ class GitLabClient implements GitClient {
   String? _cachedUrl;
 
   GitLabClient({String? baseUrl})
-      : _apiBase = (baseUrl != null && baseUrl.isNotEmpty)
-            ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v4'
-            : 'https://gitlab.com/api/v4';
+    : _apiBase = (baseUrl != null && baseUrl.isNotEmpty)
+          ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v4'
+          : 'https://gitlab.com/api/v4';
 
   Map<String, String> _headers(String token) => {
-        'PRIVATE-TOKEN': token,
+        'Authorization': 'Bearer $token',
       };
 
   void _checkResponse(http.Response response) {
     if (response.statusCode == 401) {
       throw Exception(
-          'authentication failed: token is invalid or expired. check your git provider settings.');
+        'authentication failed: token is invalid or expired. check your git provider settings.',
+      );
     }
     if (response.statusCode == 403) {
       throw Exception(
-          'forbidden: insufficient permissions. check your token scopes.');
+        'forbidden: insufficient permissions. check your token scopes.',
+      );
     }
   }
 
-  Future<String> _resolveProjectId(
-      String remoteUrl, String token) async {
+  Future<String> _resolveProjectId(String remoteUrl, String token) async {
     if (_cachedProjectId != null && _cachedUrl == remoteUrl) {
       return _cachedProjectId!;
     }
@@ -40,8 +41,10 @@ class GitLabClient implements GitClient {
     final encoded = Uri.encodeComponent(path);
 
     final url = '$_apiBase/projects/$encoded';
-    final response =
-        await _client.get(Uri.parse(url), headers: _headers(token));
+    final response = await _client.get(
+      Uri.parse(url),
+      headers: _headers(token),
+    );
 
     if (response.statusCode == 200) {
       final id = (jsonDecode(response.body)['id'] as int).toString();
@@ -56,12 +59,16 @@ class GitLabClient implements GitClient {
 
   @override
   Future<String?> getLatestCommitSha(
-      String remoteUrl, String branch, String token) async {
+    String remoteUrl,
+    String branch,
+    String token,
+  ) async {
     final projectId = await _resolveProjectId(remoteUrl, token);
-    final url =
-        '$_apiBase/projects/$projectId/repository/branches/$branch';
-    final response =
-        await _client.get(Uri.parse(url), headers: _headers(token));
+    final url = '$_apiBase/projects/$projectId/repository/branches/$branch';
+    final response = await _client.get(
+      Uri.parse(url),
+      headers: _headers(token),
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['commit']['id'];
@@ -72,13 +79,18 @@ class GitLabClient implements GitClient {
 
   @override
   Future<List<GitFile>> fetchFiles(
-      String remoteUrl, String branch, String token) async {
+    String remoteUrl,
+    String branch,
+    String token,
+  ) async {
     final projectId = await _resolveProjectId(remoteUrl, token);
 
     final treeUrl =
         '$_apiBase/projects/$projectId/repository/tree?recursive=true&ref=$branch&per_page=100';
-    final response =
-        await _client.get(Uri.parse(treeUrl), headers: _headers(token));
+    final response = await _client.get(
+      Uri.parse(treeUrl),
+      headers: _headers(token),
+    );
 
     if (response.statusCode == 404) return [];
     if (response.statusCode != 200) {
@@ -114,8 +126,10 @@ class GitLabClient implements GitClient {
           final encodedPath = Uri.encodeComponent(path);
           final fileUrl =
               '$_apiBase/projects/$projectId/repository/files/$encodedPath/raw?ref=$branch';
-          final fileRes =
-              await _client.get(Uri.parse(fileUrl), headers: _headers(token));
+          final fileRes = await _client.get(
+            Uri.parse(fileUrl),
+            headers: _headers(token),
+          );
 
           if (fileRes.statusCode == 200) {
             return GitFile(path: path, content: fileRes.body);
@@ -132,12 +146,17 @@ class GitLabClient implements GitClient {
 
   @override
   Future<List<String>> listRemotePaths(
-      String remoteUrl, String branch, String token) async {
+    String remoteUrl,
+    String branch,
+    String token,
+  ) async {
     final projectId = await _resolveProjectId(remoteUrl, token);
     final treeUrl =
         '$_apiBase/projects/$projectId/repository/tree?recursive=true&ref=$branch&per_page=100';
-    final response =
-        await _client.get(Uri.parse(treeUrl), headers: _headers(token));
+    final response = await _client.get(
+      Uri.parse(treeUrl),
+      headers: _headers(token),
+    );
 
     if (response.statusCode != 200) return [];
 
@@ -149,8 +168,13 @@ class GitLabClient implements GitClient {
   }
 
   @override
-  Future<String> pushFiles(String remoteUrl, String branch, String token,
-      List<GitFile> files, String message) async {
+  Future<String> pushFiles(
+    String remoteUrl,
+    String branch,
+    String token,
+    List<GitFile> files,
+    String message,
+  ) async {
     final projectId = await _resolveProjectId(remoteUrl, token);
 
     // Determine create vs update for each file
@@ -168,14 +192,10 @@ class GitLabClient implements GitClient {
       };
     }).toList();
 
-    final commitUrl =
-        '$_apiBase/projects/$projectId/repository/commits';
+    final commitUrl = '$_apiBase/projects/$projectId/repository/commits';
     final commitRes = await _client.post(
       Uri.parse(commitUrl),
-      headers: {
-        ..._headers(token),
-        'Content-Type': 'application/json',
-      },
+      headers: {..._headers(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
         'branch': branch,
         'commit_message': message,
@@ -193,14 +213,22 @@ class GitLabClient implements GitClient {
 
   @override
   Future<String?> validateToken(String token, {String? baseUrl}) async {
-    final apiUrl = baseUrl != null && baseUrl.isNotEmpty
-        ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v4/user'
-        : 'https://gitlab.com/api/v4/user';
-    final response =
-        await _client.get(Uri.parse(apiUrl), headers: _headers(token));
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body)['username'] as String?;
-    }
+    try {
+      final apiUrl = baseUrl != null && baseUrl.isNotEmpty
+          ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v4/user'
+          : 'https://gitlab.com/api/v4/user';
+      final response = await _client
+          .get(
+            Uri.parse(apiUrl),
+            headers: {..._headers(token), 'User-Agent': 'Curel/1.3.0'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['username'] as String?;
+      }
+    } catch (_) {}
     return null;
   }
 

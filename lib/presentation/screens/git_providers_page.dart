@@ -2,6 +2,8 @@ import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/data/services/github_client.dart';
 import 'package:curel/data/services/gitlab_client.dart';
+import 'package:curel/data/services/gitea_client.dart';
+import 'package:curel/data/services/bitbucket_client.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
@@ -25,6 +27,10 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         return GitHubClient(baseUrl: baseUrl);
       case 'gitlab':
         return GitLabClient(baseUrl: baseUrl);
+      case 'gitea':
+        return GiteaClient(baseUrl: baseUrl);
+      case 'bitbucket':
+        return BitbucketClient(baseUrl: baseUrl);
       default:
         throw Exception('Provider $type not supported yet');
     }
@@ -53,9 +59,10 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     final baseUrlCtrl = TextEditingController(text: provider?.baseUrl ?? '');
     final tokenCtrl = TextEditingController();
 
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (ctx) {
+        bool validating = false;
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
@@ -73,13 +80,16 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildField('name', 'My GitHub', nameCtrl),
+                    _buildField('name', 'my github', nameCtrl),
                     const SizedBox(height: 12),
-                    const Text('type',
-                        style: TextStyle(
-                            color: TColors.cyan,
-                            fontFamily: 'monospace',
-                            fontSize: 12)),
+                    const Text(
+                      'type',
+                      style: TextStyle(
+                        color: TColors.cyan,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -90,18 +100,15 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                           dropdownColor: TColors.surface,
                           isExpanded: true,
                           style: const TextStyle(
-                              color: TColors.foreground,
-                              fontFamily: 'monospace',
-                              fontSize: 13),
+                            color: TColors.foreground,
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
                           items: const [
-                            DropdownMenuItem(
-                                value: 'github', child: Text('github')),
-                            DropdownMenuItem(
-                                value: 'gitlab', child: Text('gitlab')),
-                            DropdownMenuItem(
-                                value: 'gitea', child: Text('gitea')),
-                            DropdownMenuItem(
-                                value: 'bitbucket', child: Text('bitbucket')),
+                            DropdownMenuItem(value: 'github', child: Text('github')),
+                            DropdownMenuItem(value: 'gitlab', child: Text('gitlab')),
+                            DropdownMenuItem(value: 'gitea', child: Text('gitea')),
+                            DropdownMenuItem(value: 'bitbucket', child: Text('bitbucket')),
                           ],
                           onChanged: (v) {
                             if (v != null) {
@@ -112,29 +119,104 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildField('base url (optional)', 'https://gitlab.company.com',
-                        baseUrlCtrl),
+                    _buildField(
+                      'base url (optional)',
+                      typeCtrl.text == 'github'
+                          ? 'https://github.company.com'
+                          : typeCtrl.text == 'gitlab'
+                              ? 'https://gitlab.company.com'
+                              : typeCtrl.text == 'gitea'
+                                  ? 'https://gitea.company.com'
+                                  : 'https://bitbucket.company.com',
+                      baseUrlCtrl,
+                    ),
                     const SizedBox(height: 12),
                     _buildField(
-                        isEdit ? 'token (leave empty to keep)' : 'token (pat)',
-                        'ghp_xxx...',
-                        tokenCtrl,
-                        obscure: true),
+                      isEdit ? 'token (leave empty to keep)' : 'token (pat)',
+                      typeCtrl.text == 'github'
+                          ? 'ghp_xxx...'
+                          : typeCtrl.text == 'gitlab'
+                              ? 'glpat-xxx...'
+                              : typeCtrl.text == 'gitea'
+                                  ? 'gtp_xxx...'
+                                  : typeCtrl.text == 'bitbucket'
+                                      ? 'access token...'
+                                      : 'token hex...',
+                      tokenCtrl,
+                      obscure: true,
+                    ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('cancel',
-                      style: TextStyle(
-                          color: TColors.mutedText, fontFamily: 'monospace')),
+                  onPressed: validating ? null : () => Navigator.of(ctx).pop(false),
+                  child: const Text(
+                    'cancel',
+                    style: TextStyle(
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text('save',
-                      style: TextStyle(
-                          color: TColors.green, fontFamily: 'monospace')),
+                  onPressed: validating
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          final type = typeCtrl.text;
+                          var baseUrl = baseUrlCtrl.text.trim();
+                          final token = tokenCtrl.text.trim();
+
+                          if (name.isEmpty) return;
+                          if (!isEdit && token.isEmpty) return;
+
+                          setStateDialog(() => validating = true);
+
+                          try {
+                            final tokenToValidate = isEdit ? (token.isNotEmpty ? token : null) : token;
+                            if (tokenToValidate != null) {
+                              final client = _getClient(type, baseUrl: baseUrl);
+                              final username = await client.validateToken(tokenToValidate, baseUrl: baseUrl);
+                              if (username == null) {
+                                if (mounted) showTerminalToast(ctx, 'invalid token — check your credentials');
+                                setStateDialog(() => validating = false);
+                                return;
+                              }
+                            }
+
+                            if (isEdit) {
+                              await ref.read(gitProviderServiceProvider).update(
+                                    provider.copyWith(name: name, type: type, baseUrl: baseUrl),
+                                    newToken: token.isNotEmpty ? token : null,
+                                  );
+                            } else {
+                              await ref.read(gitProviderServiceProvider).create(
+                                    name: name,
+                                    type: type,
+                                    baseUrl: baseUrl,
+                                    token: token,
+                                  );
+                            }
+                            if (mounted) Navigator.of(ctx).pop(true);
+                          } catch (e) {
+                            if (mounted) showTerminalToast(ctx, 'error: $e');
+                            setStateDialog(() => validating = false);
+                          }
+                        },
+                  child: validating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: TColors.green))
+                      : const Text(
+                          'save',
+                          style: TextStyle(
+                            color: TColors.green,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                 ),
               ],
             );
@@ -143,56 +225,27 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       },
     );
 
-    if (result == true) {
-      final name = nameCtrl.text.trim();
-      final type = typeCtrl.text;
-      var baseUrl = baseUrlCtrl.text.trim();
-      if (baseUrl.isEmpty) baseUrl = '';
-      final token = tokenCtrl.text.trim();
-
-      if (name.isEmpty) return;
-      if (!isEdit && token.isEmpty) return;
-
-      // Validate token before saving
-      final tokenToValidate = isEdit ? (token.isNotEmpty ? token : null) : token;
-      if (tokenToValidate != null) {
-        final client = _getClient(type, baseUrl: baseUrl);
-        final username = await client.validateToken(tokenToValidate, baseUrl: baseUrl);
-        if (username == null) {
-          if (mounted) showTerminalToast(context, 'invalid token — check your credentials');
-          return;
-        }
-      }
-
-      if (isEdit) {
-        await ref.read(gitProviderServiceProvider).update(
-              provider.copyWith(name: name, type: type, baseUrl: baseUrl),
-              newToken: token.isNotEmpty ? token : null,
-            );
-      } else {
-        await ref.read(gitProviderServiceProvider).create(
-              name: name,
-              type: type,
-              baseUrl: baseUrl,
-              token: token,
-            );
-      }
-      await _load();
-    }
+    await _load();
   }
 
   Widget _buildField(
-      String label, String hint, TextEditingController controller,
-      {bool obscure = false}) {
+    String label,
+    String hint,
+    TextEditingController controller, {
+    bool obscure = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                color: TColors.cyan,
-                fontFamily: 'monospace',
-                fontSize: 12,
-                fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: TColors.cyan,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -202,15 +255,17 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             obscureText: obscure,
             cursorColor: TColors.green,
             style: const TextStyle(
-                color: TColors.foreground,
-                fontFamily: 'monospace',
-                fontSize: 13),
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(
-                  color: TColors.mutedText,
-                  fontFamily: 'monospace',
-                  fontSize: 13),
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -228,28 +283,39 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.background,
-        title: const Text('delete provider?',
-            style: TextStyle(
-                color: TColors.foreground,
-                fontFamily: 'monospace',
-                fontSize: 14)),
-        content: Text('are you sure you want to delete ${provider.name}?',
-            style: const TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 12)),
+        title: const Text(
+          'delete provider?',
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Text(
+          'are you sure you want to delete ${provider.name}?',
+          style: const TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('cancel',
-                style: TextStyle(
-                    color: TColors.mutedText, fontFamily: 'monospace')),
+            child: const Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('delete',
-                style:
-                    TextStyle(color: TColors.red, fontFamily: 'monospace')),
+            child: const Text(
+              'delete',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -274,15 +340,18 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
               child: _loading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: TColors.green, strokeWidth: 2))
+                        color: TColors.green,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : _providers.isEmpty
-                      ? _buildEmpty()
-                      : ListView.separated(
-                          itemCount: _providers.length,
-                          separatorBuilder: (_, __) =>
-                              Container(height: 1, color: TColors.border),
-                          itemBuilder: (_, i) => _buildTile(_providers[i]),
-                        ),
+                  ? _buildEmpty()
+                  : ListView.separated(
+                      itemCount: _providers.length,
+                      separatorBuilder: (_, __) =>
+                          Container(height: 1, color: TColors.border),
+                      itemBuilder: (_, i) => _buildTile(_providers[i]),
+                    ),
             ),
             Container(height: 1, color: TColors.border),
             _buildFooter(),
@@ -300,8 +369,11 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.arrow_back,
-                size: 18, color: TColors.mutedText),
+            child: const Icon(
+              Icons.arrow_back,
+              size: 18,
+              color: TColors.mutedText,
+            ),
           ),
           const SizedBox(width: 8),
           const Text(
@@ -324,10 +396,11 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         'no git providers configured.\nadd one to enable remote sync.',
         textAlign: TextAlign.center,
         style: TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            height: 1.5),
+          color: TColors.mutedText,
+          fontFamily: 'monospace',
+          fontSize: 12,
+          height: 1.5,
+        ),
       ),
     );
   }
@@ -337,7 +410,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
-          Icon(Icons.hub, size: 16, color: TColors.cyan),
+          Icon(Icons.cloud_circle, size: 16, color: TColors.cyan),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -346,18 +419,20 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                 Text(
                   provider.name,
                   style: const TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold),
+                    color: TColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'type: ${provider.type}${provider.baseUrl != null && provider.baseUrl!.isNotEmpty ? ' | url: ${provider.baseUrl}' : ''}',
                   style: const TextStyle(
-                      color: TColors.mutedText,
-                      fontFamily: 'monospace',
-                      fontSize: 11),
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -387,10 +462,11 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       child: Row(
         children: [
           TermButton(
-              icon: Icons.add,
-              label: 'add provider',
-              onTap: () => _showProviderDialog(),
-              accent: true),
+            icon: Icons.add,
+            label: 'add provider',
+            onTap: () => _showProviderDialog(),
+            accent: true,
+          ),
         ],
       ),
     );

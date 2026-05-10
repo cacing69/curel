@@ -67,20 +67,28 @@ const syntaxTheme = {
 void showTerminalToast(
   BuildContext context,
   String message, {
-  double topOffset = 8,
+  double topOffset = 16,
   String? actionLabel,
   VoidCallback? onAction,
 }) {
   final overlay = Overlay.of(context);
-  final padding = MediaQuery.of(context).padding;
   late OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (_) => _ToastOverlay(
-      message: message,
-      top: padding.top + topOffset,
-      onDismiss: () => entry.remove(),
-      actionLabel: actionLabel,
-      onAction: onAction,
+    builder: (context) => Positioned.fill(
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: EdgeInsets.only(top: topOffset, left: 12, right: 12),
+            child: _ToastOverlay(
+              message: message,
+              onDismiss: () => entry.remove(),
+              actionLabel: actionLabel,
+              onAction: onAction,
+            ),
+          ),
+        ),
+      ),
     ),
   );
   overlay.insert(entry);
@@ -88,14 +96,12 @@ void showTerminalToast(
 
 class _ToastOverlay extends StatefulWidget {
   final String message;
-  final double top;
   final VoidCallback onDismiss;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   const _ToastOverlay({
     required this.message,
-    required this.top,
     required this.onDismiss,
     this.actionLabel,
     this.onAction,
@@ -135,12 +141,13 @@ class _ToastOverlayState extends State<_ToastOverlay>
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: widget.top,
-      left: 12,
-      right: 12,
-      child: FadeTransition(
-        opacity: _controller,
+    return FadeTransition(
+      opacity: _controller,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, -0.2),
+          end: Offset.zero,
+        ).animate(_controller),
         child: Material(
           color: TColors.surface,
           child: Container(
@@ -150,9 +157,15 @@ class _ToastOverlayState extends State<_ToastOverlay>
             ),
             child: Row(
               children: [
+                const Icon(
+                  Icons.terminal_outlined,
+                  size: 14,
+                  color: TColors.green,
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    widget.message,
+                    widget.message.toLowerCase(),
                     style: const TextStyle(
                       color: TColors.foreground,
                       fontFamily: 'monospace',
@@ -167,15 +180,26 @@ class _ToastOverlayState extends State<_ToastOverlay>
                       widget.onAction?.call();
                       _dismiss();
                     },
-                    child: Text(
-                      widget.actionLabel!,
-                      style: const TextStyle(
-                        color: TColors.green,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.underline,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 14,
+                          color: TColors.green,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.actionLabel!.toLowerCase(),
+                          style: const TextStyle(
+                            color: TColors.green,
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
