@@ -230,30 +230,31 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             fontSize: 14,
           ),
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          cursorColor: TColors.green,
-          style: const TextStyle(
-            color: TColors.foreground,
-            fontFamily: 'monospace',
-            fontSize: 13,
-          ),
-          decoration: InputDecoration(
-            hintText: 'name',
-            hintStyle: const TextStyle(
-              color: TColors.mutedText,
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            cursorColor: TColors.green,
+            style: const TextStyle(
+              color: TColors.foreground,
               fontFamily: 'monospace',
+              fontSize: 13,
             ),
-            border: InputBorder.none,
-            filled: true, // Wajib true agar fillColor aktif
-            fillColor: const Color(
-              0xFF1A1A1A,
-            ), // Ganti dengan TColors.inputBg atau warna pilihan Anda
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ), // Agar teks tidak menempel ke pinggir
+            decoration: InputDecoration(
+              hintText: 'name',
+              hintStyle: const TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ),
         actions: [
@@ -306,52 +307,58 @@ class _EnvPageState extends ConsumerState<EnvPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: keyCtrl,
-                autofocus: initialKey == null,
-                cursorColor: TColors.green,
-                style: const TextStyle(
-                  color: TColors.cyan,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'KEY',
-                  hintStyle: const TextStyle(
-                    color: TColors.mutedText,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                color: TColors.surface,
+                child: TextField(
+                  controller: keyCtrl,
+                  autofocus: initialKey == null,
+                  cursorColor: TColors.green,
+                  style: const TextStyle(
+                    color: TColors.cyan,
                     fontFamily: 'monospace',
+                    fontSize: 13,
                   ),
-                  border: InputBorder.none,
-                  filled: true,
-                  fillColor: TColors.background,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
+                  decoration: InputDecoration(
+                    hintText: 'KEY',
+                    hintStyle: const TextStyle(
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: valCtrl,
-                autofocus: initialKey != null,
-                cursorColor: TColors.green,
-                style: const TextStyle(
-                  color: TColors.foreground,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'value',
-                  hintStyle: const TextStyle(
-                    color: TColors.mutedText,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                color: TColors.surface,
+                child: TextField(
+                  controller: valCtrl,
+                  autofocus: initialKey != null,
+                  cursorColor: TColors.green,
+                  style: const TextStyle(
+                    color: TColors.foreground,
                     fontFamily: 'monospace',
+                    fontSize: 13,
                   ),
-                  border: InputBorder.none,
-                  filled: true,
-                  fillColor: TColors.background,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
+                  decoration: InputDecoration(
+                    hintText: 'value',
+                    hintStyle: const TextStyle(
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
               ),

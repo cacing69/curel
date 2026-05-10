@@ -1,0 +1,1 @@
+- unify text field styling across all dialog popups to match settings_page style (container wrapping with TColors.surface, no filled, consistent label style)

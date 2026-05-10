@@ -979,28 +979,30 @@ class _HomePageState extends ConsumerState<HomePage>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              cursorColor: TColors.green,
-              style: TextStyle(
-                color: TColors.foreground,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-              decoration: InputDecoration(
-                hintText: 'folder/name (e.g. user/login)',
-                hintStyle: TextStyle(
-                  color: TColors.mutedText,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: TColors.surface,
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                cursorColor: TColors.green,
+                style: TextStyle(
+                  color: TColors.foreground,
                   fontFamily: 'monospace',
-                  fontSize: 11,
+                  fontSize: 13,
                 ),
-                border: InputBorder.none,
-                filled: true,
-                fillColor: TColors.background,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
+                decoration: InputDecoration(
+                  hintText: 'folder/name (e.g. user/login)',
+                  hintStyle: TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
             ),

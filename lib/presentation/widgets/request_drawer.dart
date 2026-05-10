@@ -353,18 +353,23 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.surface,
         title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          cursorColor: TColors.green,
-          style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'name',
-            hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
-            border: InputBorder.none,
-            filled: true,
-            fillColor: TColors.background,
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            cursorColor: TColors.green,
+            style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'name',
+              hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 13),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ),
         actions: [

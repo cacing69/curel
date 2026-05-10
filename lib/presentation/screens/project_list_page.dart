@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:curel/domain/models/project_model.dart';
+import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
@@ -291,6 +292,8 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           color: TColors.surface,
           items: [
             PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
+            if (project.provider != null)
+              PopupMenuItem(value: 3, height: 36, child: _menuItem(Icons.cloud_off, 'disconnect git')),
             PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.download, 'export')),
             PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
           ],
@@ -298,6 +301,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           if (value == 0) _renameProject(project);
           if (value == 1) _exportProject(project);
           if (value == 2) _deleteProject(project);
+          if (value == 3) _disconnectGit(project);
         });
       },
       child: Container(
@@ -307,6 +311,38 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),
     );
+  }
+
+  Future<void> _disconnectGit(Project project) async {
+    final confirmed = await _showConfirmDialog(
+      'disconnect git?',
+      'stop syncing "${project.name}" with remote repository? local files will be kept.',
+    );
+    if (confirmed != true) return;
+
+    final finalProject = Project(
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      mode: 'local',
+      provider: null,
+      remoteUrl: null,
+      branch: null,
+      lastSyncSha: null,
+    );
+
+    await ref.read(projectServiceProvider).update(finalProject);
+
+    // If this is the active project, update the active project state too
+    final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
+    if (activeId == project.id) {
+      ref.read(activeProjectProvider.notifier).set(finalProject);
+    }
+
+    showTerminalToast(context, 'disconnected from git');
+    await _load();
   }
 
   Widget _menuItem(IconData icon, String label) {
@@ -354,18 +390,23 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           action,
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          cursorColor: TColors.green,
-          style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'name',
-            hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace'),
-            border: InputBorder.none,
-            filled: true,
-            fillColor: TColors.background,
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            cursorColor: TColors.green,
+            style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'name',
+              hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 13),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ),
         actions: [

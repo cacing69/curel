@@ -11,6 +11,7 @@ class Project {
   final String? remoteUrl;
   final String? provider;
   final String? branch;
+  final String? remoteOriginId;
 
   const Project({
     required this.id,
@@ -23,6 +24,7 @@ class Project {
     this.remoteUrl,
     this.provider,
     this.branch,
+    this.remoteOriginId,
   });
 
   Project copyWith({
@@ -34,6 +36,7 @@ class Project {
     String? remoteUrl,
     String? provider,
     String? branch,
+    String? remoteOriginId,
   }) {
     return Project(
       id: id,
@@ -46,6 +49,7 @@ class Project {
       remoteUrl: remoteUrl ?? this.remoteUrl,
       provider: provider ?? this.provider,
       branch: branch ?? this.branch,
+      remoteOriginId: remoteOriginId ?? this.remoteOriginId,
     );
   }
 
@@ -60,6 +64,7 @@ class Project {
         'remote_url': remoteUrl,
         'provider': provider,
         'branch': branch,
+        'remote_origin_id': remoteOriginId,
       };
 
   factory Project.fromJson(Map<String, dynamic> json) => Project(
@@ -73,6 +78,7 @@ class Project {
         remoteUrl: json['remote_url'] as String?,
         provider: json['provider'] as String?,
         branch: json['branch'] as String?,
+        remoteOriginId: json['remote_origin_id'] as String?,
       );
 
   static String encodeList(List<Project> projects) =>

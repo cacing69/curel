@@ -7,16 +7,19 @@ import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
 import 'package:curel/domain/services/device_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 
 class GitSyncService {
+  final Ref _ref;
   final GitProviderService _providerService;
   final FileSystemService _fs;
   final DeviceService _device;
 
-  GitSyncService(this._providerService, this._fs, this._device);
+  GitSyncService(this._ref, this._providerService, this._fs, this._device);
 
   GitClient _getClient(String type) {
     switch (type) {
@@ -60,34 +63,79 @@ class GitSyncService {
         token,
       );
 
-      // 4. Save to Filesystem
+      // 4. Validate Remote Signature (curel.json)
+      final remoteCurelJson = remoteFiles.firstWhere(
+        (f) => f.path == 'curel.json',
+        orElse: () => GitFile(path: '', content: ''),
+      );
+
+      String? remoteOriginId;
+      if (remoteCurelJson.path.isNotEmpty) {
+        try {
+          final json = jsonDecode(remoteCurelJson.content);
+          remoteOriginId = json['remote_origin_id'] ?? json['id'];
+        } catch (_) {}
+      }
+
+      // 5. SAFETY CHECK: Conflict Detection
+      // If remote has files AND local has files (requests) AND they haven't been linked yet
+      final localRequests = await _ref.read(requestServiceProvider).listRequests(project.id);
+      final isNewConnection = project.remoteOriginId == null;
+
+      if (isNewConnection && remoteFiles.isNotEmpty && localRequests.isNotEmpty) {
+        // We have data on both sides! Need resolution.
+        return GitSyncResult(
+          success: false,
+          hasConflict: true,
+          message: 'conflict: both local and remote have data',
+          data: remoteOriginId,
+        );
+      }
+
+      // GUARD: If remote has files but NO curel.json, it's NOT a curel project
+      if (remoteFiles.isNotEmpty && remoteCurelJson.path.isEmpty) {
+        return GitSyncResult(
+          success: false,
+          message: 'safety check failed: remote repository is not a curel project',
+        );
+      }
+
+      // GUARD: Origin ID Mismatch (Only if already linked)
+      if (project.remoteOriginId != null && 
+          remoteOriginId != null && 
+          project.remoteOriginId != remoteOriginId) {
+        return GitSyncResult(
+          success: false,
+          message: 'critical mismatch: this repo belongs to a different project ($remoteOriginId)',
+        );
+      }
+
+      // 5. Save to Filesystem
       final projectDir = await _fs.getProjectDir(project.id);
+      
+      // Update local remoteOriginId if this is the first pull
+      String? effectiveOriginId = project.remoteOriginId ?? remoteOriginId;
 
       for (final file in remoteFiles) {
         final fullPath = p.join(projectDir, file.path);
-        // Ensure subdirectories exist (e.g., requests/folder/file.curl)
         final dir = Directory(p.dirname(fullPath));
-        if (!await dir.exists()) {
-          await dir.create(recursive: true);
-        }
+        if (!await dir.exists()) await dir.create(recursive: true);
 
         var content = file.content;
 
-        // CRITICAL: If this is curel.json, we must ensure it keeps the LOCAL project ID
-        // to prevent duplication in ProjectService re-indexing.
         if (file.path == 'curel.json') {
           try {
             final json = jsonDecode(content) as Map<String, dynamic>;
-            json['id'] = project.id; // Force local ID
-            // Also preserve the current git connection info just in case
+            json['id'] = project.id; // Keep local ID for indexing
+            json['remote_origin_id'] = effectiveOriginId; // Store actual origin
+            
+            // Preserve connection info
             json['remote_url'] = project.remoteUrl;
             json['provider'] = project.provider;
             json['branch'] = project.branch;
             json['mode'] = 'git';
             content = JsonEncoder.withIndent('  ').convert(json);
-          } catch (_) {
-            // If JSON is malformed, skip ID injection
-          }
+          } catch (_) {}
         }
 
         await File(fullPath).writeAsString(content);
@@ -99,6 +147,8 @@ class GitSyncService {
             ? 'cloud is empty. ready for initial push.'
             : 'pulled ${remoteFiles.length} files successfully',
         filesCount: remoteFiles.length,
+        // Carry the origin ID back to update the model
+        data: effectiveOriginId,
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));
@@ -141,7 +191,17 @@ class GitSyncService {
           if (relPath.endsWith('.curl') ||
               relPath.endsWith('.meta.json') ||
               relPath == 'curel.json') {
-            final content = await entity.readAsString();
+            var content = await entity.readAsString();
+            
+            // Inject remote_origin_id into curel.json before pushing
+            if (relPath == 'curel.json') {
+              try {
+                final json = jsonDecode(content) as Map<String, dynamic>;
+                json['remote_origin_id'] = project.remoteOriginId ?? project.id;
+                content = JsonEncoder.withIndent('  ').convert(json);
+              } catch (_) {}
+            }
+            
             localFiles.add(GitFile(path: relPath, content: content));
           }
         }

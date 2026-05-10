@@ -69,6 +69,7 @@ final gitProviderServiceProvider = Provider<GitProviderService>(
 
 final gitSyncServiceProvider = Provider<GitSyncService>(
   (ref) => GitSyncService(
+    ref,
     ref.read(gitProviderServiceProvider),
     ref.read(fileSystemProvider),
     ref.read(deviceServiceProvider),

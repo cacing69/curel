@@ -4,7 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 class DeviceService {
-  static const _salt = "curel-salt-2026";
+  // Obfuscated salt: "curel-salt-2026"
+  static final List<int> _s = [99, 117, 114, 101, 108, 45, 115, 97, 108, 116, 45, 50, 48, 50, 54];
   String? _cachedFingerprint;
 
   Future<String> getFingerprint() async {
@@ -29,7 +30,7 @@ class DeviceService {
     }
 
     // Hash the ID to make it anonymous but consistent (like a git commit SHA)
-    final bytes = utf8.encode(rawId + _salt);
+    final bytes = utf8.encode(rawId + utf8.decode(_s));
     final digest = sha256.convert(bytes);
     
     _cachedFingerprint = digest.toString().substring(0, 7);

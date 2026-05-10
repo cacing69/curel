@@ -20,6 +20,14 @@ class GitSyncResult {
   final bool success;
   final String message;
   final int filesCount;
+  final bool hasConflict;
+  final dynamic data;
 
-  GitSyncResult({required this.success, required this.message, this.filesCount = 0});
+  GitSyncResult({
+    required this.success,
+    required this.message,
+    this.filesCount = 0,
+    this.hasConflict = false,
+    this.data,
+  });
 }

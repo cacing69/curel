@@ -166,29 +166,31 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             style: const TextStyle(
                 color: TColors.cyan,
                 fontFamily: 'monospace',
-                fontSize: 11)),
+                fontSize: 12,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          obscureText: obscure,
-          cursorColor: TColors.green,
-          style: const TextStyle(
-              color: TColors.foreground,
-              fontFamily: 'monospace',
-              fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(
-                color: TColors.mutedText,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            obscureText: obscure,
+            cursorColor: TColors.green,
+            style: const TextStyle(
+                color: TColors.foreground,
                 fontFamily: 'monospace',
-                fontSize: 11),
-            border: InputBorder.none,
-            filled: true,
-            fillColor: TColors.background,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
+                fontSize: 13),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 13),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
             ),
           ),
         ),

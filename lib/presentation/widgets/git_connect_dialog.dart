@@ -100,8 +100,20 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  _buildField('repository url', 'https://github.com/user/repo',
-                      _urlController),
+                  _buildField(
+                    'repository url',
+                    'https://github.com/user/repo',
+                    _urlController,
+                    enabled: widget.project.remoteUrl == null,
+                  ),
+                  if (widget.project.remoteUrl != null)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                        'disconnect git first to change repository',
+                        style: TextStyle(color: TColors.orange, fontSize: 10, fontFamily: 'monospace'),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   _buildField('branch', 'main', _branchController),
                 ],
@@ -134,36 +146,40 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
   }
 
   Widget _buildField(
-      String label, String hint, TextEditingController controller) {
+      String label, String hint, TextEditingController controller,
+      {bool enabled = true}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
-                color: TColors.mutedText,
+            style: TextStyle(
+                color: enabled ? TColors.cyan : TColors.mutedText.withValues(alpha: 0.5),
                 fontFamily: 'monospace',
-                fontSize: 10)),
+                fontSize: 12,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          cursorColor: TColors.green,
-          style: const TextStyle(
-              color: TColors.foreground,
-              fontFamily: 'monospace',
-              fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(
-                color: TColors.mutedText,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            cursorColor: TColors.green,
+            style: TextStyle(
+                color: enabled ? TColors.foreground : TColors.mutedText,
                 fontFamily: 'monospace',
-                fontSize: 11),
-            border: InputBorder.none,
-            filled: true,
-            fillColor: TColors.background,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
+                fontSize: 13),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 13),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
             ),
           ),
         ),

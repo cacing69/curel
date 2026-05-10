@@ -106,7 +106,19 @@ mixin HomeActions on ConsumerState<HomePage> {
         return;
       }
 
-      final parsed = parseCurl(resolved);
+      ParsedCurl parsed;
+      try {
+        parsed = parseCurl(resolved);
+      } catch (e) {
+        // If parsing fails, try ensuring protocol (useful for commands like 'curl example.com')
+        try {
+          final withProtocol = _ensureProtocol(resolved);
+          parsed = parseCurl(withProtocol);
+        } catch (_) {
+          // If it still fails, throw the original error
+          rethrow;
+        }
+      }
       final hasOutput = parsed.outputFileName != null;
 
       final effectiveConnectTimeout =
@@ -162,11 +174,11 @@ mixin HomeActions on ConsumerState<HomePage> {
         ref
             .read(responseStateProvider.notifier)
             .update((s) => s.copyWith(response: result, selectedTab: newTab));
-        
+
         if (hasOutput) {
           await downloadFile(result, parsed.outputFileName!);
         }
-        
+
         if (parsed.traceFileName != null &&
             result.traceLog != null &&
             result.traceLog!.isNotEmpty) {
@@ -261,5 +273,41 @@ mixin HomeActions on ConsumerState<HomePage> {
     }
     await Clipboard.setData(ClipboardData(text: text));
     showTerminalToast(context, '$label copied');
+  }
+
+  String _ensureProtocol(String command) {
+    // Clean backslashes and newlines first
+    final cleanCommand = command.replaceAll("\\\n", " ").replaceAll("\\", " ");
+    final tokens = cleanCommand.split(RegExp(r'\s+'));
+    final updated = tokens.map((t) {
+      final clean = t.replaceAll("'", "").replaceAll('"', "");
+      if (clean.isEmpty) return t;
+
+      // DO NOT add protocol to:
+      // 1. Flags (-X, -F, etc)
+      // 2. Already has protocol (http://)
+      // 3. File paths or form data starting with @
+      // 4. Variables ($VAR or <<VAR>>)
+      // 5. Local paths (/ or ./)
+      final isForbidden = clean.startsWith('-') ||
+          clean.contains('://') ||
+          clean.contains('=') ||
+          clean.startsWith('@') ||
+          clean.startsWith('\$') ||
+          clean.startsWith('<<') ||
+          clean.startsWith('/') ||
+          clean.startsWith('./');
+
+      if (isForbidden) return t;
+
+      // Only add http:// if it contains a dot (likely a domain)
+      if (clean.contains('.')) {
+        if (t.startsWith("'") && t.endsWith("'")) return "'http://$clean'";
+        if (t.startsWith('"') && t.endsWith('"')) return '"http://$clean"';
+        return 'http://$t';
+      }
+      return t;
+    });
+    return updated.join(' ');
   }
 }
