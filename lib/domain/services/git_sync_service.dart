@@ -6,6 +6,7 @@ import 'package:curel/data/services/github_client.dart';
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
+import 'package:curel/domain/services/device_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -13,8 +14,9 @@ import 'package:path/path.dart' as p;
 class GitSyncService {
   final GitProviderService _providerService;
   final FileSystemService _fs;
+  final DeviceService _device;
 
-  GitSyncService(this._providerService, this._fs);
+  GitSyncService(this._providerService, this._fs, this._device);
 
   GitClient _getClient(String type) {
     switch (type) {
@@ -153,7 +155,7 @@ class GitSyncService {
 
       final packageInfo = await PackageInfo.fromPlatform();
       final version = packageInfo.version;
-      final fingerprint = await _getDeviceFingerprint();
+      final fingerprint = await _device.getFingerprint();
 
       final commitMessage =
           'sync from curel v$version ($fingerprint) $timestamp';
@@ -237,34 +239,5 @@ class GitSyncService {
       return msg.substring(11);
     }
     return msg;
-  }
-
-  Future<String> _getDeviceFingerprint() async {
-    final deviceInfo = DeviceInfoPlugin();
-    String rawId = 'unknown';
-
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        rawId = androidInfo.id; // stable ID
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        rawId = iosInfo.identifierForVendor ?? 'ios-unknown';
-      } else if (Platform.isMacOS) {
-        final macInfo = await deviceInfo.macOsInfo;
-        rawId = macInfo.systemGUID ?? 'macos-unknown';
-      }
-    } catch (_) {
-      rawId = 'error-fetching-id';
-    }
-
-    // Hash the ID to make it anonymous but consistent
-    final bytes = utf8.encode(
-      rawId + "curel-salt",
-    ); // Add salt for extra privacy
-    final digest = sha256.convert(bytes);
-
-    // Take first 7 chars
-    return digest.toString().substring(0, 7);
   }
 }

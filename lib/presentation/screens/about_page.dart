@@ -1,26 +1,41 @@
+import 'dart:io';
+
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class AboutPage extends StatefulWidget {
+class AboutPage extends ConsumerStatefulWidget {
   const AboutPage({super.key});
 
   @override
-  State<AboutPage> createState() => _AboutPageState();
+  ConsumerState<AboutPage> createState() => _AboutPageState();
 }
 
-class _AboutPageState extends State<AboutPage> {
+class _AboutPageState extends ConsumerState<AboutPage> {
   String _version = '';
+  String _fingerprint = '';
 
   @override
   void initState() {
     super.initState();
-    PackageInfo.fromPlatform().then((info) {
-      if (mounted) setState(() => _version = info.version);
-    });
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    final deviceId = await ref.read(deviceServiceProvider).getFingerprint();
+    if (mounted) {
+      setState(() {
+        _version = info.version;
+        _fingerprint = deviceId;
+      });
+    }
   }
 
   @override
@@ -90,6 +105,8 @@ class _AboutPageState extends State<AboutPage> {
                         MaterialPageRoute(builder: (_) => const FeedbackPage()),
                       ),
                     ),
+                    const SizedBox(height: 40),
+                    if (_fingerprint.isNotEmpty) _buildFingerprintSection(),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -98,6 +115,55 @@ class _AboutPageState extends State<AboutPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFingerprintSection() {
+    return Column(
+      children: [
+        const Text(
+          'device fingerprint',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontSize: 10,
+            fontFamily: 'monospace',
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: _fingerprint));
+            showTerminalToast(context, 'fingerprint copied');
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: TColors.surface,
+              border: Border.all(color: TColors.border, width: 0.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _fingerprint,
+                  style: const TextStyle(
+                    color: TColors.cyan,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.copy,
+                  size: 12,
+                  color: TColors.mutedText,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -130,3 +196,4 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 }
+
