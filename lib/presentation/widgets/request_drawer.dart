@@ -394,7 +394,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
             accent: true,
           ),
           const Spacer(),
-          TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
+          TermButton(icon: Icons.sync, label: 'sync', onTap: _load),
         ],
       ),
     );

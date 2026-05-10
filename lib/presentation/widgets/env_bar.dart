@@ -226,7 +226,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     return GestureDetector(
       onTap: isGit ? _sync : _connect,
       child: Icon(
-        isGit ? Icons.cloud_download : Icons.cloud_off,
+        isGit ? Icons.sync : Icons.cloud_off,
         size: 14,
         color: isGit ? TColors.green : TColors.mutedText,
       ),

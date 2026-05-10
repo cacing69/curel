@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
-import 'package:curel/domain/models/history_model.dart';
 import 'package:curel/domain/models/request_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/presentation/screens/project_list_page.dart';
@@ -15,18 +14,17 @@ import 'package:curel/presentation/widgets/request_drawer.dart';
 import 'package:curel/presentation/widgets/resolved_preview_dialog.dart';
 import 'package:curel/presentation/widgets/response_section.dart';
 import 'package:curel/presentation/widgets/window_controls.dart';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
 import 'package:curel/domain/providers/services.dart';
-import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
+import 'package:curel/presentation/screens/home/logic/home_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -47,7 +45,12 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, HomeActions {
+  @override
+  TextEditingController get curlController => _curlController;
+  @override
+  FocusNode get editorFocusNode => _editorFocusNode;
+
   final _curlController = CurlHighlightController();
   final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
@@ -367,179 +370,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   // ── Actions ─────────────────────────────────────────────────────
 
-  Future<void> _executeCurl() async {
-    final text = _curlController.text.trim();
-    if (text.isEmpty || !text.startsWith('curl')) {
-      ref
-          .read(responseStateProvider.notifier)
-          .update(
-            (s) => s.copyWith(
-              clearResponse: true,
-              error: 'error: command must start with "curl"',
-              showHtmlPreview: false,
-            ),
-          );
-      _exitFullscreen(unfocus: false);
-      return;
-    }
-
-    ref
-        .read(responseStateProvider.notifier)
-        .update(
-          (s) => s.copyWith(
-            isLoading: true,
-            clearResponse: true,
-            clearError: true,
-            showHtmlPreview: false,
-          ),
-        );
-    final es = ref.read(editorStateProvider);
-    if (es.isFullscreen) {
-      ref
-          .read(editorStateProvider.notifier)
-          .update((s) => s.copyWith(isFullscreen: false));
-    }
-    await Future<void>.delayed(Duration.zero);
-
-    final sw = Stopwatch()..start();
-    try {
-      final projectId = ref.read(activeProjectProvider)?.id;
-      final shouldResolve = text.contains('<<');
-      final resolved = shouldResolve
-          ? await ref
-                .read(envServiceProvider)
-                .resolve(text, projectId: projectId)
-          : text;
-      final undefined = shouldResolve
-          ? await ref
-                .read(envServiceProvider)
-                .findUndefinedVars(text, projectId: projectId)
-          : const <String>{};
-      if (undefined.isNotEmpty) {
-        if (mounted) {
-          showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
-          ref
-              .read(responseStateProvider.notifier)
-              .update(
-                (s) => s.copyWith(
-                  error: 'error: undefined vars: ${undefined.join(', ')}',
-                ),
-              );
-        }
-        return;
-      }
-      final parsed = parseCurl(resolved);
-      final hasOutput = parsed.outputFileName != null;
-      final traceEnabled = parsed.traceEnabled;
-      final effectiveConnectTimeout =
-          parsed.connectTimeout ??
-          Duration(
-            seconds: await ref.read(settingsProvider).getConnectTimeout(),
-          );
-      final effectiveMaxTime =
-          parsed.maxTime ??
-          ((await ref.read(settingsProvider).getMaxTime()) > 0
-              ? Duration(seconds: await ref.read(settingsProvider).getMaxTime())
-              : null);
-      final result = hasOutput
-          ? await ref
-                .read(httpClientProvider)
-                .executeBinary(
-                  parsed.curl,
-                  verbose: parsed.verbose,
-                  followRedirects: parsed.followRedirects,
-                  trace: traceEnabled,
-                  traceAscii: parsed.traceAscii,
-                  connectTimeout: effectiveConnectTimeout,
-                  maxTime: effectiveMaxTime,
-                  insecure: parsed.insecure,
-                  httpVersion: parsed.httpVersion,
-                )
-          : await ref
-                .read(httpClientProvider)
-                .execute(
-                  parsed.curl,
-                  verbose: parsed.verbose,
-                  followRedirects: parsed.followRedirects,
-                  trace: traceEnabled,
-                  traceAscii: parsed.traceAscii,
-                  connectTimeout: effectiveConnectTimeout,
-                  maxTime: effectiveMaxTime,
-                  insecure: parsed.insecure,
-                  httpVersion: parsed.httpVersion,
-                );
-      final elapsed = sw.elapsedMilliseconds;
-      if (elapsed < 500) {
-        await Future.delayed(Duration(milliseconds: 500 - elapsed));
-      }
-      final newTab = traceEnabled && result.traceLog != null
-          ? ResponseTab.trace
-          : ResponseTab.body;
-      if (hasOutput) {
-        if ((parsed.verbose || traceEnabled) && mounted) {
-          ref
-              .read(responseStateProvider.notifier)
-              .update((s) => s.copyWith(response: result, selectedTab: newTab));
-        }
-        await _downloadFile(result, parsed.outputFileName!);
-      } else if (mounted) {
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(response: result, selectedTab: newTab));
-      }
-      if (parsed.traceFileName != null &&
-          result.traceLog != null &&
-          result.traceLog!.isNotEmpty &&
-          mounted) {
-        await _saveTraceFile(result.traceLog!, parsed.traceFileName!);
-      }
-      final projectId2 = ref.read(activeProjectProvider)?.id;
-      final selectedPath = ref.read(selectedRequestPathProvider);
-      if (projectId2 != null && selectedPath != null) {
-        await ref
-            .read(requestServiceProvider)
-            .updateMeta(
-              projectId2,
-              selectedPath,
-              RequestMeta(
-                lastStatusCode: result.statusCode,
-                lastRunAt: DateTime.now(),
-              ),
-            );
-      }
-
-      await ref
-          .read(historyServiceProvider)
-          .add(
-            HistoryItem(
-              timestamp: DateTime.now(),
-              curlCommand: text,
-              projectId: projectId,
-              statusCode: result.statusCode,
-              method: parsed.curl.method,
-              url: parsed.curl.uri.toString(),
-            ),
-          );
-    } catch (e) {
-      final elapsed = sw.elapsedMilliseconds;
-      if (elapsed < 500) {
-        await Future.delayed(Duration(milliseconds: 500 - elapsed));
-      }
-      if (mounted) {
-        final msg = _formatError(e);
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(error: msg));
-        showTerminalToast(context, msg);
-      }
-    } finally {
-      if (mounted) {
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(isLoading: false));
-      }
-    }
-  }
+  // Logika _executeCurl dipindahkan ke HomeActions mixin
 
   Future<void> _paste() async {
     final text = await ref.read(clipboardServiceProvider).paste();
@@ -590,7 +421,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 searchActive: false,
               ),
             );
-        _executeCurl();
+        executeCurl();
       } else if (result is CurlResponse) {
         ref
             .read(responseStateProvider.notifier)
@@ -606,68 +437,15 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  // ── Error formatting ─────────────────────────────────────────────
+  @override
+  void exitFullscreen({bool unfocus = true}) =>
+      _exitFullscreen(unfocus: unfocus);
 
-  String _formatError(Object e) {
-    if (e is DioException) {
-      switch (e.type) {
-        case DioExceptionType.connectionError:
-          return 'error: connection failed — host unreachable';
-        case DioExceptionType.connectionTimeout:
-          return 'error: connection timed out';
-        case DioExceptionType.receiveTimeout:
-          return 'error: response timed out';
-        case DioExceptionType.unknown:
-          return 'error: ${e.error}';
-        default:
-          return 'error: request failed (${e.type.name})';
-      }
-    }
-    final msg = e.toString().replaceFirst(
-      RegExp(r'^(Exception|FormatException|TypeError):\s*'),
-      '',
-    );
-    return 'error: $msg';
-  }
+  @override
+  Future<void> loadRequest(String relativePath) => _loadRequest(relativePath);
 
-  // ── Download file (-o flag) ────────────────────────────────────────
+  // File download and trace logic moved to HomeActions mixin
 
-  Future<void> _downloadFile(CurlResponse response, String fileName) async {
-    try {
-      final bytes = response.body is List<int>
-          ? response.body as List<int>
-          : utf8.encode(response.body?.toString() ?? '');
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save file',
-        fileName: fileName,
-        bytes: Uint8List.fromList(bytes),
-      );
-      if (path != null && mounted) {
-        showTerminalToast(context, 'saved to $fileName');
-      } else if (mounted) {
-        showTerminalToast(context, 'download cancelled');
-      }
-    } catch (e) {
-      if (mounted) showTerminalToast(context, 'error: $e');
-    }
-  }
-
-  // ── Save trace file (--trace flag) ───────────────────────────────
-
-  Future<void> _saveTraceFile(String traceContent, String fileName) async {
-    try {
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save trace log',
-        fileName: fileName,
-        bytes: Uint8List.fromList(utf8.encode(traceContent)),
-      );
-      if (path != null && mounted) {
-        showTerminalToast(context, 'trace saved to $fileName');
-      }
-    } catch (e) {
-      if (mounted) showTerminalToast(context, 'error saving trace: $e');
-    }
-  }
 
   // ── Save response ────────────────────────────────────────────────
 
@@ -1332,12 +1110,13 @@ class _HomePageState extends ConsumerState<HomePage>
       onBuilder: _openBuilder,
       onPaste: _paste,
       onResolvedPreview: _openResolvedPreview,
-      onExecute: _executeCurl,
+      onExecute: executeCurl,
       onHistorySelect: (curl) {
-        setState(() => _curlController.text = curl);
+        setState(() => curlController.text = curl);
         ref
             .read(responseStateProvider.notifier)
             .update((s) => s.copyWith(clearResponse: true, clearError: true));
+        executeCurl();
       },
       onHelp: () => _showHelp(context),
       onNavigateAbout: (ctx) => Navigator.of(

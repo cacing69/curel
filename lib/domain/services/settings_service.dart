@@ -2,7 +2,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _keyUserAgent = 'user_agent';
 const _keyConnectTimeout = 'connect_timeout';
@@ -28,7 +27,6 @@ abstract class SettingsService {
 
 class PreferencesSettingsService implements SettingsService {
   SharedPreferences? _prefs;
-  final _secure = const FlutterSecureStorage();
 
   Future<SharedPreferences> get _instance async {
     return _prefs ??= await SharedPreferences.getInstance();

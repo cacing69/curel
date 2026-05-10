@@ -1,5 +1,6 @@
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpSheet extends StatelessWidget {
   final void Function(String command) onUse;
@@ -36,7 +37,7 @@ class HelpSheet extends StatelessWidget {
                     const Spacer(),
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: Icon(
+                      child: const Icon(
                         Icons.close,
                         size: 14,
                         color: TColors.mutedText,
@@ -46,6 +47,52 @@ class HelpSheet extends StatelessWidget {
                 ),
               ),
               Container(height: 1, color: TColors.border),
+              
+              // Intro section with link
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                color: TColors.surface.withValues(alpha: 0.5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'for full documentation, visit:',
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => launchUrl(Uri.parse('https://curl.se/')),
+                      child: const Text(
+                        'https://curl.se/',
+                        style: TextStyle(
+                          color: TColors.cyan,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '# common samples:',
+                      style: TextStyle(
+                        color: TColors.comment,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(height: 1, color: TColors.border),
+
               Expanded(
                 child: ListView.separated(
                   controller: scrollController,

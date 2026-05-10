@@ -258,6 +258,14 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
                 fontSize: 11,
               ),
             ),
+            if (project.provider != null) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.cloud,
+                size: 11,
+                color: isActive ? TColors.green : TColors.cyan,
+              ),
+            ],
             const SizedBox(width: 8),
             _popupMenu(project),
           ],
@@ -328,7 +336,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           const Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _importProject),
           const SizedBox(width: 6),
-          TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
+          TermButton(icon: Icons.sync, label: 'sync', onTap: _load),
         ],
       ),
     );

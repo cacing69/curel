@@ -337,7 +337,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               child: Row(
                                 children: [
                                   Icon(
-                                    Icons.hub,
+                                    Icons.cloud,
                                     size: 14,
                                     color: TColors.cyan,
                                   ),
