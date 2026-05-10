@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/data/services/github_client.dart';
+import 'package:curel/data/services/gitlab_client.dart';
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
@@ -19,10 +20,12 @@ class GitSyncService {
 
   GitSyncService(this._ref, this._providerService, this._fs, this._device);
 
-  GitClient _getClient(String type) {
+  GitClient _getClient(String type, {String? baseUrl}) {
     switch (type) {
       case 'github':
-        return GitHubClient();
+        return GitHubClient(baseUrl: baseUrl);
+      case 'gitlab':
+        return GitLabClient(baseUrl: baseUrl);
       default:
         throw Exception('Provider $type not supported yet');
     }
@@ -52,7 +55,7 @@ class GitSyncService {
         );
 
       // 2. Select Client
-      final client = _getClient(provider.type);
+      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
 
       // 3. Get Remote SHA for sync tracking
       final remoteSha = await client.getLatestCommitSha(
@@ -195,7 +198,7 @@ class GitSyncService {
           message: 'token missing for provider',
         );
 
-      final client = _getClient(provider.type);
+      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
 
       // Optimistic locking: reject push if remote changed since last sync
       if (!force && project.lastSyncSha != null) {
@@ -259,16 +262,16 @@ class GitSyncService {
 
       // 3. Prepare Commit Message
       final now = DateTime.now();
-      final timestamp =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} "
-          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+      final date =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+      final time =
+          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
       final packageInfo = await PackageInfo.fromPlatform();
       final version = packageInfo.version;
       final fingerprint = await _device.getFingerprint();
 
-      final commitMessage =
-          'sync from curel v$version ($fingerprint) $timestamp';
+      final commitMessage = 'curel v$version ($fingerprint) $date $time';
 
       // 4. Push to Remote
       final newSha = await client.pushFiles(
@@ -309,7 +312,7 @@ class GitSyncService {
         return GitSyncResult(
             success: false, message: 'token missing for provider');
 
-      final client = _getClient(provider.type);
+      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
 
       // 1. SMART CHECK: Fetch latest SHA from Remote
       final remoteSha = await client.getLatestCommitSha(

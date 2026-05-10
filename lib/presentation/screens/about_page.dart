@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
@@ -154,11 +152,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Icon(
-                  Icons.copy,
-                  size: 12,
-                  color: TColors.mutedText,
-                ),
+                const Icon(Icons.copy, size: 12, color: TColors.mutedText),
               ],
             ),
           ),
@@ -196,4 +190,3 @@ class _AboutPageState extends ConsumerState<AboutPage> {
     );
   }
 }
-

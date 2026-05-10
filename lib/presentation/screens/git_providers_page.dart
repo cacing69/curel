@@ -1,6 +1,7 @@
 import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/data/services/github_client.dart';
+import 'package:curel/data/services/gitlab_client.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
@@ -18,10 +19,12 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   List<GitProviderModel> _providers = [];
   bool _loading = true;
 
-  GitClient _getClient(String type) {
+  GitClient _getClient(String type, {String? baseUrl}) {
     switch (type) {
       case 'github':
-        return GitHubClient();
+        return GitHubClient(baseUrl: baseUrl);
+      case 'gitlab':
+        return GitLabClient(baseUrl: baseUrl);
       default:
         throw Exception('Provider $type not supported yet');
     }
@@ -153,7 +156,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       // Validate token before saving
       final tokenToValidate = isEdit ? (token.isNotEmpty ? token : null) : token;
       if (tokenToValidate != null) {
-        final client = _getClient(type);
+        final client = _getClient(type, baseUrl: baseUrl);
         final username = await client.validateToken(tokenToValidate, baseUrl: baseUrl);
         if (username == null) {
           if (mounted) showTerminalToast(context, 'invalid token — check your credentials');

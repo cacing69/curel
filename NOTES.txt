@@ -10,3 +10,5 @@
 - optimize GitHubClient: parallel blob fetch (batches of 10), centralized error handling for 401/403/rate-limit with clear messages
 - add token validation on save provider — tests /user endpoint before persisting, rejects invalid tokens immediately
 - improve sync UI: show actual error in toast, tooltip on sync button, color-coded sync status (green=synced, orange=not synced) in env_bar and project list
+- refactor GitHubClient to accept baseUrl via constructor — all API URLs now use _apiBase, prepares for GitHub Enterprise and GitLab support
+- create GitLabClient implementing GitClient — single-commit API, PRIVATE-TOKEN auth, URL-encoded project path, supports gitlab.com and self-hosted

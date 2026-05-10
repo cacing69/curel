@@ -4,6 +4,12 @@ import 'package:curel/domain/services/git_client.dart';
 
 class GitHubClient implements GitClient {
   final http.Client _client = http.Client();
+  final String _apiBase;
+
+  GitHubClient({String? baseUrl})
+      : _apiBase = (baseUrl != null && baseUrl.isNotEmpty)
+            ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v3'
+            : 'https://api.github.com';
 
   Map<String, String> _headers(String token) => {
         'Authorization': 'token $token',
@@ -37,7 +43,7 @@ class GitHubClient implements GitClient {
     final owner = parts[0];
     final repo = parts[1].replaceAll('.git', '');
 
-    final refUrl = 'https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch';
+    final refUrl = '$_apiBase/repos/$owner/$repo/git/refs/heads/$branch';
     final response = await _client.get(Uri.parse(refUrl), headers: _headers(token));
 
     if (response.statusCode == 200) {
@@ -57,7 +63,7 @@ class GitHubClient implements GitClient {
     final repo = segments[1].replaceAll('.git', '');
 
     // 1. Get the tree recursively
-    final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees/$branch?recursive=1';
+    final treeUrl = '$_apiBase/repos/$owner/$repo/git/trees/$branch?recursive=1';
     final response = await _client.get(Uri.parse(treeUrl), headers: _headers(token));
 
     if (response.statusCode == 409) return [];
@@ -122,7 +128,7 @@ class GitHubClient implements GitClient {
     final owner = segments[0];
     final repo = segments[1].replaceAll('.git', '');
 
-    final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees/$branch?recursive=1';
+    final treeUrl = '$_apiBase/repos/$owner/$repo/git/trees/$branch?recursive=1';
     final response = await _client.get(Uri.parse(treeUrl), headers: _headers(token));
 
     if (response.statusCode == 409) return [];
@@ -151,7 +157,7 @@ class GitHubClient implements GitClient {
     };
 
     // 1. Get the latest commit SHA from the branch
-    final refUrl = 'https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch';
+    final refUrl = '$_apiBase/repos/$owner/$repo/git/refs/heads/$branch';
     final refRes = await _client.get(Uri.parse(refUrl), headers: headers);
     
     String? baseTreeSha;
@@ -159,7 +165,7 @@ class GitHubClient implements GitClient {
 
     if (refRes.statusCode == 200) {
       latestCommitSha = jsonDecode(refRes.body)['object']['sha'];
-      final commitUrl = 'https://api.github.com/repos/$owner/$repo/git/commits/$latestCommitSha';
+      final commitUrl = '$_apiBase/repos/$owner/$repo/git/commits/$latestCommitSha';
       final commitRes = await _client.get(Uri.parse(commitUrl), headers: headers);
       if (commitRes.statusCode != 200) {
         _checkResponse(commitRes);
@@ -170,7 +176,7 @@ class GitHubClient implements GitClient {
       // Branch doesn't exist or repo is empty.
       // TRICK: Perform an initial commit of curel.json using Content API to "wake up" the repo
       final curelFile = files.firstWhere((f) => f.path == 'curel.json', orElse: () => files.first);
-      final initUrl = 'https://api.github.com/repos/$owner/$repo/contents/${curelFile.path}';
+      final initUrl = '$_apiBase/repos/$owner/$repo/contents/${curelFile.path}';
       
       final initRes = await _client.put(
         Uri.parse(initUrl),
@@ -192,7 +198,7 @@ class GitHubClient implements GitClient {
       if (files.length <= 1) {
         // Return the SHA from the initial commit we just made
         final initCommitRes = await _client.get(
-          Uri.parse('https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch'),
+          Uri.parse('$_apiBase/repos/$owner/$repo/git/refs/heads/$branch'),
           headers: headers,
         );
         if (initCommitRes.statusCode == 200) {
@@ -205,14 +211,14 @@ class GitHubClient implements GitClient {
       final refResRetry = await _client.get(Uri.parse(refUrl), headers: headers);
       if (refResRetry.statusCode == 200) {
         latestCommitSha = jsonDecode(refResRetry.body)['object']['sha'];
-        final commitUrl = 'https://api.github.com/repos/$owner/$repo/git/commits/$latestCommitSha';
+        final commitUrl = '$_apiBase/repos/$owner/$repo/git/commits/$latestCommitSha';
         final commitRes = await _client.get(Uri.parse(commitUrl), headers: headers);
         baseTreeSha = jsonDecode(commitRes.body)['tree']['sha'];
       }
     }
 
     // 2. Create a new Tree
-    final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees';
+    final treeUrl = '$_apiBase/repos/$owner/$repo/git/trees';
     final treeBody = {
       if (baseTreeSha != null) 'base_tree': baseTreeSha,
       'tree': files.map((f) {
@@ -243,7 +249,7 @@ class GitHubClient implements GitClient {
     final newTreeSha = jsonDecode(treeRes.body)['sha'];
 
     // 3. Create a Commit
-    final commitsUrl = 'https://api.github.com/repos/$owner/$repo/git/commits';
+    final commitsUrl = '$_apiBase/repos/$owner/$repo/git/commits';
     final commitBody = {
       'message': message,
       'tree': newTreeSha,
@@ -264,7 +270,7 @@ class GitHubClient implements GitClient {
 
     // 4. Update the Reference (Push)
     if (latestCommitSha != null) {
-      final updateRefUrl = 'https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch';
+      final updateRefUrl = '$_apiBase/repos/$owner/$repo/git/refs/heads/$branch';
       final updateRes = await _client.patch(
         Uri.parse(updateRefUrl),
         headers: headers,
@@ -276,7 +282,7 @@ class GitHubClient implements GitClient {
       }
     } else {
       // Create new ref if it didn't exist
-      final createRefUrl = 'https://api.github.com/repos/$owner/$repo/git/refs';
+      final createRefUrl = '$_apiBase/repos/$owner/$repo/git/refs';
       final createRes = await _client.post(
         Uri.parse(createRefUrl),
         headers: headers,
@@ -295,7 +301,7 @@ class GitHubClient implements GitClient {
   Future<String?> validateToken(String token, {String? baseUrl}) async {
     final apiUrl = baseUrl != null && baseUrl.isNotEmpty
         ? '$baseUrl/api/v3/user'
-        : 'https://api.github.com/user';
+        : '$_apiBase/user';
     final response = await _client.get(
       Uri.parse(apiUrl),
       headers: _headers(token),
