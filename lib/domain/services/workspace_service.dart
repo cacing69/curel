@@ -36,7 +36,7 @@ class WorkspaceServiceImpl implements WorkspaceService {
       projectExports.add(await _exportProjectData(project.id));
     }
 
-    return jsonEncode({
+    return const JsonEncoder.withIndent('  ').convert({
       'type': 'workspace',
       'version': 1,
       'exported_at': DateTime.now().toIso8601String(),
@@ -51,7 +51,7 @@ class WorkspaceServiceImpl implements WorkspaceService {
     if (project == null) throw Exception('project not found');
 
     final data = await _exportProjectData(projectId);
-    return jsonEncode({
+    return const JsonEncoder.withIndent('  ').convert({
       'type': 'project',
       'version': 1,
       'exported_at': DateTime.now().toIso8601String(),

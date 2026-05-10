@@ -2,14 +2,22 @@ import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/history_model.dart';
-import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/presentation/screens/project_list_page.dart';
+import 'package:curel/presentation/widgets/action_toolbar.dart';
+import 'package:curel/presentation/widgets/curl_highlight_controller.dart';
+import 'package:curel/presentation/widgets/curl_input_field.dart';
+import 'package:curel/presentation/widgets/editor_dashboard.dart';
+import 'package:curel/presentation/widgets/env_bar.dart';
+import 'package:curel/presentation/widgets/folder_chip.dart';
 import 'package:curel/presentation/widgets/request_drawer.dart';
+import 'package:curel/presentation/widgets/resolved_preview_dialog.dart';
+import 'package:curel/presentation/widgets/response_section.dart';
+import 'package:curel/presentation/widgets/window_controls.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
-import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
@@ -40,51 +48,25 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
-  final _curlController = _CurlHighlightController();
+  final _curlController = CurlHighlightController();
   final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
   OverlayEntry? _envOverlayEntry;
   List<String> _envOverlayOptions = const [];
   Offset _envOverlayOffset = Offset.zero;
-  CurlResponse? _response;
-  bool _isLoading = false;
-  String? _error;
-  var _selectedTab = ResponseTab.body;
-  bool _showHtmlPreview = false;
-  bool _searchActive = false;
-  bool _prettify = true;
-  bool _showLineNumbers = false;
-  bool _isFullscreenInput = false;
-  String _baselineCurlText = '';
   List<({String key, String lower})> _envKeyIndex = const [];
-  TextEditingValue _lastEnvAutocompleteValue = const TextEditingValue();
-
-  Project? _activeProject;
-  String? _selectedRequestPath;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _editorFocusNode.addListener(_onEditorFocusChanged);
-    _curlController.addListener(_onCurlValueChanged);
-    _loadActiveProject();
-    _checkClipboard();
-    _refreshEnvKeys();
-  }
-
-  String? get _projectId => _activeProject?.id;
 
   String get _requestDisplayName {
-    if (_selectedRequestPath == null) return '';
-    final posix = _selectedRequestPath!.replaceAll('\\', '/');
+    final path = ref.read(selectedRequestPathProvider);
+    if (path == null) return '';
+    final posix = path.replaceAll('\\', '/');
     return posix.replaceAll('.curl', '');
   }
 
   Future<void> _loadActiveProject() async {
     var project = await ref.read(projectServiceProvider).getActiveProject();
     project ??= await ref.read(projectServiceProvider).ensureDefaultProject();
-    if (mounted) setState(() => _activeProject = project);
+    if (mounted) ref.read(activeProjectProvider.notifier).set(project);
     _refreshEnvKeys();
   }
 
@@ -94,8 +76,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (global != null) {
       keys.addAll(global.variables.map((v) => v.key));
     }
-    if (_projectId != null) {
-      final project = await ref.read(envServiceProvider).getActive(_projectId);
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId != null) {
+      final project = await ref.read(envServiceProvider).getActive(projectId);
       if (project != null) {
         keys.addAll(project.variables.map((v) => v.key));
       }
@@ -171,6 +154,17 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _editorFocusNode.addListener(_onEditorFocusChanged);
+    _curlController.addListener(_onCurlValueChanged);
+    _loadActiveProject();
+    _checkClipboard();
+    _refreshEnvKeys();
+  }
+
+  @override
   void dispose() {
     _hideEnvOverlay();
     WidgetsBinding.instance.removeObserver(this);
@@ -186,7 +180,8 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       _hideEnvOverlay();
       return;
     }
-    if (!_isFullscreenInput) _enterFullscreen();
+    final es = ref.read(editorStateProvider);
+    if (!es.isFullscreen) _enterFullscreen();
     _updateEnvOverlay();
   }
 
@@ -334,7 +329,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (unfocus) {
       _editorFocusNode.unfocus();
     }
-    setState(() => _isFullscreenInput = false);
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: false));
   }
 
   @override
@@ -379,11 +374,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
           label: 'import',
           textColor: TColors.green,
           onPressed: () {
-            setState(() {
-              _curlController.text = curl;
-              _response = null;
-              _error = null;
-            });
+            setState(() => _curlController.text = curl);
+            ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+              clearResponse: true,
+              clearError: true,
+            ));
             showTerminalToast(context, 'imported');
           },
         ),
@@ -396,44 +391,46 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   Future<void> _executeCurl() async {
     final text = _curlController.text.trim();
     if (text.isEmpty || !text.startsWith('curl')) {
-      setState(() {
-        _error = 'error: command must start with "curl"';
-        _response = null;
-        _showHtmlPreview = false;
-      });
+      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+        clearResponse: true,
+        error: 'error: command must start with "curl"',
+        showHtmlPreview: false,
+      ));
       _exitFullscreen(unfocus: false);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-    });
-    if (_isFullscreenInput) {
-      setState(() => _isFullscreenInput = false);
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      isLoading: true,
+      clearResponse: true,
+      clearError: true,
+      showHtmlPreview: false,
+    ));
+    final es = ref.read(editorStateProvider);
+    if (es.isFullscreen) {
+      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: false));
     }
     await Future<void>.delayed(Duration.zero);
 
     final sw = Stopwatch()..start();
     try {
+      final projectId = ref.read(activeProjectProvider)?.id;
       final shouldResolve = text.contains('<<');
       final resolved = shouldResolve
-          ? await ref.read(envServiceProvider).resolve(text, projectId: _projectId)
+          ? await ref.read(envServiceProvider).resolve(text, projectId: projectId)
           : text;
       final undefined = shouldResolve
           ? await ref.read(envServiceProvider).findUndefinedVars(
               text,
-              projectId: _projectId,
+              projectId: projectId,
             )
           : const <String>{};
       if (undefined.isNotEmpty) {
         if (mounted) {
           showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
-          setState(
-            () => _error = 'error: undefined vars: ${undefined.join(', ')}',
-          );
+          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+            error: 'error: undefined vars: ${undefined.join(', ')}',
+          ));
         }
         return;
       }
@@ -475,23 +472,22 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       if (elapsed < 500) {
         await Future.delayed(Duration(milliseconds: 500 - elapsed));
       }
+      final newTab = traceEnabled && result.traceLog != null
+          ? ResponseTab.trace
+          : ResponseTab.body;
       if (hasOutput) {
         if ((parsed.verbose || traceEnabled) && mounted) {
-          setState(() {
-            _response = result;
-            _selectedTab = traceEnabled && result.traceLog != null
-                ? ResponseTab.trace
-                : ResponseTab.body;
-          });
+          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+            response: result,
+            selectedTab: newTab,
+          ));
         }
         await _downloadFile(result, parsed.outputFileName!);
       } else if (mounted) {
-        setState(() {
-          _response = result;
-          _selectedTab = traceEnabled && result.traceLog != null
-              ? ResponseTab.trace
-              : ResponseTab.body;
-        });
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+          response: result,
+          selectedTab: newTab,
+        ));
       }
       if (parsed.traceFileName != null &&
           result.traceLog != null &&
@@ -499,10 +495,12 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
           mounted) {
         await _saveTraceFile(result.traceLog!, parsed.traceFileName!);
       }
-      if (_projectId != null && _selectedRequestPath != null) {
+      final projectId2 = ref.read(activeProjectProvider)?.id;
+      final selectedPath = ref.read(selectedRequestPathProvider);
+      if (projectId2 != null && selectedPath != null) {
         await ref.read(requestServiceProvider).updateMeta(
-          _projectId!,
-          _selectedRequestPath!,
+          projectId2,
+          selectedPath,
           RequestMeta(
             lastStatusCode: result.statusCode,
             lastRunAt: DateTime.now(),
@@ -510,12 +508,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
         );
       }
 
-      // Add to history
       await ref.read(historyServiceProvider).add(
         HistoryItem(
           timestamp: DateTime.now(),
           curlCommand: text,
-          projectId: _projectId,
+          projectId: projectId,
           statusCode: result.statusCode,
           method: parsed.curl.method,
           url: parsed.curl.uri.toString(),
@@ -528,11 +525,13 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       }
       if (mounted) {
         final msg = _formatError(e);
-        setState(() => _error = msg);
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(error: msg));
         showTerminalToast(context, msg);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(isLoading: false));
+      }
     }
   }
 
@@ -548,12 +547,12 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
   void _clear() {
     _curlController.clear();
-    setState(() {
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-      _searchActive = false;
-    });
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true,
+      clearError: true,
+      showHtmlPreview: false,
+      searchActive: false,
+    ));
   }
 
   Future<void> _openBuilder() async {
@@ -561,7 +560,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     final result = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
         builder: (_) => RequestBuilderPage(
-          projectId: _projectId,
+          projectId: ref.read(activeProjectProvider)?.id,
           initialCurl: _curlController.text.trim().isEmpty
               ? null
               : _curlController.text.trim(),
@@ -570,21 +569,21 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     );
     if (result != null && mounted) {
       if (result is String) {
-        setState(() {
-          _curlController.text = result;
-          _response = null;
-          _error = null;
-          _showHtmlPreview = false;
-          _searchActive = false;
-        });
+        setState(() => _curlController.text = result);
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+          clearResponse: true,
+          clearError: true,
+          showHtmlPreview: false,
+          searchActive: false,
+        ));
         _executeCurl();
       } else if (result is CurlResponse) {
-        setState(() {
-          _response = result;
-          _error = null;
-          _showHtmlPreview = false;
-          _searchActive = false;
-        });
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+          response: result,
+          clearError: true,
+          showHtmlPreview: false,
+          searchActive: false,
+        ));
       }
     }
   }
@@ -651,8 +650,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
   // ── Save response ────────────────────────────────────────────────
 
-  ResponseTab get _activePreviewTab =>
-      _showHtmlPreview ? ResponseTab.body : _selectedTab;
+  ResponseTab get _activePreviewTab {
+    final rs = ref.read(responseStateProvider);
+    return rs.showHtmlPreview ? ResponseTab.body : rs.selectedTab;
+  }
 
   String get _activePreviewTabLabel => switch (_activePreviewTab) {
     ResponseTab.headers => 'headers',
@@ -662,13 +663,14 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   };
 
   String? _activePreviewText() {
-    final res = _response;
+    final rs = ref.read(responseStateProvider);
+    final res = rs.response;
     if (res == null) return null;
     switch (_activePreviewTab) {
       case ResponseTab.headers:
         return res.formatHeaders();
       case ResponseTab.body:
-        return res.getBodyText(_prettify);
+        return res.getBodyText(rs.prettify);
       case ResponseTab.verbose:
         return res.formatVerboseLog();
       case ResponseTab.trace:
@@ -687,7 +689,8 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   Future<void> _saveResponse() async {
-    if (_response == null) return;
+    final rs = ref.read(responseStateProvider);
+    if (rs.response == null) return;
     final tab = _activePreviewTab;
     final text = _activePreviewText() ?? '';
     if (text.trim().isEmpty) {
@@ -698,7 +701,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     final (dialogTitle, fileStem, ext) = switch (tab) {
       ResponseTab.headers => ('Save headers', 'headers', 'txt'),
       ResponseTab.body => () {
-        final rawExt = _response!.contentTypeLabel.toLowerCase();
+        final rawExt = rs.response!.contentTypeLabel.toLowerCase();
         final bodyExt = switch (rawExt) {
           'html' || 'json' || 'xml' || 'txt' || 'csv' => rawExt,
           _ => 'txt',
@@ -745,11 +748,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       builder: (_) => HelpSheet(
         onUse: (command) {
           Navigator.of(context).pop();
-          setState(() {
-            _curlController.text = command;
-            _response = null;
-            _error = null;
-          });
+          setState(() => _curlController.text = command);
+          ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+            clearResponse: true,
+            clearError: true,
+          ));
           _editorFocusNode.requestFocus();
         },
       ),
@@ -757,11 +760,13 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   Future<void> _saveRequest() async {
-    if (_projectId == null) {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (projectId == null) {
       showTerminalToast(context, 'select a project first');
       return;
     }
-    if (_selectedRequestPath == null) {
+    if (selectedPath == null) {
       _saveRequestAs();
       return;
     }
@@ -772,27 +777,31 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     }
 
     await ref.read(requestServiceProvider).writeCurl(
-      _projectId!,
-      _selectedRequestPath!,
+      projectId,
+      selectedPath,
       text,
     );
-    if (_response != null) {
+    final rs = ref.read(responseStateProvider);
+    if (rs.response != null) {
       await ref.read(requestServiceProvider).updateMeta(
-        _projectId!,
-        _selectedRequestPath!,
+        projectId,
+        selectedPath,
         RequestMeta(
-          lastStatusCode: _response!.statusCode,
+          lastStatusCode: rs.response!.statusCode,
           lastRunAt: DateTime.now(),
         ),
       );
     }
     if (!mounted) return;
-    _baselineCurlText = _curlController.text;
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
+      baselineCurlText: _curlController.text,
+    ));
     showTerminalToast(context, 'request saved');
   }
 
   Future<void> _saveRequestAs() async {
-    if (_projectId == null) {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId == null) {
       showTerminalToast(context, 'select a project first');
       return;
     }
@@ -802,12 +811,13 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       return;
     }
 
+    final selectedPath = ref.read(selectedRequestPathProvider);
     final name = await _showSaveDialog(
-      initialName: _selectedRequestPath?.replaceAll('.curl', ''),
+      initialName: selectedPath?.replaceAll('.curl', ''),
     );
     if (name == null || name.trim().isEmpty) return;
     final exists = await ref.read(requestServiceProvider).requestExists(
-      _projectId!,
+      projectId,
       name.trim(),
     );
     if (exists && mounted) {
@@ -818,26 +828,27 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       if (!mounted) return;
       if (overwrite != true) return;
       final relativePath = ref.read(requestServiceProvider).resolvePath(name.trim());
-      await ref.read(requestServiceProvider).writeCurl(_projectId!, relativePath, text);
-      if (_response != null) {
+      await ref.read(requestServiceProvider).writeCurl(projectId, relativePath, text);
+      final rs = ref.read(responseStateProvider);
+      if (rs.response != null) {
         await ref.read(requestServiceProvider).updateMeta(
-          _projectId!,
+          projectId,
           relativePath,
           RequestMeta(
-            lastStatusCode: _response!.statusCode,
+            lastStatusCode: rs.response!.statusCode,
             lastRunAt: DateTime.now(),
           ),
         );
       }
       if (!mounted) return;
-      setState(() {
-        _selectedRequestPath = relativePath;
-        _baselineCurlText = _curlController.text;
-      });
+      ref.read(selectedRequestPathProvider.notifier).state = relativePath;
+      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
+        baselineCurlText: _curlController.text,
+      ));
       showTerminalToast(context, 'request saved');
     } else {
       final path = await ref.read(requestServiceProvider).createRequest(
-        _projectId!,
+        projectId,
         name.trim(),
         text,
       );
@@ -845,53 +856,61 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       final slash = posix.lastIndexOf('/');
       final displayName = slash >= 0 ? posix.substring(slash + 1) : posix;
       await ref.read(requestServiceProvider).updateMeta(
-        _projectId!,
+        projectId,
         path,
         RequestMeta(displayName: displayName),
       );
       if (!mounted) return;
-      setState(() {
-        _selectedRequestPath = path;
-        _baselineCurlText = _curlController.text;
-      });
+      ref.read(selectedRequestPathProvider.notifier).state = path;
+      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
+        baselineCurlText: _curlController.text,
+      ));
       showTerminalToast(context, 'request saved');
     }
   }
 
   void _newRequest() {
     Navigator.of(context).maybePop();
-    setState(() {
-      _curlController.clear();
-      _baselineCurlText = '';
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-      _searchActive = false;
-      _selectedRequestPath = null;
-    });
+    setState(() => _curlController.clear());
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
+      baselineCurlText: '',
+    ));
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true,
+      clearError: true,
+      showHtmlPreview: false,
+      searchActive: false,
+    ));
+    ref.read(selectedRequestPathProvider.notifier).state = null;
     _editorFocusNode.requestFocus();
   }
 
   Future<void> _loadRequest(String relativePath) async {
+    final projectId = ref.read(activeProjectProvider)?.id;
     final content = await ref.read(requestServiceProvider).readCurl(
-      _projectId!,
+      projectId!,
       relativePath,
     );
     if (content != null && mounted) {
-      setState(() {
-        _curlController.text = content;
-        _baselineCurlText = content;
-        _response = null;
-        _error = null;
-        _showHtmlPreview = false;
-        _searchActive = false;
-        _selectedRequestPath = relativePath;
-      });
+      setState(() => _curlController.text = content);
+      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(
+        baselineCurlText: content,
+      ));
+      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+        clearResponse: true,
+        clearError: true,
+        showHtmlPreview: false,
+        searchActive: false,
+      ));
+      ref.read(selectedRequestPathProvider.notifier).state = relativePath;
       Navigator.of(context).maybePop();
     }
   }
 
-  bool get _hasUnsavedChanges => _curlController.text != _baselineCurlText;
+  bool get _hasUnsavedChanges {
+    final es = ref.read(editorStateProvider);
+    return _curlController.text != es.baselineCurlText;
+  }
 
   Future<int?> _confirmClose({required bool closingProject}) {
     final title = closingProject ? 'close project?' : 'close request?';
@@ -946,66 +965,73 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   Future<void> _closeRequest() async {
-    if (_curlController.text.isEmpty && _selectedRequestPath == null) return;
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (_curlController.text.isEmpty && selectedPath == null) return;
 
     if (_hasUnsavedChanges) {
       final choice = await _confirmClose(closingProject: false);
       if (!mounted) return;
       if (choice == 0 || choice == null) return;
       if (choice == 2) {
-        final before = _baselineCurlText;
-        if (_selectedRequestPath != null) {
+        final es = ref.read(editorStateProvider);
+        final before = es.baselineCurlText;
+        if (selectedPath != null) {
           await _saveRequest();
         } else {
           await _saveRequestAs();
         }
         if (!mounted) return;
-        if (_baselineCurlText == before) return;
+        final es2 = ref.read(editorStateProvider);
+        if (es2.baselineCurlText == before) return;
       }
     }
 
-    setState(() {
-      _curlController.clear();
-      _baselineCurlText = '';
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-      _searchActive = false;
-      _selectedRequestPath = null;
-    });
+    setState(() => _curlController.clear());
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true,
+      clearError: true,
+      showHtmlPreview: false,
+      searchActive: false,
+    ));
+    ref.read(selectedRequestPathProvider.notifier).state = null;
   }
 
   Future<void> _closeProject() async {
-    if (_activeProject == null) return;
+    final activeProject = ref.read(activeProjectProvider);
+    if (activeProject == null) return;
 
     if (_curlController.text.isNotEmpty && _hasUnsavedChanges) {
       final choice = await _confirmClose(closingProject: true);
       if (!mounted) return;
       if (choice == 0 || choice == null) return;
       if (choice == 2) {
-        final before = _baselineCurlText;
-        if (_selectedRequestPath != null) {
+        final es = ref.read(editorStateProvider);
+        final before = es.baselineCurlText;
+        final selectedPath = ref.read(selectedRequestPathProvider);
+        if (selectedPath != null) {
           await _saveRequest();
         } else {
           await _saveRequestAs();
         }
         if (!mounted) return;
-        if (_baselineCurlText == before) return;
+        final es2 = ref.read(editorStateProvider);
+        if (es2.baselineCurlText == before) return;
       }
     }
 
     await ref.read(projectServiceProvider).setActiveProject(null);
     if (!mounted) return;
-    setState(() {
-      _activeProject = null;
-      _selectedRequestPath = null;
-      _curlController.clear();
-      _baselineCurlText = '';
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-      _searchActive = false;
-    });
+    ref.read(activeProjectProvider.notifier).set(null);
+    setState(() => _curlController.clear());
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true,
+      clearError: true,
+      showHtmlPreview: false,
+      searchActive: false,
+    ));
+    ref.read(selectedRequestPathProvider.notifier).state = null;
     _refreshEnvKeys();
   }
 
@@ -1019,20 +1045,21 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (projectId != null) {
       await _loadActiveProject();
       if (!mounted) return;
-      setState(() {
-        _selectedRequestPath = null;
-        _curlController.clear();
-        _baselineCurlText = '';
-        _response = null;
-        _error = null;
-        _showHtmlPreview = false;
-        _searchActive = false;
-      });
+      setState(() => _curlController.clear());
+      ref.read(editorStateProvider.notifier).update((s) => s.copyWith(baselineCurlText: ''));
+      ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+        clearResponse: true,
+        clearError: true,
+        showHtmlPreview: false,
+        searchActive: false,
+      ));
+      ref.read(selectedRequestPathProvider.notifier).state = null;
     }
   }
 
   void _openRequestDrawer() {
-    if (_projectId == null) {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId == null) {
       showTerminalToast(context, 'select a project first');
       return;
     }
@@ -1043,8 +1070,8 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.7,
         child: RequestDrawer(
-          projectId: _projectId!,
-          selectedPath: _selectedRequestPath,
+          projectId: projectId,
+          selectedPath: ref.read(selectedRequestPathProvider),
           onRequestSelected: _loadRequest,
           onNewRequest: _newRequest,
         ),
@@ -1097,9 +1124,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   Future<String?> _showSaveDialog({String? initialName}) async {
+    final projectId = ref.read(activeProjectProvider)?.id;
     List<String> folders = [];
-    if (_projectId != null) {
-      final items = await ref.read(requestServiceProvider).listRequests(_projectId!);
+    if (projectId != null) {
+      final items = await ref.read(requestServiceProvider).listRequests(projectId);
       final folderSet = <String>{};
       for (final item in items) {
         final posix = item.relativePath.replaceAll('\\', '/');
@@ -1167,14 +1195,14 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                 spacing: 4,
                 runSpacing: 4,
                 children: [
-                  _FolderChip(
+                  FolderChip(
                     label: '/ (root)',
                     onTap: () => controller.text = controller.text.contains('/')
                         ? controller.text
                         : controller.text,
                   ),
                   ...folders.map(
-                    (f) => _FolderChip(
+                    (f) => FolderChip(
                       label: f,
                       onTap: () {
                         final name = controller.text.split('/').last;
@@ -1218,542 +1246,106 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
     showDialog(
       context: context,
-      builder: (ctx) => _ResolvedPreviewDialog(
-        future: ref.read(envServiceProvider).resolve(text, projectId: _projectId),
+      builder: (ctx) => ResolvedPreviewDialog(
+        future: ref.read(envServiceProvider).resolve(text, projectId: ref.read(activeProjectProvider)?.id),
       ),
     );
   }
 
   Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
-    final unlimited = maxLines == null;
-    final content = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '❯ ',
-          style: TextStyle(
-            color: TColors.green,
-            fontFamily: 'monospace',
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Expanded(
-          child: TextField(
-            key: _textFieldKey,
-            focusNode: _editorFocusNode,
-            controller: _curlController,
-            maxLines: unlimited ? null : maxLines,
-            minLines: unlimited ? null : minLines,
-            expands: unlimited,
-            autocorrect: false,
-            enableSuggestions: false,
-            textCapitalization: TextCapitalization.none,
-            cursorColor: TColors.green,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              height: 1.4,
-              color: TColors.text,
-            ),
-            decoration: const InputDecoration(
-              hintText: 'paste or type a curl command...',
-              hintStyle: TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 13,
-                height: 1.4,
-              ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ),
-      ],
-    );
-    return Stack(
-      children: [
-        if (unlimited) SizedBox.expand(child: content) else content,
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ListenableBuilder(
-            listenable: _curlController,
-            builder: (context, _) {
-              if (_curlController.text.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return GestureDetector(
-                onTap: _clear,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: TColors.surface,
-                    borderRadius: BorderRadius.zero,
-                  ),
-                  child: Icon(Icons.close, size: 12, color: TColors.red),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+    return CurlInputField(
+      controller: _curlController,
+      focusNode: _editorFocusNode,
+      textFieldKey: _textFieldKey,
+      onClear: _clear,
+      maxLines: maxLines,
+      minLines: minLines,
     );
   }
 
   Widget _buildEnvBar() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
-        color: TColors.surface,
-        border: Border(bottom: BorderSide(color: TColors.border, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.terminal, size: 12, color: TColors.green),
-          const SizedBox(width: 8),
-          Expanded(
-            child: GestureDetector(
-              onTap: _openProjects,
-              behavior: HitTestBehavior.translucent,
-              child: Row(
-                children: [
-                  Icon(
-                    _activeProject == null
-                        ? Icons.folder_open
-                        : Icons.folder,
-                    size: 14,
-                    color: TColors.mutedText,
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      _activeProject?.name ?? 'no project',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _activeProject == null
-                            ? TColors.mutedText
-                            : TColors.orange,
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        fontWeight: _activeProject == null
-                            ? FontWeight.normal
-                            : FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (_activeProject != null) ...[
-                    const Text(
-                      ' › ',
-                      style: TextStyle(
-                        color: TColors.mutedText,
-                        fontSize: 10,
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _openRequestDrawer,
-                        child: Text(
-                          _selectedRequestPath != null
-                              ? _requestDisplayName
-                              : 'no request',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _selectedRequestPath != null
-                                ? TColors.cyan
-                                : TColors.mutedText,
-                            fontFamily: 'monospace',
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          if (_activeProject != null) ...[
-            const SizedBox(width: 6),
-            if (_selectedRequestPath != null || _curlController.text.isNotEmpty)
-              GestureDetector(
-                onTap: _closeRequest,
-                child: const Icon(
-                  Icons.close,
-                  size: 14,
-                  color: TColors.mutedText,
-                ),
-              ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: _closeProject,
-              child: const Icon(
-                Icons.folder_off,
-                size: 14,
-                color: TColors.mutedText,
-              ),
-            ),
-            if (_projectId != null) ...[
-              if (_selectedRequestPath != null) ...[
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _saveRequest,
-                  child: const Icon(Icons.save, size: 14, color: TColors.green),
-                ),
-              ],
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: _saveRequestAs,
-                child: const Icon(
-                  Icons.save_as,
-                  size: 14,
-                  color: TColors.mutedText,
-                ),
-              ),
-            ],
-          ],
-          const SizedBox(width: 6),
-          _EnvSwitch(
-            projectId: _projectId,
-            onChanged: _refreshEnvKeys,
-          ),
-        ],
-      ),
+    return EnvBar(
+      requestDisplayName: _requestDisplayName,
+      hasCurlText: _curlController.text.isNotEmpty,
+      onOpenProjects: _openProjects,
+      onOpenRequestDrawer: _openRequestDrawer,
+      onCloseRequest: _closeRequest,
+      onCloseProject: _closeProject,
+      onSaveRequest: _saveRequest,
+      onSaveRequestAs: _saveRequestAs,
+      onEnvChanged: _refreshEnvKeys,
     );
   }
 
   Widget _buildActionToolbar() {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          // Utilities Group
-          _CompactIconButton(icon: Icons.science, onTap: _openBuilder),
-          _CompactIconButton(
-            icon: Icons.copy,
-            onTap: () {
-              final text = _curlController.text.trim();
-              if (text.isNotEmpty) {
-                Clipboard.setData(ClipboardData(text: text));
-                showTerminalToast(context, 'copied');
-              }
-            },
-          ),
-          _CompactIconButton(icon: Icons.content_paste, onTap: _paste),
-          _CompactIconButton(icon: Icons.code, onTap: _openResolvedPreview),
-
-          const Spacer(),
-
-          // System Group
-          _MoreMenu(
-            onAbout: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
-            onFeedback: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => FeedbackPage(
-                  projectId: _projectId,
-                  projectName: _activeProject?.name,
-                  requestPath: _selectedRequestPath,
-                ),
-              ),
-            ),
-            onHelp: () => _showHelp(context),
-            onSettings: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SettingsPage(
-                  onUserAgentChanged: widget.onUserAgentChanged,
-                  onWorkspaceChanged: widget.onWorkspaceChanged,
-                  projectId: _projectId,
-                ),
-              ),
-            ),
-            onHistory: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => HistoryPage(
-                  currentProjectId: _projectId,
-                  currentProjectName: _activeProject?.name,
-                  onSelect: (curl) {
-                    setState(() {
-                      _curlController.text = curl;
-                      _response = null;
-                      _error = null;
-                    });
-                  },
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-          // Execute Action
-          TermButton(
-            icon: Icons.play_arrow,
-            label: 'exec',
-            onTap: _isLoading ? null : _executeCurl,
-            accent: true,
-          ),
-        ],
-      ),
+    final activeProject = ref.read(activeProjectProvider);
+    return ActionToolbar(
+      curlText: _curlController.text.trim(),
+      onBuilder: _openBuilder,
+      onPaste: _paste,
+      onResolvedPreview: _openResolvedPreview,
+      onExecute: _executeCurl,
+      onHistorySelect: (curl) {
+        setState(() => _curlController.text = curl);
+        ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+          clearResponse: true,
+          clearError: true,
+        ));
+      },
+      onHelp: () => _showHelp(context),
+      onNavigateAbout: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const AboutPage())),
+      onNavigateFeedback: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
+        builder: (_) => FeedbackPage(
+          projectId: ref.read(activeProjectProvider)?.id,
+          projectName: activeProject?.name,
+          requestPath: ref.read(selectedRequestPathProvider),
+        ),
+      )),
+      onNavigateSettings: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
+        builder: (_) => SettingsPage(
+          onUserAgentChanged: widget.onUserAgentChanged,
+          onWorkspaceChanged: widget.onWorkspaceChanged,
+          projectId: ref.read(activeProjectProvider)?.id,
+        ),
+      )),
+      onNavigateHistory: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(
+        builder: (_) => HistoryPage(
+          currentProjectId: ref.read(activeProjectProvider)?.id,
+          currentProjectName: activeProject?.name,
+          onSelect: (curl) {
+            setState(() => _curlController.text = curl);
+            ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+              clearResponse: true,
+              clearError: true,
+            ));
+          },
+        ),
+      )),
     );
   }
 
   Widget _buildResponseSection({required bool isHorizontal}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_response != null || _error != null) ...[
-          Container(
-            height: isHorizontal ? null : 1,
-            width: isHorizontal ? 1 : null,
-            color: TColors.border,
-          ),
-          if (_response != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'res',
-                        style: TextStyle(
-                          color: TColors.purple,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_response!.statusCode ?? '-'}',
-                        style: TextStyle(
-                          color:
-                              (_response!.statusCode ?? 0) >= 200 &&
-                                  (_response!.statusCode ?? 0) < 300
-                              ? TColors.green
-                              : TColors.red,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _response!.timeLabel,
-                        style: const TextStyle(
-                          color: TColors.mutedText,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _response!.bodySizeLabel,
-                        style: const TextStyle(
-                          color: TColors.mutedText,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _response!.contentTypeLabel,
-                        style: const TextStyle(
-                          color: TColors.cyan,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (_response!.isHtml) ...[
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.body;
-                            _showHtmlPreview = true;
-                            _searchActive = false;
-                          }),
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.visibility,
-                              size: 16,
-                              color: TColors.mutedText,
-                            ),
-                          ),
-                        ),
-                      ],
-                      GestureDetector(
-                        onTap: _copyActivePreview,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.copy,
-                            size: 16,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _saveResponse,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.save,
-                            size: 16,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _searchActive = !_searchActive),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Icon(
-                            _searchActive ? Icons.search_off : Icons.search,
-                            size: 16,
-                            color: _searchActive
-                                ? TColors.green
-                                : TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                      if (_response?.highlightLanguage == 'json') ...[
-                        GestureDetector(
-                          onTap: () => setState(() => _prettify = !_prettify),
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              _prettify
-                                  ? Icons.auto_fix_high
-                                  : Icons.auto_fix_off,
-                              size: 16,
-                              color: _prettify
-                                  ? TColors.green
-                                  : TColors.mutedText,
-                            ),
-                          ),
-                        ),
-                      ],
-                      GestureDetector(
-                        onTap: () => setState(
-                          () => _showLineNumbers = !_showLineNumbers,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.format_list_numbered,
-                            size: 16,
-                            color: _showLineNumbers
-                                ? TColors.green
-                                : TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () =>
-                            openFullscreenResponse(context, _response!),
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.fullscreen,
-                            size: 16,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      FlatTab(
-                        label: 'headers',
-                        selected: _selectedTab == ResponseTab.headers,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.headers;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      const SizedBox(width: 8),
-                      FlatTab(
-                        label: 'body',
-                        selected:
-                            _selectedTab == ResponseTab.body &&
-                            !_showHtmlPreview,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.body;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      if (_response!.verboseLog != null &&
-                          _response!.verboseLog!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        FlatTab(
-                          label: 'verbose',
-                          selected: _selectedTab == ResponseTab.verbose,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.verbose;
-                            _showHtmlPreview = false;
-                          }),
-                        ),
-                      ],
-                      if (_response!.traceLog != null &&
-                          _response!.traceLog!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        FlatTab(
-                          label: 'trace',
-                          selected: _selectedTab == ResponseTab.trace,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.trace;
-                            _showHtmlPreview = false;
-                          }),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          Container(
-            height: isHorizontal ? null : 1,
-            width: isHorizontal ? 1 : null,
-            color: TColors.border,
-          ),
-        ],
-        Expanded(
-          child: ResponseViewer(
-            isLoading: _isLoading,
-            response: _response,
-            error: _error,
-            selectedTab: _selectedTab,
-            showHtmlPreview: _showHtmlPreview,
-            searchActive: _searchActive,
-            prettify: _prettify,
-            showLineNumbers: _showLineNumbers,
-            onCloseSearch: () => setState(() => _searchActive = false),
-          ),
-        ),
-      ],
+    final rs = ref.read(responseStateProvider);
+    return ResponseSection(
+      isHorizontal: isHorizontal,
+      onCopyActivePreview: _copyActivePreview,
+      onSaveResponse: _saveResponse,
+      onOpenFullscreen: () => openFullscreenResponse(context, rs.response!),
     );
   }
 
   // ── Layout Modes ────────────────────────────────────────────────
 
   Widget _buildPortraitLayout() {
+    final es = ref.watch(editorStateProvider);
+    final selectedPath = ref.watch(selectedRequestPathProvider);
     return Scaffold(
       backgroundColor: TColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Fullscreen header
-            if (_isFullscreenInput) ...[
+            if (es.isFullscreen) ...[
               Container(
                 color: TColors.surface,
                 padding: const EdgeInsets.symmetric(
@@ -1762,18 +1354,18 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                 ),
                 child: Row(
                   children: [
-                    _WindowDot(
+                    WindowDot(
                       color: TColors.red,
                       icon: Icons.close,
                       onTap: _exitFullscreen,
                     ),
                     const SizedBox(width: 4),
-                    const _WindowDot(color: TColors.yellow),
+                    const WindowDot(color: TColors.yellow),
                     const SizedBox(width: 4),
-                    const _WindowDot(color: TColors.green),
+                    const WindowDot(color: TColors.green),
                     const SizedBox(width: 10),
                     Text(
-                      _selectedRequestPath != null
+                      selectedPath != null
                           ? _requestDisplayName
                           : 'curl editor',
                       style: const TextStyle(
@@ -1783,15 +1375,14 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                       ),
                     ),
                     const Spacer(),
-                    _HelpButton(onTap: () => _showHelp(context)),
+                    HelpButton(onTap: () => _showHelp(context)),
                   ],
                 ),
               ),
               Container(height: 1, color: TColors.border),
             ],
 
-            // Input area
-            if (_isFullscreenInput)
+            if (es.isFullscreen)
               Expanded(
                 child: Container(
                   color: TColors.surface,
@@ -1816,20 +1407,12 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                 ),
               ),
 
-            // Dashboard (Controls)
-            if (_isFullscreenInput)
-              _EditorDashboard(
-                envBar: _buildEnvBar(),
-                actionBar: _buildActionToolbar(),
-              )
-            else
-              _EditorDashboard(
-                envBar: _buildEnvBar(),
-                actionBar: _buildActionToolbar(),
-              ),
+            EditorDashboard(
+              envBar: _buildEnvBar(),
+              actionBar: _buildActionToolbar(),
+            ),
 
-            // Response section (compact only)
-            if (!_isFullscreenInput)
+            if (!es.isFullscreen)
               Expanded(child: _buildResponseSection(isHorizontal: false)),
           ],
         ),
@@ -1838,8 +1421,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   void _enterFullscreen() {
-    if (_isFullscreenInput) return;
-    setState(() => _isFullscreenInput = true);
+    final es = ref.read(editorStateProvider);
+    if (es.isFullscreen) return;
+    ref.read(editorStateProvider.notifier).update((s) => s.copyWith(isFullscreen: true));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _editorFocusNode.requestFocus();
     });
@@ -1852,7 +1436,6 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left: Input panel
             Expanded(
               flex: 2,
               child: Column(
@@ -1873,7 +1456,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                       ),
                     ),
                   ),
-                  _EditorDashboard(
+                  EditorDashboard(
                     envBar: _buildEnvBar(),
                     actionBar: _buildActionToolbar(),
                   ),
@@ -1881,9 +1464,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
                 ],
               ),
             ),
-            // Divider
             Container(width: 1, color: TColors.border),
-            // Right: Output panel
             Expanded(flex: 3, child: _buildResponseSection(isHorizontal: true)),
           ],
         ),
@@ -1900,707 +1481,5 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     if (isLandscape) return _buildHorizontalLayout();
 
     return _buildPortraitLayout();
-  }
-}
-
-// ── Curl Syntax Highlighter ───────────────────────────────────────
-
-class _CurlHighlightController extends TextEditingController {
-  static const _methods = {
-    'GET',
-    'POST',
-    'PUT',
-    'DELETE',
-    'PATCH',
-    'HEAD',
-    'OPTIONS',
-  };
-
-  static final _tokenRegex = RegExp(
-    r'(<<[A-Za-z_][A-Za-z0-9_]*>>)'
-    r'''|(curl)\b'''
-    r'|(-(-?[A-Za-z][\w-]*))'
-    r"""|('[^']*')"""
-    r'''|("[^"]*")'''
-    r'''|(https?://[^\s'"]+)'''
-    r'|(\S+)'
-    r'|(\s+)',
-  );
-
-  @override
-  TextSpan buildTextSpan({
-    required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
-  }) {
-    if (text.isEmpty) {
-      return TextSpan(style: style, text: '');
-    }
-
-    final spans = <TextSpan>[];
-
-    for (final m in _tokenRegex.allMatches(text)) {
-      if (m.group(1) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(1),
-            style: const TextStyle(color: TColors.purple),
-          ),
-        );
-      } else if (m.group(2) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(2),
-            style: const TextStyle(
-              color: TColors.cyan,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-      } else if (m.group(3) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(3),
-            style: const TextStyle(color: TColors.orange),
-          ),
-        );
-      } else if (m.group(5) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(6) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(6),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(7) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(7),
-            style: const TextStyle(color: TColors.green),
-          ),
-        );
-      } else if (m.group(8) != null) {
-        final word = m.group(8)!;
-        if (_methods.contains(word.toUpperCase())) {
-          spans.add(
-            TextSpan(
-              text: word,
-              style: const TextStyle(
-                color: TColors.purple,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        } else {
-          spans.add(TextSpan(text: word));
-        }
-      } else if (m.group(9) != null) {
-        spans.add(TextSpan(text: m.group(9)));
-      }
-    }
-
-    return TextSpan(style: style, children: spans);
-  }
-}
-
-class _HelpButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _HelpButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: TColors.mutedText, width: 1),
-        ),
-        child: const Center(
-          child: Text(
-            '?',
-            style: TextStyle(
-              color: TColors.mutedText,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WindowDot extends StatelessWidget {
-  final Color color;
-  final IconData? icon;
-  final VoidCallback? onTap;
-
-  const _WindowDot({required this.color, this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: icon != null
-            ? Icon(icon, size: 8, color: TColors.background)
-            : null,
-      ),
-    );
-  }
-}
-
-class _MoreMenu extends StatelessWidget {
-  final VoidCallback onAbout;
-  final VoidCallback onFeedback;
-  final VoidCallback onHelp;
-  final VoidCallback onSettings;
-  final VoidCallback onHistory;
-
-  const _MoreMenu({
-    required this.onAbout,
-    required this.onFeedback,
-    required this.onHelp,
-    required this.onSettings,
-    required this.onHistory,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (details) {
-        final renderBox = context.findRenderObject() as RenderBox;
-        final offset = renderBox.localToGlobal(Offset.zero);
-        showMenu<int>(
-          context: context,
-          elevation: 0,
-          position: RelativeRect.fromLTRB(
-            offset.dx,
-            offset.dy + renderBox.size.height,
-            offset.dx + renderBox.size.width,
-            0,
-          ),
-          color: TColors.surface,
-          items: [
-            PopupMenuItem<int>(
-              value: 3,
-              height: 36,
-              child: Row(
-                children: [
-                  const Icon(Icons.history, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'history',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 4,
-              height: 36,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_outline,
-                    size: 14,
-                    color: TColors.mutedText,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'feedback',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 0,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.settings_outlined,
-                    size: 14,
-                    color: TColors.mutedText,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'settings',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 1,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  Text(
-                    'about',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 2,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(Icons.help_outline, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  Text(
-                    'help',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ).then((value) {
-          if (value == 0) onSettings();
-          if (value == 1) onAbout();
-          if (value == 2) onHelp();
-          if (value == 3) onHistory();
-          if (value == 4) onFeedback();
-        });
-      },
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        color: TColors.surface,
-        child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
-      ),
-    );
-  }
-}
-
-class _EnvSwitch extends ConsumerStatefulWidget {
-  final String? projectId;
-  final VoidCallback? onChanged;
-
-  const _EnvSwitch({this.projectId, this.onChanged});
-
-  @override
-  ConsumerState<_EnvSwitch> createState() => _EnvSwitchState();
-}
-
-class _EnvSwitchState extends ConsumerState<_EnvSwitch> {
-  String? _activeName;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final active = await ref.read(envServiceProvider).getActive(widget.projectId);
-    if (mounted) setState(() => _activeName = active?.name);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (details) async {
-        final envs = await ref.read(envServiceProvider).getAll(widget.projectId);
-        if (!mounted) return;
-        final active = await ref.read(envServiceProvider).getActive(widget.projectId);
-        if (!mounted) return;
-        final renderBox = this.context.findRenderObject() as RenderBox;
-        final offset = renderBox.localToGlobal(Offset.zero);
-        showMenu<String>(
-          context: this.context,
-          elevation: 0,
-          constraints: const BoxConstraints(maxWidth: 180),
-          position: RelativeRect.fromLTRB(
-            offset.dx,
-            offset.dy + renderBox.size.height,
-            offset.dx + renderBox.size.width,
-            0,
-          ),
-          color: TColors.surface,
-          items: [
-            ...envs.map(
-              (e) => PopupMenuItem<String>(
-                value: e.id,
-                height: 36,
-                child: Row(
-                  children: [
-                    Icon(
-                      e.id == active?.id
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
-                      size: 14,
-                      color: e.id == active?.id
-                          ? TColors.green
-                          : TColors.mutedText,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        e.name,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: e.id == active?.id
-                              ? TColors.green
-                              : TColors.foreground,
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            PopupMenuItem<String>(
-              value: 'manage',
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(Icons.widgets, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  Text(
-                    'env',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ).then((value) async {
-          if (value == null) return;
-          if (!mounted) return;
-          if (value == 'manage') {
-            Navigator.of(this.context)
-                .push(
-                  MaterialPageRoute(
-                    builder: (_) => EnvPage(
-                      projectId: widget.projectId,
-                    ),
-                  ),
-                )
-                .then((_) {
-                  _load();
-                  widget.onChanged?.call();
-                });
-          } else {
-            await ref.read(envServiceProvider).setActive(widget.projectId, value);
-            _load();
-            widget.onChanged?.call();
-          }
-        });
-      },
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        color: TColors.surface,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.data_object, size: 14, color: TColors.cyan),
-            if (_activeName != null) ...[
-              const SizedBox(width: 4),
-              Text(
-                _activeName!.length > 6
-                    ? '${_activeName!.substring(0, 4)}…'
-                    : _activeName!,
-                style: const TextStyle(
-                  color: TColors.cyan,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EditorDashboard extends StatelessWidget {
-  final Widget envBar;
-  final Widget actionBar;
-
-  const _EditorDashboard({required this.envBar, required this.actionBar});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: TColors.background,
-        border: Border(
-          top: BorderSide(color: TColors.border, width: 1),
-          bottom: BorderSide(color: TColors.border, width: 1),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [envBar, actionBar],
-      ),
-    );
-  }
-}
-
-class _CompactIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _CompactIconButton({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      color: TColors.mutedText,
-      padding: const EdgeInsets.all(8),
-      constraints: const BoxConstraints(),
-      splashRadius: 20,
-    );
-  }
-}
-
-class _FolderChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _FolderChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: TColors.background,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder, size: 10, color: TColors.orange),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: TColors.orange,
-                fontFamily: 'monospace',
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ResolvedPreviewDialog extends StatelessWidget {
-  final Future<String> future;
-
-  const _ResolvedPreviewDialog({required this.future});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: TColors.background,
-      insetPadding: EdgeInsets.zero,
-      alignment: Alignment.centerLeft,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              color: TColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  const Text(
-                    'resolved command',
-                    style: TextStyle(
-                      color: TColors.purple,
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(
-                      Icons.close,
-                      size: 14,
-                      color: TColors.mutedText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(height: 1, color: TColors.border),
-            Expanded(
-              child: FutureBuilder<String>(
-                future: future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    );
-                  }
-                  final text = snapshot.data ?? '';
-                  final lines = _splitToHighlightLines(text);
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: lines.length,
-                    itemBuilder: (context, index) {
-                      return Text.rich(
-                        TextSpan(
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            height: 1.5,
-                          ),
-                          children: lines[index],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static List<List<TextSpan>> _splitToHighlightLines(String text) {
-    final allSpans = <TextSpan>[];
-    for (final m in _CurlHighlightController._tokenRegex.allMatches(text)) {
-      if (m.group(1) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(1),
-            style: const TextStyle(color: TColors.purple),
-          ),
-        );
-      } else if (m.group(2) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(2),
-            style: const TextStyle(
-              color: TColors.cyan,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-      } else if (m.group(3) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(3),
-            style: const TextStyle(color: TColors.orange),
-          ),
-        );
-      } else if (m.group(5) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(6) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(6),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(7) != null) {
-        allSpans.add(
-          TextSpan(
-            text: m.group(7),
-            style: const TextStyle(color: TColors.green),
-          ),
-        );
-      } else if (m.group(8) != null) {
-        final word = m.group(8)!;
-        if (_CurlHighlightController._methods.contains(word.toUpperCase())) {
-          allSpans.add(
-            TextSpan(
-              text: word,
-              style: const TextStyle(
-                color: TColors.purple,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        } else {
-          allSpans.add(TextSpan(text: word));
-        }
-      } else if (m.group(9) != null) {
-        allSpans.add(TextSpan(text: m.group(9)));
-      }
-    }
-
-    final lines = <List<TextSpan>>[[]];
-    for (final span in allSpans) {
-      final spanText = span.text ?? '';
-      if (!spanText.contains('\n')) {
-        lines.last.add(span);
-        continue;
-      }
-      final parts = spanText.split('\n');
-      for (var i = 0; i < parts.length; i++) {
-        if (i > 0) lines.add([]);
-        if (parts[i].isNotEmpty) {
-          lines.last.add(TextSpan(text: parts[i], style: span.style));
-        }
-      }
-    }
-    return lines;
   }
 }

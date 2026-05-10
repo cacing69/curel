@@ -57,7 +57,8 @@ class RequestMeta {
             : null,
       );
 
-  static String encode(RequestMeta meta) => jsonEncode(meta.toJson());
+  static String encode(RequestMeta meta) =>
+      const JsonEncoder.withIndent('  ').convert(meta.toJson());
 
   static RequestMeta decode(String json) =>
       RequestMeta.fromJson(jsonDecode(json) as Map<String, dynamic>);

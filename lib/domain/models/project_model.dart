@@ -58,7 +58,7 @@ class Project {
       );
 
   static String encodeList(List<Project> projects) =>
-      jsonEncode(projects.map((p) => p.toJson()).toList());
+      const JsonEncoder.withIndent('  ').convert(projects.map((p) => p.toJson()).toList());
 
   static List<Project> decodeList(String json) {
     final list = jsonDecode(json) as List;

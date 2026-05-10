@@ -64,7 +64,7 @@ class Environment {
       );
 
   static String encodeList(List<Environment> envs) =>
-      jsonEncode(envs.map((e) => e.toJson()).toList());
+      const JsonEncoder.withIndent('  ').convert(envs.map((e) => e.toJson()).toList());
 
   static List<Environment> decodeList(String json) {
     final list = jsonDecode(json) as List;

@@ -1,3 +1,5 @@
+- connect state providers to home_page: replace 12 local state variables (response, project, editor) with Riverpod providers (responseStateProvider, activeProjectProvider, editorStateProvider, selectedRequestPathProvider)
+- extract widgets from home_page to separate files: CurlHighlightController, HelpButton, WindowDot, MoreMenu, EnvSwitch, EditorDashboard, CompactIconButton, FolderChip, ResolvedPreviewDialog
 - revert resolved preview back to original Dialog approach
 - simplify global env UI: flat variable list instead of named environments, auto-create default env, add var button directly
 - replace getApplicationDocumentsDirectory with getApplicationSupportDirectory to remove "app_flutter" from workspace path
@@ -7,3 +9,4 @@
 - fix workspace switching: sync project list from filesystem on change, force HomePage rebuild via key
 - add image compression before feedback submit (quality 80%, maxWidth 720) using flutter_image_compress
 - redesign feedback page: compact layout with inline category tabs, collapsed optional details, tighter spacing
+- standardize JSON serialization: use JsonEncoder.withIndent('  ') for environments, projects, requests, and workspace exports to minimize merge conflicts
