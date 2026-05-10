@@ -3,7 +3,26 @@ import 'package:curl_parser/curl_parser.dart';
 /// Checks if a string looks like a URL (starts with http:// or https://).
 bool _isUrlLike(String s) {
   final lower = s.toLowerCase();
-  return lower.startsWith('http://') || lower.startsWith('https://');
+  return lower.startsWith('http://') || lower.startsWith('https://') || _looksLikeHost(lower);
+}
+
+bool _looksLikeHost(String s) {
+  if (s.startsWith('-') || s.startsWith("'") || s.startsWith('"')) return false;
+  if (!s.contains('.')) return false;
+  final match = RegExp(r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?').firstMatch(s);
+  return match != null && match.end == s.length;
+}
+
+List<String> _ensureScheme(List<String> tokens) {
+  return tokens.map((t) {
+    final unquoted = _unquote(t);
+    if (_isUrlLike(unquoted) &&
+        !unquoted.startsWith('http://') &&
+        !unquoted.startsWith('https://')) {
+      return t.replaceFirst(unquoted, 'http://$unquoted');
+    }
+    return t;
+  }).toList();
 }
 
 /// Checks if a string looks like a flag (starts with -).
@@ -375,7 +394,7 @@ ParsedCurl parseCurl(String input) {
     cleanedTokens.add(tok);
   }
 
-  final cleaned = cleanedTokens.join(' ');
+  final cleaned = _ensureScheme(cleanedTokens).join(' ');
 
   try {
     final curl = Curl.parse(cleaned);

@@ -28,7 +28,7 @@ class LocalFileSystemService implements FileSystemService {
   @override
   Future<String> getWorkspaceRoot() async {
     if (_customRoot != null) return _customRoot!;
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await getApplicationSupportDirectory();
     return p.join(appDir.path, 'curel');
   }
 

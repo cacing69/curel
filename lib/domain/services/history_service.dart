@@ -10,7 +10,7 @@ class HistoryService {
   }
 
   Future<Isar> _init() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await getApplicationSupportDirectory();
     return Isar.open(
       [HistoryItemSchema],
       directory: dir.path,

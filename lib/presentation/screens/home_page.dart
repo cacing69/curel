@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/history_model.dart';
 import 'package:curel/domain/models/project_model.dart';
-import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/models/request_model.dart';
-import 'package:curel/domain/services/request_service.dart';
 import 'package:curel/presentation/screens/project_list_page.dart';
 import 'package:curel/presentation/widgets/request_drawer.dart';
 import 'package:dio/dio.dart';
@@ -15,56 +13,33 @@ import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
-import 'package:curel/data/services/curl_http_client.dart';
-import 'package:curel/data/services/filesystem_service.dart';
-import 'package:curel/domain/services/env_service.dart';
-import 'package:curel/domain/services/history_service.dart';
-import 'package:curel/domain/services/bookmark_service.dart';
-import 'package:curel/domain/services/clipboard_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
-import 'package:curel/domain/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomePage extends StatefulWidget {
-  final CurlHttpClient httpClient;
-  final ClipboardService clipboardService;
-  final SettingsService settingsService;
-  final EnvService envService;
-  final ProjectService projectService;
-  final RequestService requestService;
-  final HistoryService historyService;
-  final BookmarkService bookmarkService;
-  final FileSystemService fsService;
+class HomePage extends ConsumerStatefulWidget {
   final void Function(String userAgent) onUserAgentChanged;
   final void Function() onWorkspaceChanged;
 
   const HomePage({
-    required this.httpClient,
-    required this.clipboardService,
-    required this.settingsService,
-    required this.envService,
-    required this.projectService,
-    required this.requestService,
-    required this.historyService,
-    required this.bookmarkService,
-    required this.fsService,
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
     super.key,
   });
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
   final _curlController = _CurlHighlightController();
   final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
@@ -107,20 +82,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadActiveProject() async {
-    var project = await widget.projectService.getActiveProject();
-    project ??= await widget.projectService.ensureDefaultProject();
+    var project = await ref.read(projectServiceProvider).getActiveProject();
+    project ??= await ref.read(projectServiceProvider).ensureDefaultProject();
     if (mounted) setState(() => _activeProject = project);
     _refreshEnvKeys();
   }
 
   Future<void> _refreshEnvKeys() async {
     final keys = <String>{};
-    final global = await widget.envService.getActive(null);
+    final global = await ref.read(envServiceProvider).getActive(null);
     if (global != null) {
       keys.addAll(global.variables.map((v) => v.key));
     }
     if (_projectId != null) {
-      final project = await widget.envService.getActive(_projectId);
+      final project = await ref.read(envServiceProvider).getActive(_projectId);
       if (project != null) {
         keys.addAll(project.variables.map((v) => v.key));
       }
@@ -370,7 +345,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _checkClipboard() async {
-    final text = await widget.clipboardService.paste();
+    final text = await ref.read(clipboardServiceProvider).paste();
     if (text != null && text.trim().startsWith('curl') && mounted) {
       if (_curlController.text.trim() != text.trim()) {
         _showClipboardDetection(text.trim());
@@ -445,10 +420,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     try {
       final shouldResolve = text.contains('<<');
       final resolved = shouldResolve
-          ? await widget.envService.resolve(text, projectId: _projectId)
+          ? await ref.read(envServiceProvider).resolve(text, projectId: _projectId)
           : text;
       final undefined = shouldResolve
-          ? await widget.envService.findUndefinedVars(
+          ? await ref.read(envServiceProvider).findUndefinedVars(
               text,
               projectId: _projectId,
             )
@@ -467,14 +442,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final traceEnabled = parsed.traceEnabled;
       final effectiveConnectTimeout =
           parsed.connectTimeout ??
-          Duration(seconds: await widget.settingsService.getConnectTimeout());
+          Duration(seconds: await ref.read(settingsProvider).getConnectTimeout());
       final effectiveMaxTime =
           parsed.maxTime ??
-          ((await widget.settingsService.getMaxTime()) > 0
-              ? Duration(seconds: await widget.settingsService.getMaxTime())
+          ((await ref.read(settingsProvider).getMaxTime()) > 0
+              ? Duration(seconds: await ref.read(settingsProvider).getMaxTime())
               : null);
       final result = hasOutput
-          ? await widget.httpClient.executeBinary(
+          ? await ref.read(httpClientProvider).executeBinary(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
@@ -485,7 +460,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               insecure: parsed.insecure,
               httpVersion: parsed.httpVersion,
             )
-          : await widget.httpClient.execute(
+          : await ref.read(httpClientProvider).execute(
               parsed.curl,
               verbose: parsed.verbose,
               followRedirects: parsed.followRedirects,
@@ -525,7 +500,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await _saveTraceFile(result.traceLog!, parsed.traceFileName!);
       }
       if (_projectId != null && _selectedRequestPath != null) {
-        await widget.requestService.updateMeta(
+        await ref.read(requestServiceProvider).updateMeta(
           _projectId!,
           _selectedRequestPath!,
           RequestMeta(
@@ -536,7 +511,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
 
       // Add to history
-      await widget.historyService.add(
+      await ref.read(historyServiceProvider).add(
         HistoryItem(
           timestamp: DateTime.now(),
           curlCommand: text,
@@ -562,7 +537,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _paste() async {
-    final text = await widget.clipboardService.paste();
+    final text = await ref.read(clipboardServiceProvider).paste();
     if (text != null && text.trim().isNotEmpty) {
       setState(() => _curlController.text = text);
       if (mounted) {
@@ -586,8 +561,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final result = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
         builder: (_) => RequestBuilderPage(
-          httpClient: widget.httpClient,
-          envService: widget.envService,
           projectId: _projectId,
           initialCurl: _curlController.text.trim().isEmpty
               ? null
@@ -633,7 +606,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           return 'error: request failed (${e.type.name})';
       }
     }
-    return 'error: $e';
+    final msg = e.toString().replaceFirst(RegExp(r'^(Exception|FormatException|TypeError):\s*'), '');
+    return 'error: $msg';
   }
 
   // ── Download file (-o flag) ────────────────────────────────────────
@@ -797,13 +771,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       return;
     }
 
-    await widget.requestService.writeCurl(
+    await ref.read(requestServiceProvider).writeCurl(
       _projectId!,
       _selectedRequestPath!,
       text,
     );
     if (_response != null) {
-      await widget.requestService.updateMeta(
+      await ref.read(requestServiceProvider).updateMeta(
         _projectId!,
         _selectedRequestPath!,
         RequestMeta(
@@ -832,7 +806,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       initialName: _selectedRequestPath?.replaceAll('.curl', ''),
     );
     if (name == null || name.trim().isEmpty) return;
-    final exists = await widget.requestService.requestExists(
+    final exists = await ref.read(requestServiceProvider).requestExists(
       _projectId!,
       name.trim(),
     );
@@ -843,10 +817,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
       if (!mounted) return;
       if (overwrite != true) return;
-      final relativePath = widget.requestService.resolvePath(name.trim());
-      await widget.requestService.writeCurl(_projectId!, relativePath, text);
+      final relativePath = ref.read(requestServiceProvider).resolvePath(name.trim());
+      await ref.read(requestServiceProvider).writeCurl(_projectId!, relativePath, text);
       if (_response != null) {
-        await widget.requestService.updateMeta(
+        await ref.read(requestServiceProvider).updateMeta(
           _projectId!,
           relativePath,
           RequestMeta(
@@ -862,7 +836,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       });
       showTerminalToast(context, 'request saved');
     } else {
-      final path = await widget.requestService.createRequest(
+      final path = await ref.read(requestServiceProvider).createRequest(
         _projectId!,
         name.trim(),
         text,
@@ -870,7 +844,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final posix = name.trim().replaceAll('\\', '/');
       final slash = posix.lastIndexOf('/');
       final displayName = slash >= 0 ? posix.substring(slash + 1) : posix;
-      await widget.requestService.updateMeta(
+      await ref.read(requestServiceProvider).updateMeta(
         _projectId!,
         path,
         RequestMeta(displayName: displayName),
@@ -899,7 +873,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadRequest(String relativePath) async {
-    final content = await widget.requestService.readCurl(
+    final content = await ref.read(requestServiceProvider).readCurl(
       _projectId!,
       relativePath,
     );
@@ -1020,7 +994,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
     }
 
-    await widget.projectService.setActiveProject(null);
+    await ref.read(projectServiceProvider).setActiveProject(null);
     if (!mounted) return;
     setState(() {
       _activeProject = null;
@@ -1038,10 +1012,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _openProjects() async {
     final projectId = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => ProjectListPage(
-          projectService: widget.projectService,
-          requestService: widget.requestService,
-        ),
+        builder: (_) => const ProjectListPage(),
       ),
     );
     if (!mounted) return;
@@ -1073,7 +1044,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         heightFactor: 0.7,
         child: RequestDrawer(
           projectId: _projectId!,
-          requestService: widget.requestService,
           selectedPath: _selectedRequestPath,
           onRequestSelected: _loadRequest,
           onNewRequest: _newRequest,
@@ -1129,7 +1099,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<String?> _showSaveDialog({String? initialName}) async {
     List<String> folders = [];
     if (_projectId != null) {
-      final items = await widget.requestService.listRequests(_projectId!);
+      final items = await ref.read(requestServiceProvider).listRequests(_projectId!);
       final folderSet = <String>{};
       for (final item in items) {
         final posix = item.relativePath.replaceAll('\\', '/');
@@ -1242,14 +1212,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   // ── Shared Builders ─────────────────────────────────────────────
 
-  void _openResolvedPreview() async {
+  void _openResolvedPreview() {
     final text = _curlController.text.trim();
     if (text.isEmpty) return;
 
     showDialog(
       context: context,
       builder: (ctx) => _ResolvedPreviewDialog(
-        future: widget.envService.resolve(text, projectId: _projectId),
+        future: ref.read(envServiceProvider).resolve(text, projectId: _projectId),
       ),
     );
   }
@@ -1276,6 +1246,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             maxLines: unlimited ? null : maxLines,
             minLines: unlimited ? null : minLines,
             expands: unlimited,
+            autocorrect: false,
+            enableSuggestions: false,
+            textCapitalization: TextCapitalization.none,
             cursorColor: TColors.green,
             style: const TextStyle(
               fontFamily: 'monospace',
@@ -1445,7 +1418,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ],
           const SizedBox(width: 6),
           _EnvSwitch(
-            envService: widget.envService,
             projectId: _projectId,
             onChanged: _refreshEnvKeys,
           ),
@@ -1495,9 +1467,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             onSettings: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => SettingsPage(
-                  settingsService: widget.settingsService,
-                  envService: widget.envService,
-                  fsService: widget.fsService,
                   onUserAgentChanged: widget.onUserAgentChanged,
                   onWorkspaceChanged: widget.onWorkspaceChanged,
                   projectId: _projectId,
@@ -1507,8 +1476,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             onHistory: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => HistoryPage(
-                  historyService: widget.historyService,
-                  bookmarkService: widget.bookmarkService,
                   currentProjectId: _projectId,
                   currentProjectName: _activeProject?.name,
                   onSelect: (curl) {
@@ -2246,18 +2213,17 @@ class _MoreMenu extends StatelessWidget {
   }
 }
 
-class _EnvSwitch extends StatefulWidget {
-  final EnvService envService;
+class _EnvSwitch extends ConsumerStatefulWidget {
   final String? projectId;
   final VoidCallback? onChanged;
 
-  const _EnvSwitch({required this.envService, this.projectId, this.onChanged});
+  const _EnvSwitch({this.projectId, this.onChanged});
 
   @override
-  State<_EnvSwitch> createState() => _EnvSwitchState();
+  ConsumerState<_EnvSwitch> createState() => _EnvSwitchState();
 }
 
-class _EnvSwitchState extends State<_EnvSwitch> {
+class _EnvSwitchState extends ConsumerState<_EnvSwitch> {
   String? _activeName;
 
   @override
@@ -2267,7 +2233,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
   }
 
   Future<void> _load() async {
-    final active = await widget.envService.getActive(widget.projectId);
+    final active = await ref.read(envServiceProvider).getActive(widget.projectId);
     if (mounted) setState(() => _activeName = active?.name);
   }
 
@@ -2275,9 +2241,9 @@ class _EnvSwitchState extends State<_EnvSwitch> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (details) async {
-        final envs = await widget.envService.getAll(widget.projectId);
+        final envs = await ref.read(envServiceProvider).getAll(widget.projectId);
         if (!mounted) return;
-        final active = await widget.envService.getActive(widget.projectId);
+        final active = await ref.read(envServiceProvider).getActive(widget.projectId);
         if (!mounted) return;
         final renderBox = this.context.findRenderObject() as RenderBox;
         final offset = renderBox.localToGlobal(Offset.zero);
@@ -2353,7 +2319,6 @@ class _EnvSwitchState extends State<_EnvSwitch> {
                 .push(
                   MaterialPageRoute(
                     builder: (_) => EnvPage(
-                      envService: widget.envService,
                       projectId: widget.projectId,
                     ),
                   ),
@@ -2363,7 +2328,7 @@ class _EnvSwitchState extends State<_EnvSwitch> {
                   widget.onChanged?.call();
                 });
           } else {
-            await widget.envService.setActive(widget.projectId, value);
+            await ref.read(envServiceProvider).setActive(widget.projectId, value);
             _load();
             widget.onChanged?.call();
           }

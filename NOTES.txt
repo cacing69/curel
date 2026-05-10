@@ -1,13 +1,9 @@
-- close request drawer when "new" button is pressed
-- add share option to request drawer context menu via share_plus
-- add honest http version warning in verbose output when --http3/--http2 flags are used
-- prevent filesystem rename overwrite by failing on target collision
-- extract verbose/trace formatting into shared helper and handle env rename collision toast
-- make response preview copy/save respect active tab (headers/body/verbose/trace)
-- adjust response preview toasts based on active tab
-- add bookmark feature sourced from history (separate data store) with bookmark tab in history page
-- add close project/request actions with save-discard-cancel confirm when unsaved changes exist
-- add env var autocomplete (<<var>>) in curl editor and request builder fields
-- reposition env autocomplete near cursor/tap and clamp within input container width
-- fix env autocomplete selection so it inserts into existing text instead of replacing it
-- remove redundant per-widget shape overrides now handled by global theme in main.dart
+- revert resolved preview back to original Dialog approach
+- simplify global env UI: flat variable list instead of named environments, auto-create default env, add var button directly
+- replace getApplicationDocumentsDirectory with getApplicationSupportDirectory to remove "app_flutter" from workspace path
+- add workspace import/export: WorkspaceService bundles all projects, requests, envs into single JSON file
+- add project-level export/import: export per project from popup menu, import from footer
+- add type field (env/project/workspace) to all export formats with validation on import to prevent wrong file type
+- fix workspace switching: sync project list from filesystem on change, force HomePage rebuild via key
+- add image compression before feedback submit (quality 80%, maxWidth 720) using flutter_image_compress
+- redesign feedback page: compact layout with inline category tabs, collapsed optional details, tighter spacing

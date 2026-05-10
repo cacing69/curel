@@ -1,56 +1,48 @@
-import 'package:curel/data/services/curl_http_client.dart';
-import 'package:curel/data/services/filesystem_service.dart';
-import 'package:curel/domain/services/clipboard_service.dart';
-import 'package:curel/domain/services/bookmark_service.dart';
-import 'package:curel/domain/services/env_service.dart';
-import 'package:curel/domain/services/history_service.dart';
-import 'package:curel/domain/services/project_service.dart';
-import 'package:curel/domain/services/request_service.dart';
-import 'package:curel/domain/services/settings_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const App());
+  runApp(const ProviderScope(child: App()));
 }
 
-class App extends StatefulWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
 
   @override
-  State<App> createState() => _AppState();
+  ConsumerState<App> createState() => _AppState();
 }
 
-class _AppState extends State<App> {
-  final _httpClient = DioCurlHttpClient();
-  final _settingsService = PreferencesSettingsService();
-  final _fsService = LocalFileSystemService();
-  final _historyService = HistoryService();
-  final _bookmarkService = BookmarkService();
-  late final EnvService _envService;
-  late final ProjectService _projectService;
-  late final RequestService _requestService;
+class _AppState extends ConsumerState<App> {
+  int _workspaceKey = 0;
 
   @override
   void initState() {
     super.initState();
-    _envService = FileSystemEnvService(_fsService);
-    _projectService = FilesystemProjectService(_fsService);
-    _requestService = FilesystemRequestService(_fsService);
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
-    final ua = await _settingsService.getUserAgent();
-    _httpClient.setUserAgent(ua);
-    final workspace = await _settingsService.getEffectiveWorkspacePath();
-    await _fsService.setWorkspaceRoot(workspace);
+    final settings = ref.read(settingsProvider);
+    final fs = ref.read(fileSystemProvider);
+    final httpClient = ref.read(httpClientProvider);
+    final ua = await settings.getUserAgent();
+    httpClient.setUserAgent(ua);
+    final workspace = await settings.getEffectiveWorkspacePath();
+    await fs.setWorkspaceRoot(workspace);
+    await ref.read(projectServiceProvider).syncFromFilesystem();
     if (mounted) setState(() {});
   }
 
-  void _onWorkspaceChanged() {
-    setState(() {});
+  void _onWorkspaceChanged() async {
+    await ref.read(projectServiceProvider).syncFromFilesystem();
+    if (mounted) setState(() => _workspaceKey++);
+  }
+
+  void _onUserAgentChanged(String ua) {
+    ref.read(httpClientProvider).setUserAgent(ua);
   }
 
   @override
@@ -119,16 +111,8 @@ class _AppState extends State<App> {
         ),
       ),
       home: HomePage(
-        httpClient: _httpClient,
-        clipboardService: FlutterClipboardService(),
-        settingsService: _settingsService,
-        envService: _envService,
-        projectService: _projectService,
-        requestService: _requestService,
-        historyService: _historyService,
-        bookmarkService: _bookmarkService,
-        onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
-        fsService: _fsService,
+        key: ValueKey(_workspaceKey),
+        onUserAgentChanged: _onUserAgentChanged,
         onWorkspaceChanged: _onWorkspaceChanged,
       ),
     );

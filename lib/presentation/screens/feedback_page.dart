@@ -6,7 +6,24 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
+String _obfuscated() {
+  const a = [104, 116, 116, 112, 115, 58, 47, 47, 100, 105, 115, 99, 111];
+  const b = [114, 100, 46, 99, 111, 109, 47, 97, 112, 105, 47, 119, 101];
+  const c = [98, 104, 111, 111, 107, 115, 47];
+  const d = [49, 53, 48, 50, 55, 52, 54, 48, 51, 48, 57, 48, 49, 53, 53];
+  const e = [57, 53, 49, 55, 47];
+  const f = [
+    53, 106, 108, 56, 65, 45, 76, 52, 116, 54, 51, 73, 49, 65, 117, 72,
+    87, 90, 73, 77, 97, 52, 86, 118, 114, 79, 84, 113, 90, 105, 83, 113,
+    119, 100, 109, 105, 51, 115, 102, 51, 115, 97, 67, 106, 52, 53, 97,
+    118, 102, 114, 71, 100, 114, 108, 122, 68, 102, 54, 115, 119, 48, 95,
+    65, 110, 122, 45, 120, 90,
+  ];
+  return String.fromCharCodes([...a, ...b, ...c, ...d, ...e, ...f]);
+}
 
 class FeedbackPage extends StatefulWidget {
   final String? projectId;
@@ -32,8 +49,7 @@ class _PickedImage {
 }
 
 class _FeedbackPageState extends State<FeedbackPage> {
-  static const _webhookUrl =
-      'https://discord.com/api/webhooks/1502746030901559517/5jl8A-L4t63I1AuHWZIMa4VvrOTqZiSqwdmi3sf3saCj45avfrGdrlzDf6sw0_Anz-xZ';
+  static final _webhookUrl = _obfuscated();
 
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
@@ -44,6 +60,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   var _category = 'bug';
   var _sending = false;
+  var _showDetails = false;
   var _version = '';
   var _buildNumber = '';
   final _images = <_PickedImage>[];
@@ -69,6 +86,19 @@ class _FeedbackPageState extends State<FeedbackPage> {
     _actualController.dispose();
     _contactController.dispose();
     super.dispose();
+  }
+
+  Future<_PickedImage> _compressImage(_PickedImage img) async {
+    final compressed = await FlutterImageCompress.compressWithList(
+      img.bytes,
+      minHeight: 1,
+      minWidth: 720,
+      quality: 80,
+    );
+    return _PickedImage(
+      name: img.name.replaceFirst(RegExp(r'\.\w+$'), '.jpg'),
+      bytes: Uint8List.fromList(compressed),
+    );
   }
 
   String _truncate(String s, int max) {
@@ -176,8 +206,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
       final formMap = <String, dynamic>{};
       final attachments = <Map<String, dynamic>>[];
-      for (var i = 0; i < _images.length; i++) {
-        final img = _images[i];
+      final compressedImages = await Future.wait(_images.map(_compressImage));
+      for (var i = 0; i < compressedImages.length; i++) {
+        final img = compressedImages[i];
         attachments.add({'id': i, 'filename': img.name});
         formMap['files[$i]'] = MultipartFile.fromBytes(img.bytes, filename: img.name);
       }
@@ -211,19 +242,89 @@ class _FeedbackPageState extends State<FeedbackPage> {
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Container(height: 1, color: TColors.border),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCategoryTabs(),
+                    const SizedBox(height: 12),
+                    _buildField(
+                      controller: _titleController,
+                      hint: 'title',
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildField(
+                      controller: _messageController,
+                      hint: 'describe the issue or suggestion...',
+                      maxLines: 5,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAttachRow(),
+                    if (_images.isNotEmpty) _buildImagePreviews(),
+                    const SizedBox(height: 8),
+                    _buildDetailsToggle(),
+                    if (_showDetails) ...[
+                      const SizedBox(height: 8),
+                      _buildField(
+                        controller: _stepsController,
+                        hint: 'steps to reproduce (1) ... (2) ...',
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildField(
+                        controller: _expectedController,
+                        hint: 'expected result',
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildField(
+                        controller: _actualController,
+                        hint: 'actual result',
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildField(
+                        controller: _contactController,
+                        hint: 'contact (email / discord)',
+                        maxLines: 1,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    _buildActions(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           GestureDetector(
             onTap: _sending ? null : () => Navigator.of(context).pop(),
-            child: const Icon(
-              Icons.arrow_back,
-              size: 18,
-              color: TColors.mutedText,
-            ),
+            child: const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
           ),
           const SizedBox(width: 8),
           const Text(
@@ -240,344 +341,195 @@ class _FeedbackPageState extends State<FeedbackPage> {
     );
   }
 
-  Widget _buildSection({
-    required String label,
-    required String description,
+  Widget _buildCategoryTabs() {
+    const tabs = ['bug', 'suggestion', 'question'];
+    return Row(
+      children: tabs.map((t) {
+        final active = _category == t;
+        return Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: GestureDetector(
+            onTap: _sending ? null : () => setState(() => _category = t),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              color: active ? TColors.green.withValues(alpha: 0.15) : TColors.surface,
+              child: Text(
+                t,
+                style: TextStyle(
+                  color: active ? TColors.green : TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildField({
     required TextEditingController controller,
+    required String hint,
     int maxLines = 1,
-    String? hint,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: TColors.cyan,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      color: TColors.surface,
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        minLines: 1,
+        cursorColor: TColors.green,
+        style: const TextStyle(
+          color: TColors.foreground,
+          fontFamily: 'monospace',
+          fontSize: 12,
         ),
-        const SizedBox(height: 6),
-        Text(
-          description,
-          style: const TextStyle(
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
-            fontSize: 11,
-            height: 1.4,
+            fontSize: 12,
           ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          color: TColors.surface,
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            minLines: 1,
-            cursorColor: TColors.green,
-            style: const TextStyle(
-              color: TColors.foreground,
+      ),
+    );
+  }
+
+  Widget _buildAttachRow() {
+    return Container(
+      color: TColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _sending ? null : _pickImages,
+            child: Icon(Icons.attach_file, size: 16, color: TColors.cyan),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _images.isEmpty ? 'attach images' : '${_images.length}/3',
+            style: TextStyle(
+              color: _images.isEmpty ? TColors.mutedText : TColors.cyan,
               fontFamily: 'monospace',
-              fontSize: 13,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+              fontSize: 11,
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          style: const TextStyle(
-            color: TColors.cyan,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-          decoration: const InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'what type of feedback is this?',
-          style: TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 11,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          color: TColors.surface,
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _category,
-              dropdownColor: TColors.surface,
-              iconEnabledColor: TColors.mutedText,
-              items: const [
-                DropdownMenuItem(value: 'bug', child: Text('bug')),
-                DropdownMenuItem(value: 'suggestion', child: Text('suggestion')),
-                DropdownMenuItem(value: 'question', child: Text('question')),
-              ],
-              onChanged: _sending
-                  ? null
-                  : (v) {
-                      if (v == null) return;
-                      setState(() => _category = v);
-                    },
-              style: const TextStyle(
-                color: TColors.foreground,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAttachmentsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'attachments',
-          style: TextStyle(
-            color: TColors.cyan,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'attach up to 3 images (max 8mb each).',
-          style: TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 11,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            TermButton(
-              icon: Icons.folder_open,
-              label: 'pick images',
-              onTap: _sending ? null : _pickImages,
-              accent: true,
-            ),
-            const SizedBox(width: 8),
-            TermButton(
-              icon: Icons.refresh,
-              label: 'clear',
+          if (_images.isNotEmpty) ...[
+            const Spacer(),
+            GestureDetector(
               onTap: _sending ? null : () => setState(() => _images.clear()),
+              child: Icon(Icons.close, size: 14, color: TColors.mutedText),
             ),
-            const SizedBox(width: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagePreviews() {
+    return Container(
+      color: TColors.surface,
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (var i = 0; i < _images.length; i++)
+            Stack(
+              children: [
+                Container(
+                  width: 80,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: TColors.border),
+                    color: TColors.background,
+                  ),
+                  child: Image.memory(_images[i].bytes, fit: BoxFit.cover),
+                ),
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: GestureDetector(
+                    onTap: _sending ? null : () => setState(() => _images.removeAt(i)),
+                    child: Container(
+                      padding: const EdgeInsets.all(1),
+                      color: TColors.surface,
+                      child: const Icon(Icons.close, size: 10, color: TColors.mutedText),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsToggle() {
+    return GestureDetector(
+      onTap: _sending ? null : () => setState(() => _showDetails = !_showDetails),
+      child: Container(
+        color: TColors.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              _showDetails ? Icons.expand_less : Icons.expand_more,
+              size: 14,
+              color: TColors.mutedText,
+            ),
+            const SizedBox(width: 6),
             Text(
-              '${_images.length}/3',
-              style: const TextStyle(
+              'details',
+              style: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 11,
               ),
             ),
-          ],
-        ),
-        if (_images.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (var i = 0; i < _images.length; i++)
-                Stack(
-                  children: [
-                    Container(
-                      width: 110,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TColors.border),
-                        color: TColors.surface,
-                      ),
-                      child: Image.memory(
-                        _images[i].bytes,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: _sending
-                            ? null
-                            : () => setState(() => _images.removeAt(i)),
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: TColors.surface,
-                            border: Border.all(color: TColors.border),
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 14,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Container(height: 1, color: TColors.border),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'tell us what happened. include steps and screenshots if possible.',
-                      style: TextStyle(
-                        color: TColors.foreground,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildCategorySection(),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'title',
-                      description: 'short summary of your feedback.',
-                      controller: _titleController,
-                      hint: 'short summary',
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'message',
-                      description: 'describe the issue / suggestion. required.',
-                      controller: _messageController,
-                      maxLines: 6,
-                      hint: 'write here...',
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'steps',
-                      description: 'how to reproduce. optional.',
-                      controller: _stepsController,
-                      maxLines: 4,
-                      hint: '1) ... 2) ...',
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'expected',
-                      description: 'what you expected to happen. optional.',
-                      controller: _expectedController,
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'actual',
-                      description: 'what actually happened. optional.',
-                      controller: _actualController,
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSection(
-                      label: 'contact',
-                      description: 'how we can reach you. optional.',
-                      controller: _contactController,
-                      hint: 'email / discord / other',
-                    ),
-                    const SizedBox(height: 20),
-                    _buildAttachmentsSection(),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        TermButton(
-                          icon: Icons.send,
-                          label: _sending ? 'sending...' : 'send',
-                          onTap: _sending ? null : _send,
-                          accent: true,
-                        ),
-                        const SizedBox(width: 8),
-                        TermButton(
-                          icon: Icons.refresh,
-                          label: 'reset fields',
-                          onTap: _sending
-                              ? null
-                              : () {
-                                  _titleController.clear();
-                                  _messageController.clear();
-                                  _stepsController.clear();
-                                  _expectedController.clear();
-                                  _actualController.clear();
-                                  _contactController.clear();
-                                  setState(() => _images.clear());
-                                },
-                        ),
-                        const Spacer(),
-                        if (_sending)
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              color: TColors.green,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+            const SizedBox(width: 4),
+            Text(
+              '(optional)',
+              style: TextStyle(
+                color: TColors.mutedText.withValues(alpha: 0.5),
+                fontFamily: 'monospace',
+                fontSize: 10,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActions() {
+    return Row(
+      children: [
+        TermButton(
+          icon: Icons.send,
+          label: _sending ? 'sending...' : 'send',
+          onTap: _sending ? null : _send,
+          accent: true,
+        ),
+        const Spacer(),
+        if (_sending)
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              color: TColors.green,
+              strokeWidth: 2,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -306,6 +306,7 @@ class FileSystemEnvService implements EnvService {
       });
     }
     return jsonEncode({
+      'type': 'env',
       'version': 2,
       'active': active?.id,
       'environments': exportData,
@@ -315,6 +316,9 @@ class FileSystemEnvService implements EnvService {
   @override
   Future<void> importFromJson(String? projectId, String json) async {
     final data = jsonDecode(json) as Map<String, dynamic>;
+    if (data['type'] != null && data['type'] != 'env') {
+      throw Exception('this file is a ${data['type']} export, not an env export');
+    }
     final envList = <Environment>[];
     for (final envData in (data['environments'] as List)) {
       final e = envData as Map<String, dynamic>;

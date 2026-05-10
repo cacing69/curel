@@ -1,25 +1,23 @@
+import 'dart:convert';
+
 import 'package:curel/domain/models/project_model.dart';
-import 'package:curel/domain/services/project_service.dart';
-import 'package:curel/domain/services/request_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProjectListPage extends StatefulWidget {
-  final ProjectService projectService;
-  final RequestService requestService;
-
+class ProjectListPage extends ConsumerStatefulWidget {
   const ProjectListPage({
-    required this.projectService,
-    required this.requestService,
     super.key,
   });
 
   @override
-  State<ProjectListPage> createState() => _ProjectListPageState();
+  ConsumerState<ProjectListPage> createState() => _ProjectListPageState();
 }
 
-class _ProjectListPageState extends State<ProjectListPage> {
+class _ProjectListPageState extends ConsumerState<ProjectListPage> {
   List<Project> _projects = [];
   String? _activeProjectId;
   bool _loading = true;
@@ -32,11 +30,11 @@ class _ProjectListPageState extends State<ProjectListPage> {
   }
 
   Future<void> _load() async {
-    final projects = await widget.projectService.getAll();
-    final activeId = await widget.projectService.getActiveProjectId();
+    final projects = await ref.read(projectServiceProvider).getAll();
+    final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
     final counts = <String, int>{};
     for (final p in projects) {
-      final requests = await widget.requestService.listRequests(p.id);
+      final requests = await ref.read(requestServiceProvider).listRequests(p.id);
       counts[p.id] = requests.length;
     }
     if (mounted) {
@@ -54,14 +52,14 @@ class _ProjectListPageState extends State<ProjectListPage> {
   Future<void> _createProject() async {
     final name = await _showNameDialog('new project');
     if (name == null || name.trim().isEmpty) return;
-    await widget.projectService.create(name.trim());
+    await ref.read(projectServiceProvider).create(name.trim());
     await _load();
   }
 
   Future<void> _renameProject(Project project) async {
     final name = await _showNameDialog('rename', initial: project.name);
     if (name == null || name.trim().isEmpty) return;
-    await widget.projectService.update(project.copyWith(name: name.trim()));
+    await ref.read(projectServiceProvider).update(project.copyWith(name: name.trim()));
     await _load();
   }
 
@@ -71,13 +69,50 @@ class _ProjectListPageState extends State<ProjectListPage> {
       'this will remove all requests and environments in this project.',
     );
     if (confirmed != true) return;
-    await widget.projectService.delete(project.id);
+    await ref.read(projectServiceProvider).delete(project.id);
     await _load();
   }
 
   Future<void> _selectProject(Project project) async {
-    await widget.projectService.setActiveProject(project.id);
+    await ref.read(projectServiceProvider).setActiveProject(project.id);
     if (mounted) Navigator.of(context).pop(project.id);
+  }
+
+  Future<void> _exportProject(Project project) async {
+    try {
+      final json = await ref.read(workspaceServiceProvider).exportProject(project.id);
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'export project',
+        fileName: '${project.name}.json',
+        bytes: utf8.encode(json),
+      );
+      if (path != null && mounted) showTerminalToast(context, 'exported');
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  Future<void> _importProject() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      if (bytes == null) return;
+      final json = utf8.decode(bytes);
+      final counts = await ref.read(workspaceServiceProvider).importProject(json);
+      await _load();
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'imported ${counts.requests} requests, ${counts.envs} envs',
+        );
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────
@@ -248,11 +283,13 @@ class _ProjectListPageState extends State<ProjectListPage> {
           color: TColors.surface,
           items: [
             PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
-            PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.delete, 'delete')),
+            PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.download, 'export')),
+            PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
           ],
         ).then((value) {
           if (value == 0) _renameProject(project);
-          if (value == 1) _deleteProject(project);
+          if (value == 1) _exportProject(project);
+          if (value == 2) _deleteProject(project);
         });
       },
       child: Container(
@@ -289,6 +326,8 @@ class _ProjectListPageState extends State<ProjectListPage> {
         children: [
           TermButton(icon: Icons.add, label: 'new project', onTap: _createProject, accent: true),
           const Spacer(),
+          TermButton(icon: Icons.upload_file, label: 'import', onTap: _importProject),
+          const SizedBox(width: 6),
           TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
         ],
       ),

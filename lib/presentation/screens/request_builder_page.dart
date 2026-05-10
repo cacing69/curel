@@ -1,8 +1,7 @@
 import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
-import 'package:curel/data/services/curl_http_client.dart';
-import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
@@ -10,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 // ── Models ──────────────────────────────────────────────────────
@@ -46,25 +46,21 @@ class FormDataEntry {
 
 // ── Page ────────────────────────────────────────────────────────
 
-class RequestBuilderPage extends StatefulWidget {
+class RequestBuilderPage extends ConsumerStatefulWidget {
   final String? initialCurl;
-  final CurlHttpClient httpClient;
-  final EnvService envService;
   final String? projectId;
 
   const RequestBuilderPage({
     this.initialCurl,
-    required this.httpClient,
-    required this.envService,
     this.projectId,
     super.key,
   });
 
   @override
-  State<RequestBuilderPage> createState() => _RequestBuilderPageState();
+  ConsumerState<RequestBuilderPage> createState() => _RequestBuilderPageState();
 }
 
-class _RequestBuilderPageState extends State<RequestBuilderPage> {
+class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   late HttpMethod _method;
   late String _url;
   late List<KeyValueEntry> _headers;
@@ -99,12 +95,12 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
   Future<void> _refreshEnvKeys() async {
     final keys = <String>{};
-    final global = await widget.envService.getActive(null);
+    final global = await ref.read(envServiceProvider).getActive(null);
     if (global != null) {
       keys.addAll(global.variables.map((v) => v.key));
     }
     if (widget.projectId != null) {
-      final project = await widget.envService.getActive(widget.projectId);
+      final project = await ref.read(envServiceProvider).getActive(widget.projectId);
       if (project != null) {
         keys.addAll(project.variables.map((v) => v.key));
       }

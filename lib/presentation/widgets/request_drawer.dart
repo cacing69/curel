@@ -1,20 +1,19 @@
 import 'package:curel/domain/models/request_item_model.dart';
-import 'package:curel/domain/services/request_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-class RequestDrawer extends StatefulWidget {
+class RequestDrawer extends ConsumerStatefulWidget {
   final String projectId;
-  final RequestService requestService;
   final ValueChanged<String> onRequestSelected;
   final VoidCallback? onNewRequest;
   final String? selectedPath;
 
   const RequestDrawer({
     required this.projectId,
-    required this.requestService,
     required this.onRequestSelected,
     this.onNewRequest,
     this.selectedPath,
@@ -22,10 +21,10 @@ class RequestDrawer extends StatefulWidget {
   });
 
   @override
-  State<RequestDrawer> createState() => _RequestDrawerState();
+  ConsumerState<RequestDrawer> createState() => _RequestDrawerState();
 }
 
-class _RequestDrawerState extends State<RequestDrawer> {
+class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   List<RequestItem> _requests = [];
   bool _loading = true;
   String _searchQuery = '';
@@ -37,7 +36,7 @@ class _RequestDrawerState extends State<RequestDrawer> {
   }
 
   Future<void> _load() async {
-    final requests = await widget.requestService.listRequests(widget.projectId);
+    final requests = await ref.read(requestServiceProvider).listRequests(widget.projectId);
     if (mounted) {
       setState(() {
         _requests = requests;
@@ -303,7 +302,7 @@ class _RequestDrawerState extends State<RequestDrawer> {
       ],
     ).then((value) async {
       if (value == 'share') {
-        final content = await widget.requestService.readCurl(
+        final content = await ref.read(requestServiceProvider).readCurl(
           widget.projectId,
           item.relativePath,
         );
@@ -313,7 +312,7 @@ class _RequestDrawerState extends State<RequestDrawer> {
       } else if (value == 'rename') {
         final name = await _showNameDialog(item.displayName);
         if (name != null && name.trim().isNotEmpty) {
-          await widget.requestService.renameRequest(
+          await ref.read(requestServiceProvider).renameRequest(
             widget.projectId,
             item.relativePath,
             name.trim(),
@@ -321,7 +320,7 @@ class _RequestDrawerState extends State<RequestDrawer> {
           _load();
         }
       } else if (value == 'delete') {
-        await widget.requestService.deleteRequest(
+        await ref.read(requestServiceProvider).deleteRequest(
           widget.projectId,
           item.relativePath,
         );

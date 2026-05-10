@@ -2,25 +2,25 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:curel/domain/models/env_model.dart';
-import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum _EnvScope { project, global }
 
-class EnvPage extends StatefulWidget {
-  final EnvService envService;
+class EnvPage extends ConsumerStatefulWidget {
   final String? projectId;
 
-  const EnvPage({required this.envService, this.projectId, super.key});
+  const EnvPage({this.projectId, super.key});
 
   @override
-  State<EnvPage> createState() => _EnvPageState();
+  ConsumerState<EnvPage> createState() => _EnvPageState();
 }
 
-class _EnvPageState extends State<EnvPage> {
+class _EnvPageState extends ConsumerState<EnvPage> {
   var _scope = _EnvScope.project;
   List<Environment> _envs = [];
   String? _activeId;
@@ -36,14 +36,24 @@ class _EnvPageState extends State<EnvPage> {
     _load();
   }
 
+  Environment? get _globalEnv =>
+      _scope == _EnvScope.global && _envs.length == 1 ? _envs.first : null;
+
   Future<void> _load() async {
     final scopeId = _scopeProjectId;
-    final envs = await widget.envService.getAll(scopeId);
-    final active = await widget.envService.getActive(scopeId);
+    var envs = await ref.read(envServiceProvider).getAll(scopeId);
+
+    if (_scope == _EnvScope.global && envs.isEmpty) {
+      final env = await ref.read(envServiceProvider).create(null, 'default');
+      await ref.read(envServiceProvider).setActive(null, env.id);
+      envs = [env];
+    }
+
+    final active = await ref.read(envServiceProvider).getActive(scopeId);
     final values = <String, String>{};
     for (final env in envs) {
       for (final v in env.variables) {
-        final val = await widget.envService.getValue(env, v.key);
+        final val = await ref.read(envServiceProvider).getValue(env, v.key);
         if (val != null) values['${env.id}_${v.key}'] = val;
       }
     }
@@ -69,14 +79,14 @@ class _EnvPageState extends State<EnvPage> {
   }
 
   Future<void> _setActive(String id) async {
-    await widget.envService.setActive(_scopeProjectId, id);
+    await ref.read(envServiceProvider).setActive(_scopeProjectId, id);
     setState(() => _activeId = id);
   }
 
   Future<void> _createEnv() async {
     final name = await _showNameDialog('new environment');
     if (name == null || name.trim().isEmpty) return;
-    final env = await widget.envService.create(_scopeProjectId, name.trim());
+    final env = await ref.read(envServiceProvider).create(_scopeProjectId, name.trim());
     await _setActive(env.id);
     await _load();
   }
@@ -87,7 +97,7 @@ class _EnvPageState extends State<EnvPage> {
     final name = await _showNameDialog('rename', initial: env.name);
     if (name == null || name.trim().isEmpty) return;
     try {
-      await widget.envService.save(
+      await ref.read(envServiceProvider).save(
         _scopeProjectId,
         env.copyWith(name: name.trim()),
       );
@@ -108,13 +118,13 @@ class _EnvPageState extends State<EnvPage> {
   Future<void> _duplicateEnv(String envId) async {
     final env = _envs.where((e) => e.id == envId).firstOrNull;
     if (env == null) return;
-    final copy = widget.envService.duplicate(env);
-    await widget.envService.save(_scopeProjectId, copy);
+    final copy = ref.read(envServiceProvider).duplicate(env);
+    await ref.read(envServiceProvider).save(_scopeProjectId, copy);
     await _load();
   }
 
   Future<void> _deleteEnv(String id) async {
-    await widget.envService.delete(_scopeProjectId, id);
+    await ref.read(envServiceProvider).delete(_scopeProjectId, id);
     if (_activeId == id) _activeId = null;
     await _load();
   }
@@ -126,17 +136,17 @@ class _EnvPageState extends State<EnvPage> {
       ...env.variables,
       EnvVariable(key: result.key, sensitive: result.sensitive),
     ];
-    await widget.envService.save(
+    await ref.read(envServiceProvider).save(
       _scopeProjectId,
       env.copyWith(variables: vars),
     );
-    await widget.envService.setValue(env, result.key, result.value);
+    await ref.read(envServiceProvider).setValue(env, result.key, result.value);
     await _load();
   }
 
   Future<void> _editVariable(Environment env, int index) async {
     final v = env.variables[index];
-    final currentValue = await widget.envService.getValue(env, v.key);
+    final currentValue = await ref.read(envServiceProvider).getValue(env, v.key);
     final result = await _showVarDialog(
       'edit variable',
       initialKey: v.key,
@@ -145,23 +155,23 @@ class _EnvPageState extends State<EnvPage> {
     );
     if (result == null) return;
     if (result.key != v.key) {
-      await widget.envService.setValue(env, v.key, '');
+      await ref.read(envServiceProvider).setValue(env, v.key, '');
     }
     final vars = [...env.variables];
     vars[index] = EnvVariable(key: result.key, sensitive: result.sensitive);
-    await widget.envService.save(
+    await ref.read(envServiceProvider).save(
       _scopeProjectId,
       env.copyWith(variables: vars),
     );
-    await widget.envService.setValue(env, result.key, result.value);
+    await ref.read(envServiceProvider).setValue(env, result.key, result.value);
     await _load();
   }
 
   Future<void> _deleteVariable(Environment env, int index) async {
     final v = env.variables[index];
-    await widget.envService.setValue(env, v.key, '');
+    await ref.read(envServiceProvider).setValue(env, v.key, '');
     final vars = [...env.variables]..removeAt(index);
-    await widget.envService.save(
+    await ref.read(envServiceProvider).save(
       _scopeProjectId,
       env.copyWith(variables: vars),
     );
@@ -169,7 +179,7 @@ class _EnvPageState extends State<EnvPage> {
   }
 
   Future<void> _export() async {
-    final json = await widget.envService.exportToJson(_scopeProjectId);
+    final json = await ref.read(envServiceProvider).exportToJson(_scopeProjectId);
     try {
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'export env',
@@ -195,7 +205,7 @@ class _EnvPageState extends State<EnvPage> {
       final bytes = file.bytes;
       if (bytes == null) return;
       final json = utf8.decode(bytes);
-      await widget.envService.importFromJson(_scopeProjectId, json);
+      await ref.read(envServiceProvider).importFromJson(_scopeProjectId, json);
       await _load();
       if (mounted) showTerminalToast(context, 'imported');
     } catch (e) {
@@ -419,6 +429,8 @@ class _EnvPageState extends State<EnvPage> {
                         strokeWidth: 2,
                       ),
                     )
+                  : _scope == _EnvScope.global
+                  ? _buildGlobalList()
                   : _envs.isEmpty
                   ? _buildEmpty()
                   : _buildList(),
@@ -509,6 +521,71 @@ class _EnvPageState extends State<EnvPage> {
           fontFamily: 'monospace',
         ),
       ),
+    );
+  }
+
+  Widget _buildGlobalList() {
+    final env = _globalEnv;
+    if (env == null) return _buildEmpty();
+
+    if (env.variables.isEmpty) {
+      return Center(
+        child: Text(
+          'no variables yet',
+          style: TextStyle(
+            color: TColors.mutedText.withValues(alpha: 0.5),
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: env.variables.length,
+      itemBuilder: (_, i) {
+        final v = env.variables[i];
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          color: i.isEven ? TColors.background : TColors.surface,
+          child: Row(
+            children: [
+              Text(
+                '<<${v.key}>>',
+                style: const TextStyle(
+                  color: TColors.purple,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  v.sensitive
+                      ? '***'
+                      : (_values['${env.id}_${v.key}'] ?? ''),
+                  style: const TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _editVariable(env, i),
+                child: Icon(Icons.edit, size: 12, color: TColors.mutedText),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _deleteVariable(env, i),
+                child: Icon(Icons.delete, size: 12, color: TColors.red),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -697,17 +774,28 @@ class _EnvPageState extends State<EnvPage> {
   }
 
   Widget _buildBottomBar() {
+    final isGlobal = _scope == _EnvScope.global;
     return Container(
       color: TColors.surface,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Row(
         children: [
-          TermButton(
-            icon: Icons.add,
-            label: 'new',
-            onTap: _createEnv,
-            accent: true,
-          ),
+          if (isGlobal)
+            TermButton(
+              icon: Icons.add,
+              label: 'add var',
+              onTap: _globalEnv != null
+                  ? () => _addVariable(_globalEnv!)
+                  : null,
+              accent: true,
+            )
+          else
+            TermButton(
+              icon: Icons.add,
+              label: 'new',
+              onTap: _createEnv,
+              accent: true,
+            ),
           const Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _import),
           const SizedBox(width: 6),

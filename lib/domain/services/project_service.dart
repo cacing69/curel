@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/models/project_model.dart';
@@ -20,6 +21,7 @@ abstract class ProjectService {
   Future<void> setActiveProject(String? id);
   Future<Project?> getActiveProject();
   Future<Project> ensureDefaultProject();
+  Future<void> syncFromFilesystem();
 }
 
 class FilesystemProjectService implements ProjectService {
@@ -149,5 +151,36 @@ class FilesystemProjectService implements ProjectService {
     final project = await create(_defaultProjectName);
     await setActiveProject(project.id);
     return project;
+  }
+
+  @override
+  Future<void> syncFromFilesystem() async {
+    final root = await _fs.getWorkspaceRoot();
+    final projectsDir = p.join(root, 'projects');
+    final dir = Directory(projectsDir);
+    if (!await dir.exists()) {
+      await _saveAll([]);
+      return;
+    }
+
+    final projects = <Project>[];
+    await for (final entity in dir.list()) {
+      if (entity is! Directory) continue;
+      final curelJson = File(p.join(entity.path, 'curel.json'));
+      if (!await curelJson.exists()) continue;
+      try {
+        final content = await curelJson.readAsString();
+        final json = jsonDecode(content) as Map<String, dynamic>;
+        projects.add(Project.fromJson(json));
+      } catch (_) {}
+    }
+
+    await _saveAll(projects);
+
+    final prefs = await _instance;
+    final activeId = prefs.getString(_keyActiveProject);
+    if (activeId != null && !projects.any((p) => p.id == activeId)) {
+      await prefs.remove(_keyActiveProject);
+    }
   }
 }

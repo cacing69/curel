@@ -98,7 +98,7 @@ class PreferencesSettingsService implements SettingsService {
   Future<String> getEffectiveWorkspacePath() async {
     final custom = await getWorkspacePath();
     if (custom != null && custom.isNotEmpty) return custom;
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await getApplicationSupportDirectory();
     return p.join(appDir.path, 'curel');
   }
 

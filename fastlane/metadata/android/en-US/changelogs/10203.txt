@@ -1,0 +1,5 @@
+- convert 5 page widgets from constructor-based DI to Riverpod (env_page, settings_page, history_page, request_builder_page, project_list_page)
+- update navigation calls in home_page.dart to remove service params from page constructors
+- migrate to flutter_riverpod: ProviderScope in main.dart, ConsumerStatefulWidget for all pages
+- create service providers (lib/domain/providers/services.dart) and state providers (lib/domain/providers/app_state.dart)
+- remove service constructor params from all pages, use ref.read() instead

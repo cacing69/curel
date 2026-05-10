@@ -1,7 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:curel/data/services/filesystem_service.dart';
-import 'package:curel/domain/services/env_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -9,20 +10,16 @@ import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SettingsPage extends StatefulWidget {
-  final SettingsService settingsService;
-  final EnvService envService;
-  final FileSystemService fsService;
+class SettingsPage extends ConsumerStatefulWidget {
   final void Function(String userAgent) onUserAgentChanged;
   final void Function() onWorkspaceChanged;
   final String? projectId;
 
   const SettingsPage({
-    required this.settingsService,
-    required this.envService,
-    required this.fsService,
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
     this.projectId,
@@ -30,10 +27,10 @@ class SettingsPage extends StatefulWidget {
   });
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _uaController = TextEditingController();
   final _connectTimeoutController = TextEditingController();
   final _maxTimeController = TextEditingController();
@@ -56,11 +53,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
-    final ua = await widget.settingsService.getUserAgent();
-    final defaultUA = await widget.settingsService.getDefaultUserAgent();
-    final connectTimeout = await widget.settingsService.getConnectTimeout();
-    final maxTime = await widget.settingsService.getMaxTime();
-    final workspace = await widget.settingsService.getEffectiveWorkspacePath();
+    final ua = await ref.read(settingsProvider).getUserAgent();
+    final defaultUA = await ref.read(settingsProvider).getDefaultUserAgent();
+    final connectTimeout = await ref.read(settingsProvider).getConnectTimeout();
+    final maxTime = await ref.read(settingsProvider).getMaxTime();
+    final workspace = await ref.read(settingsProvider).getEffectiveWorkspacePath();
     if (mounted) {
       _defaultUA = defaultUA;
       _uaController.text = ua == defaultUA ? '' : ua;
@@ -76,12 +73,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _save() async {
-    await widget.settingsService.setUserAgent(_uaController.text.trim());
+    await ref.read(settingsProvider).setUserAgent(_uaController.text.trim());
     final ct = int.tryParse(_connectTimeoutController.text.trim());
-    await widget.settingsService.setConnectTimeout(ct);
+    await ref.read(settingsProvider).setConnectTimeout(ct);
     final mt = int.tryParse(_maxTimeController.text.trim());
-    await widget.settingsService.setMaxTime(mt);
-    final ua = await widget.settingsService.getUserAgent();
+    await ref.read(settingsProvider).setMaxTime(mt);
+    final ua = await ref.read(settingsProvider).getUserAgent();
     widget.onUserAgentChanged(ua);
     if (mounted) Navigator.of(context).pop();
   }
@@ -93,8 +90,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (result == null) return;
 
     try {
-      await widget.settingsService.setWorkspacePath(result);
-      await widget.fsService.setWorkspaceRoot(result);
+      await ref.read(settingsProvider).setWorkspacePath(result);
+      await ref.read(fileSystemProvider).setWorkspaceRoot(result);
       widget.onWorkspaceChanged();
       if (mounted) {
         setState(() => _workspaceDisplay = result);
@@ -115,12 +112,51 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _resetWorkspace() async {
-    await widget.settingsService.clearWorkspacePath();
-    final effective = await widget.settingsService.getEffectiveWorkspacePath();
-    await widget.fsService.setWorkspaceRoot(effective);
+    await ref.read(settingsProvider).clearWorkspacePath();
+    final effective = await ref.read(settingsProvider).getEffectiveWorkspacePath();
+    await ref.read(fileSystemProvider).setWorkspaceRoot(effective);
     widget.onWorkspaceChanged();
     if (mounted) {
       setState(() => _workspaceDisplay = effective);
+    }
+  }
+
+  Future<void> _exportWorkspace() async {
+    try {
+      final json = await ref.read(workspaceServiceProvider).exportWorkspace();
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'export workspace',
+        fileName: 'curel-workspace.json',
+        bytes: utf8.encode(json),
+      );
+      if (path != null && mounted) {
+        showTerminalToast(context, 'workspace exported');
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  Future<void> _importWorkspace() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      if (bytes == null) return;
+      final json = utf8.decode(bytes);
+      final counts = await ref.read(workspaceServiceProvider).importWorkspace(json);
+      widget.onWorkspaceChanged();
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'imported ${counts.projects} projects, ${counts.requests} requests, ${counts.envs} envs',
+        );
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
     }
   }
 
@@ -181,6 +217,14 @@ class _SettingsPageState extends State<SettingsPage> {
     final dir = Directory(root);
     if (await dir.exists()) {
       await dir.delete(recursive: true);
+    }
+
+    final docsDir = await getApplicationSupportDirectory();
+    final isarFiles = Directory(docsDir.path).listSync().where(
+      (f) => f.path.contains('history'),
+    );
+    for (final f in isarFiles) {
+      await f.delete(recursive: true);
     }
 
     exit(0);
@@ -245,7 +289,6 @@ class _SettingsPageState extends State<SettingsPage> {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => EnvPage(
-                                  envService: widget.envService,
                                   projectId: widget.projectId,
                                 ),
                               ),
@@ -462,6 +505,10 @@ class _SettingsPageState extends State<SettingsPage> {
               label: 'default',
               onTap: _resetWorkspace,
             ),
+            const Spacer(),
+            TermButton(icon: Icons.upload_file, label: 'import', onTap: _importWorkspace),
+            const SizedBox(width: 6),
+            TermButton(icon: Icons.download, label: 'export', onTap: _exportWorkspace),
           ],
         ),
       ],

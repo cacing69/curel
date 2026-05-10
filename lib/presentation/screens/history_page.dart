@@ -1,24 +1,20 @@
 import 'package:curel/domain/models/history_model.dart';
 import 'package:curel/domain/models/bookmark_model.dart';
-import 'package:curel/domain/services/bookmark_service.dart';
-import 'package:curel/domain/services/history_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 enum _HistoryView { history, bookmark }
 
-class HistoryPage extends StatefulWidget {
-  final HistoryService historyService;
-  final BookmarkService bookmarkService;
+class HistoryPage extends ConsumerStatefulWidget {
   final String? currentProjectId;
   final String? currentProjectName;
   final ValueChanged<String> onSelect;
 
   const HistoryPage({
-    required this.historyService,
-    required this.bookmarkService,
     this.currentProjectId,
     this.currentProjectName,
     required this.onSelect,
@@ -26,10 +22,10 @@ class HistoryPage extends StatefulWidget {
   });
 
   @override
-  State<HistoryPage> createState() => _HistoryPageState();
+  ConsumerState<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
+class _HistoryPageState extends ConsumerState<HistoryPage> {
   var _view = _HistoryView.history;
   List<HistoryItem> _historyItems = [];
   List<BookmarkItem> _bookmarkItems = [];
@@ -47,7 +43,7 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
 
-    final allBookmarks = await widget.bookmarkService.getAll();
+    final allBookmarks = await ref.read(bookmarkServiceProvider).getAll();
     final bookmarkedIds = <int>{};
     for (final b in allBookmarks) {
       final id = b.originHistoryId;
@@ -61,11 +57,11 @@ class _HistoryPageState extends State<HistoryPage> {
     List<BookmarkItem> bookmarkItems = [];
 
     if (_view == _HistoryView.history) {
-      historyItems = await widget.historyService.getAll(
+      historyItems = await ref.read(historyServiceProvider).getAll(
         projectId: projectFilter,
       );
     } else {
-      bookmarkItems = await widget.bookmarkService.getAll(
+      bookmarkItems = await ref.read(bookmarkServiceProvider).getAll(
         projectId: projectFilter,
       );
     }
@@ -245,7 +241,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
                 );
                 if (confirm == true) {
-                  await widget.bookmarkService.clear();
+                  await ref.read(bookmarkServiceProvider).clear();
                   _load();
                 }
                 return;
@@ -282,7 +278,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
               );
               if (confirm == true) {
-                await widget.historyService.clear();
+                await ref.read(historyServiceProvider).clear();
                 _load();
               }
             },
@@ -298,7 +294,7 @@ class _HistoryPageState extends State<HistoryPage> {
         item.projectId != null && item.projectId == widget.currentProjectId
         ? widget.currentProjectName
         : null;
-    final saved = await widget.bookmarkService.toggleFromHistory(
+    final saved = await ref.read(bookmarkServiceProvider).toggleFromHistory(
       item,
       projectName: projectName,
     );
@@ -455,7 +451,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () async {
-                    await widget.bookmarkService.removeById(item.id);
+                    await ref.read(bookmarkServiceProvider).removeById(item.id);
                     if (!mounted) return;
                     setState(() {
                       _bookmarkItems.removeWhere((e) => e.id == item.id);
