@@ -4,16 +4,23 @@ abstract class GitClient {
 
   /// Fetch all files from a remote repository branch
   Future<List<GitFile>> fetchFiles(String remoteUrl, String branch, String token);
-  
-  /// Push local changes to the remote repository
-  Future<void> pushFiles(String remoteUrl, String branch, String token, List<GitFile> files, String message);
+
+  /// List only file paths from remote tree (no content fetch)
+  Future<List<String>> listRemotePaths(String remoteUrl, String branch, String token);
+
+  /// Push local changes to the remote repository. Returns the new commit SHA.
+  Future<String> pushFiles(String remoteUrl, String branch, String token, List<GitFile> files, String message);
+
+  /// Validate token by testing authentication. Returns username on success, null on failure.
+  Future<String?> validateToken(String token, {String? baseUrl});
 }
 
 class GitFile {
   final String path;
   final String content;
+  final bool deletion;
 
-  GitFile({required this.path, required this.content});
+  GitFile({required this.path, required this.content, this.deletion = false});
 }
 
 class GitSyncResult {
@@ -21,6 +28,7 @@ class GitSyncResult {
   final String message;
   final int filesCount;
   final bool hasConflict;
+  final String? newSyncSha;
   final dynamic data;
 
   GitSyncResult({
@@ -28,6 +36,7 @@ class GitSyncResult {
     required this.message,
     this.filesCount = 0,
     this.hasConflict = false,
+    this.newSyncSha,
     this.data,
   });
 }

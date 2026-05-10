@@ -157,7 +157,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final confirmed = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           'reset app',
           style: TextStyle(

@@ -168,6 +168,18 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     }
   }
 
+  Future<void> _updateProject(Project project, {String? syncSha, String? originId}) async {
+    var updated = project;
+    if (syncSha != null) {
+      updated = updated.copyWith(lastSyncSha: syncSha);
+    }
+    if (originId != null && updated.remoteOriginId == null) {
+      updated = updated.copyWith(remoteOriginId: originId);
+    }
+    await ref.read(projectServiceProvider).update(updated);
+    ref.read(activeProjectProvider.notifier).set(updated);
+  }
+
   Future<void> _sync() async {
     final project = widget.activeProject;
     if (project == null) return;
@@ -177,61 +189,58 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       final result = await ref.read(gitSyncServiceProvider).sync(project);
       if (mounted) {
         if (result.success) {
-          // If sync returned a remoteOriginId, update the project
-          if (result.data is String && project.remoteOriginId == null) {
-            final updatedProject = project.copyWith(remoteOriginId: result.data as String);
-            await ref.read(projectServiceProvider).update(updatedProject);
-            ref.read(activeProjectProvider.notifier).set(updatedProject);
-          }
-          
-          // Robust re-sync of everything after Sync
+          await _updateProject(
+            project,
+            syncSha: result.newSyncSha,
+            originId: result.data is String ? result.data as String : null,
+          );
+
           await ref.read(syncControllerProvider).syncAndRefresh();
           showTerminalToast(context, result.message);
         } else if (result.hasConflict) {
           if (mounted) {
             final choice = await _showConflictDialog();
             if (choice == 'pull') {
-              // Forced Pull: simply call pull() - our current pull already overwrites
               final res = await ref.read(gitSyncServiceProvider).pull(project);
               if (res.success && mounted) {
-                final updatedProject = project.copyWith(remoteOriginId: res.data as String);
-                await ref.read(projectServiceProvider).update(updatedProject);
-                ref.read(activeProjectProvider.notifier).set(updatedProject);
+                await _updateProject(
+                  project,
+                  syncSha: res.newSyncSha,
+                  originId: res.data is String ? res.data as String : null,
+                );
                 await ref.read(syncControllerProvider).syncAndRefresh();
                 showTerminalToast(context, 'pulled and overwrote local data');
               }
             } else if (choice == 'push') {
-              // Forced Push: simply call push() - it will overwrite remote
-              final res = await ref.read(gitSyncServiceProvider).push(project);
+              final res = await ref.read(gitSyncServiceProvider).push(project, force: true);
               if (res.success && mounted) {
-                // If it was the first push, we might need to set the originId
-                if (project.remoteOriginId == null) {
-                   final updatedProject = project.copyWith(remoteOriginId: project.id);
-                   await ref.read(projectServiceProvider).update(updatedProject);
-                   ref.read(activeProjectProvider.notifier).set(updatedProject);
-                }
+                await _updateProject(
+                  project,
+                  syncSha: res.newSyncSha,
+                  originId: project.remoteOriginId ?? project.id,
+                );
                 showTerminalToast(context, 'pushed and overwrote remote data');
               }
             }
           }
         } else {
-          // Show in terminal response area with terminal-style formatting
           final terminalError = 'git sync\nerror: ${result.message}';
           ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
                 clearResponse: true,
                 error: terminalError,
               ));
-          showTerminalToast(context, 'sync failed (see terminal)');
+          showTerminalToast(context, result.message);
         }
       }
     } catch (e) {
       if (mounted) {
-        final terminalError = 'git sync\ncritical error: $e';
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        final terminalError = 'git sync\nerror: $msg';
         ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
               clearResponse: true,
               error: terminalError,
             ));
-        showTerminalToast(context, 'sync error');
+        showTerminalToast(context, msg);
       }
     } finally {
       if (mounted) setState(() => _isSyncing = false);
@@ -242,7 +251,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: const Text(
           'sync conflict detected',
@@ -301,13 +310,25 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       );
     }
 
-    return GestureDetector(
-      onTap: isGit ? _sync : _connect,
-      onLongPress: isGit ? _showDisconnectDialog : null,
-      child: Icon(
-        isGit ? Icons.sync : Icons.cloud_off,
-        size: 14,
-        color: isGit ? TColors.green : TColors.mutedText,
+    return Tooltip(
+      message: isGit
+          ? widget.activeProject!.lastSyncSha != null
+              ? 'tap to sync · long press to disconnect'
+              : 'not synced yet · tap to sync'
+          : 'tap to connect git',
+      preferBelow: false,
+      child: GestureDetector(
+        onTap: isGit ? _sync : _connect,
+        onLongPress: isGit ? _showDisconnectDialog : null,
+        child: Icon(
+          isGit ? Icons.sync : Icons.cloud_off,
+          size: 14,
+          color: isGit
+              ? (widget.activeProject!.lastSyncSha != null
+                  ? TColors.green
+                  : TColors.orange)
+              : TColors.mutedText,
+        ),
       ),
     );
   }
@@ -319,7 +340,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: const Text(
           'disconnect git',

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:crypto/crypto.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/data/services/github_client.dart';
 import 'package:curel/domain/models/project_model.dart';
@@ -8,7 +7,6 @@ import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
 import 'package:curel/domain/services/device_service.dart';
 import 'package:curel/domain/providers/services.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -56,14 +54,21 @@ class GitSyncService {
       // 2. Select Client
       final client = _getClient(provider.type);
 
-      // 3. Fetch Files
+      // 3. Get Remote SHA for sync tracking
+      final remoteSha = await client.getLatestCommitSha(
+        project.remoteUrl!,
+        project.branch!,
+        token,
+      );
+
+      // 4. Fetch Files
       final remoteFiles = await client.fetchFiles(
         project.remoteUrl!,
         project.branch!,
         token,
       );
 
-      // 4. Validate Remote Signature (curel.json)
+      // 5. Validate Remote Signature (curel.json)
       final remoteCurelJson = remoteFiles.firstWhere(
         (f) => f.path == 'curel.json',
         orElse: () => GitFile(path: '', content: ''),
@@ -77,7 +82,7 @@ class GitSyncService {
         } catch (_) {}
       }
 
-      // 5. SAFETY CHECK: Conflict Detection
+      // 6. SAFETY CHECK: Conflict Detection
       // If remote has files AND local has files (requests) AND they haven't been linked yet
       final localRequests = await _ref.read(requestServiceProvider).listRequests(project.id);
       final isNewConnection = project.remoteOriginId == null;
@@ -110,44 +115,57 @@ class GitSyncService {
         );
       }
 
-      // 5. Save to Filesystem
+      // 7. Save to Filesystem
       final projectDir = await _fs.getProjectDir(project.id);
       
       // Update local remoteOriginId if this is the first pull
       String? effectiveOriginId = project.remoteOriginId ?? remoteOriginId;
 
+      int written = 0;
+      int conflicts = 0;
+
       for (final file in remoteFiles) {
         final fullPath = p.join(projectDir, file.path);
-        final dir = Directory(p.dirname(fullPath));
-        if (!await dir.exists()) await dir.create(recursive: true);
 
         var content = file.content;
 
         if (file.path == 'curel.json') {
           try {
             final json = jsonDecode(content) as Map<String, dynamic>;
-            json['id'] = project.id; // Keep local ID for indexing
-            json['remote_origin_id'] = effectiveOriginId; // Store actual origin
-            
-            // Preserve connection info
+            json['id'] = project.id;
+            json['remote_origin_id'] = effectiveOriginId;
             json['remote_url'] = project.remoteUrl;
             json['provider'] = project.provider;
             json['branch'] = project.branch;
             json['mode'] = 'git';
             content = JsonEncoder.withIndent('  ').convert(json);
           } catch (_) {}
+        } else {
+          final localFile = File(fullPath);
+          if (await localFile.exists()) {
+            final localContent = await localFile.readAsString();
+            if (localContent != file.content) {
+              conflicts++;
+              continue;
+            }
+          }
         }
 
+        final dir = Directory(p.dirname(fullPath));
+        if (!await dir.exists()) await dir.create(recursive: true);
         await File(fullPath).writeAsString(content);
+        written++;
       }
 
       return GitSyncResult(
         success: true,
         message: remoteFiles.isEmpty
             ? 'cloud is empty. ready for initial push.'
-            : 'pulled ${remoteFiles.length} files successfully',
-        filesCount: remoteFiles.length,
-        // Carry the origin ID back to update the model
+            : conflicts > 0
+                ? 'pulled $written files, $conflicts kept local'
+                : 'pulled $written files successfully',
+        filesCount: written,
+        newSyncSha: remoteSha,
         data: effectiveOriginId,
       );
     } catch (e) {
@@ -155,7 +173,7 @@ class GitSyncService {
     }
   }
 
-  Future<GitSyncResult> push(Project project) async {
+  Future<GitSyncResult> push(Project project, {bool force = false}) async {
     if (project.remoteUrl == null ||
         project.provider == null ||
         project.branch == null) {
@@ -178,6 +196,21 @@ class GitSyncService {
         );
 
       final client = _getClient(provider.type);
+
+      // Optimistic locking: reject push if remote changed since last sync
+      if (!force && project.lastSyncSha != null) {
+        final remoteSha = await client.getLatestCommitSha(
+          project.remoteUrl!, project.branch!, token,
+        );
+        if (remoteSha != null && remoteSha != project.lastSyncSha) {
+          return GitSyncResult(
+            success: false,
+            hasConflict: true,
+            message: 'remote changed since last sync. pull first.',
+          );
+        }
+      }
+
       final projectDir = await _fs.getProjectDir(project.id);
 
       // 1. Gather local files (.curl, .meta.json, curel.json)
@@ -192,7 +225,7 @@ class GitSyncService {
               relPath.endsWith('.meta.json') ||
               relPath == 'curel.json') {
             var content = await entity.readAsString();
-            
+
             // Inject remote_origin_id into curel.json before pushing
             if (relPath == 'curel.json') {
               try {
@@ -201,13 +234,30 @@ class GitSyncService {
                 content = JsonEncoder.withIndent('  ').convert(json);
               } catch (_) {}
             }
-            
+
             localFiles.add(GitFile(path: relPath, content: content));
           }
         }
       }
 
-      // 2. Prepare Commit Message
+      // Inject .gitignore as repo infrastructure
+      localFiles.add(GitFile(
+        path: '.gitignore',
+        content: '# Curel ignore file\n# Ignore environments containing sensitive variables\nenvironments/\n.env\n*.local\n',
+      ));
+
+      // 2. Detect deletions: compare remote paths with local paths
+      final remotePaths = await client.listRemotePaths(
+        project.remoteUrl!, project.branch!, token,
+      );
+      final localPaths = localFiles.map((f) => f.path).toSet();
+      for (final remotePath in remotePaths) {
+        if (!localPaths.contains(remotePath)) {
+          localFiles.add(GitFile(path: remotePath, content: '', deletion: true));
+        }
+      }
+
+      // 3. Prepare Commit Message
       final now = DateTime.now();
       final timestamp =
           "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} "
@@ -220,8 +270,8 @@ class GitSyncService {
       final commitMessage =
           'sync from curel v$version ($fingerprint) $timestamp';
 
-      // 3. Push to Remote
-      await client.pushFiles(
+      // 4. Push to Remote
+      final newSha = await client.pushFiles(
         project.remoteUrl!,
         project.branch!,
         token,
@@ -233,6 +283,7 @@ class GitSyncService {
         success: true,
         message: 'pushed ${localFiles.length} files successfully',
         filesCount: localFiles.length,
+        newSyncSha: newSha,
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));
@@ -277,8 +328,11 @@ class GitSyncService {
         if (!pullRes.success) return pullRes;
       }
 
-      // 2. Push local changes
-      final pushRes = await push(project);
+      // 2. Push local changes (skip optimistic lock — we just pulled)
+      final syncedProject = pullRes.newSyncSha != null
+          ? project.copyWith(lastSyncSha: pullRes.newSyncSha)
+          : project;
+      final pushRes = await push(syncedProject);
       if (!pushRes.success) return pushRes;
 
       return GitSyncResult(
@@ -287,6 +341,8 @@ class GitSyncService {
             ? 'synced: local changes pushed (cloud was up to date)'
             : 'sync complete (pulled: ${pullRes.filesCount}, pushed: ${pushRes.filesCount})',
         filesCount: pushRes.filesCount,
+        newSyncSha: pushRes.newSyncSha,
+        data: pullRes.data,
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));

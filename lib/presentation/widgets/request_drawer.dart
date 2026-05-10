@@ -351,7 +351,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
         content: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

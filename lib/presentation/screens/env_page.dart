@@ -220,7 +220,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
 
         title: Text(
           action,
@@ -293,7 +293,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: TColors.surface,
+          backgroundColor: TColors.background,
           elevation: 0,
 
           title: Text(

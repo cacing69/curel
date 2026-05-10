@@ -213,7 +213,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: TColors.surface,
+                    backgroundColor: TColors.background,
                     title: const Text(
                       'clear bookmark?',
                       style: TextStyle(
@@ -250,7 +250,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  backgroundColor: TColors.surface,
+                  backgroundColor: TColors.background,
                   title: const Text(
                     'clear history?',
                     style: TextStyle(

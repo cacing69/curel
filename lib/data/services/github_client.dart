@@ -5,6 +5,31 @@ import 'package:curel/domain/services/git_client.dart';
 class GitHubClient implements GitClient {
   final http.Client _client = http.Client();
 
+  Map<String, String> _headers(String token) => {
+        'Authorization': 'token $token',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+
+  void _checkResponse(http.Response response) {
+    if (response.statusCode == 401) {
+      throw Exception('authentication failed: token is invalid or expired. check your git provider settings.');
+    }
+    if (response.statusCode == 403) {
+      final remaining = response.headers['x-ratelimit-remaining'];
+      if (remaining == '0') {
+        final resetEpoch = int.tryParse(response.headers['x-ratelimit-reset'] ?? '');
+        final resetTime = resetEpoch != null
+            ? DateTime.fromMillisecondsSinceEpoch(resetEpoch * 1000)
+            : null;
+        final waitHint = resetTime != null
+            ? ' rate limit resets at ${resetTime.hour.toString().padLeft(2, '0')}:${resetTime.minute.toString().padLeft(2, '0')}.'
+            : '';
+        throw Exception('rate limited:$waitHint try again later.');
+      }
+      throw Exception('forbidden: ${_parseError(response.body)}');
+    }
+  }
+
   @override
   Future<String?> getLatestCommitSha(String remoteUrl, String branch, String token) async {
     final parts = remoteUrl.replaceAll('https://github.com/', '').split('/');
@@ -13,79 +38,107 @@ class GitHubClient implements GitClient {
     final repo = parts[1].replaceAll('.git', '');
 
     final refUrl = 'https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch';
-    final response = await _client.get(
-      Uri.parse(refUrl),
-      headers: {
-        'Authorization': 'token $token',
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    );
+    final response = await _client.get(Uri.parse(refUrl), headers: _headers(token));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['object']['sha'];
     }
+    _checkResponse(response);
     return null;
   }
 
+  @override
   Future<List<GitFile>> fetchFiles(String remoteUrl, String branch, String token) async {
-    // Parse owner and repo from URL (e.g., https://github.com/owner/repo)
     final uri = Uri.parse(remoteUrl);
     final segments = uri.pathSegments;
     if (segments.length < 2) throw Exception('Invalid GitHub URL');
-    
+
     final owner = segments[0];
     final repo = segments[1].replaceAll('.git', '');
-    
+
     // 1. Get the tree recursively
     final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees/$branch?recursive=1';
-    final response = await _client.get(
-      Uri.parse(treeUrl),
-      headers: {
-        'Authorization': 'token $token',
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    );
+    final response = await _client.get(Uri.parse(treeUrl), headers: _headers(token));
 
-    if (response.statusCode == 409) {
-      // GitHub returns 409 if the repository is empty (no commits)
-      return [];
-    }
-
+    if (response.statusCode == 409) return [];
     if (response.statusCode != 200) {
+      _checkResponse(response);
       throw Exception(_parseError(response.body));
     }
 
     final treeData = jsonDecode(response.body);
     final List tree = treeData['tree'];
-    
-    // 2. Filter only relevant files (.curl, .meta.json, curel.json)
-    final List<GitFile> gitFiles = [];
-    for (final item in tree) {
-      final path = item['path'] as String;
-      if (item['type'] == 'blob' && 
-          (path.endsWith('.curl') || path.endsWith('.meta.json') || path == 'curel.json')) {
-        
-        // Fetch content
-        final blobUrl = item['url'] as String;
-        final blobRes = await _client.get(
-          Uri.parse(blobUrl),
-          headers: {
-            'Authorization': 'token $token',
-            'Accept': 'application/vnd.github.v3.raw', // Get raw content directly
-          },
-        );
 
-        if (blobRes.statusCode == 200) {
-          gitFiles.add(GitFile(path: path, content: blobRes.body));
-        }
-      }
+    // 2. Filter relevant files
+    final relevantItems = tree.where((item) {
+      final path = item['path'] as String;
+      return item['type'] == 'blob' &&
+          (path.endsWith('.curl') ||
+              path.endsWith('.meta.json') ||
+              path == 'curel.json' ||
+              path == '.gitignore');
+    }).toList();
+
+    // 3. Fetch blobs in parallel batches of 10
+    const batchSize = 10;
+    final List<GitFile> gitFiles = [];
+
+    for (var i = 0; i < relevantItems.length; i += batchSize) {
+      final batch = relevantItems.sublist(
+        i,
+        i + batchSize > relevantItems.length ? relevantItems.length : i + batchSize,
+      );
+
+      final results = await Future.wait(
+        batch.map((item) async {
+          final path = item['path'] as String;
+          final blobUrl = item['url'] as String;
+          final blobRes = await _client.get(
+            Uri.parse(blobUrl),
+            headers: {
+              'Authorization': 'token $token',
+              'Accept': 'application/vnd.github.v3.raw',
+            },
+          );
+          if (blobRes.statusCode == 200) {
+            return GitFile(path: path, content: blobRes.body);
+          }
+          return null;
+        }),
+      );
+
+      gitFiles.addAll(results.whereType<GitFile>());
     }
 
     return gitFiles;
   }
 
   @override
-  Future<void> pushFiles(String remoteUrl, String branch, String token, List<GitFile> files, String message) async {
+  Future<List<String>> listRemotePaths(String remoteUrl, String branch, String token) async {
+    final uri = Uri.parse(remoteUrl);
+    final segments = uri.pathSegments;
+    if (segments.length < 2) return [];
+
+    final owner = segments[0];
+    final repo = segments[1].replaceAll('.git', '');
+
+    final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees/$branch?recursive=1';
+    final response = await _client.get(Uri.parse(treeUrl), headers: _headers(token));
+
+    if (response.statusCode == 409) return [];
+    if (response.statusCode != 200) return [];
+
+    final treeData = jsonDecode(response.body);
+    final List tree = treeData['tree'];
+
+    return tree
+        .where((item) => item['type'] == 'blob')
+        .map((item) => item['path'] as String)
+        .toList();
+  }
+
+  @override
+  Future<String> pushFiles(String remoteUrl, String branch, String token, List<GitFile> files, String message) async {
     final uri = Uri.parse(remoteUrl);
     final segments = uri.pathSegments;
     if (segments.length < 2) throw Exception('Invalid GitHub URL');
@@ -93,8 +146,7 @@ class GitHubClient implements GitClient {
     final owner = segments[0];
     final repo = segments[1].replaceAll('.git', '');
     final headers = {
-      'Authorization': 'token $token',
-      'Accept': 'application/vnd.github.v3+json',
+      ..._headers(token),
       'Content-Type': 'application/json',
     };
 
@@ -107,9 +159,12 @@ class GitHubClient implements GitClient {
 
     if (refRes.statusCode == 200) {
       latestCommitSha = jsonDecode(refRes.body)['object']['sha'];
-      // Get the tree SHA from that commit
       final commitUrl = 'https://api.github.com/repos/$owner/$repo/git/commits/$latestCommitSha';
       final commitRes = await _client.get(Uri.parse(commitUrl), headers: headers);
+      if (commitRes.statusCode != 200) {
+        _checkResponse(commitRes);
+        throw Exception(_parseError(commitRes.body));
+      }
       baseTreeSha = jsonDecode(commitRes.body)['tree']['sha'];
     } else if (refRes.statusCode == 404 || refRes.statusCode == 409) {
       // Branch doesn't exist or repo is empty.
@@ -128,12 +183,23 @@ class GitHubClient implements GitClient {
       );
 
       if (initRes.statusCode != 201) {
+        _checkResponse(initRes);
         throw Exception(_parseError(initRes.body));
       }
 
       // Now that the repo is initialized, we can proceed with a normal tree sync for the rest of the files
       // or just return if it was the only file.
-      if (files.length <= 1) return;
+      if (files.length <= 1) {
+        // Return the SHA from the initial commit we just made
+        final initCommitRes = await _client.get(
+          Uri.parse('https://api.github.com/repos/$owner/$repo/git/refs/heads/$branch'),
+          headers: headers,
+        );
+        if (initCommitRes.statusCode == 200) {
+          return jsonDecode(initCommitRes.body)['object']['sha'] as String;
+        }
+        return '';
+      }
 
       // Re-fetch the ref now that it exists
       final refResRetry = await _client.get(Uri.parse(refUrl), headers: headers);
@@ -149,11 +215,18 @@ class GitHubClient implements GitClient {
     final treeUrl = 'https://api.github.com/repos/$owner/$repo/git/trees';
     final treeBody = {
       if (baseTreeSha != null) 'base_tree': baseTreeSha,
-      'tree': files.map((f) => {
-        'path': f.path,
-        'mode': '100644', // normal file
-        'type': 'blob',
-        'content': f.content,
+      'tree': files.map((f) {
+        final entry = <String, dynamic>{
+          'path': f.path,
+          'mode': '100644',
+          'type': 'blob',
+        };
+        if (f.deletion) {
+          entry['sha'] = null;
+        } else {
+          entry['content'] = f.content;
+        }
+        return entry;
       }).toList(),
     };
 
@@ -164,6 +237,7 @@ class GitHubClient implements GitClient {
     );
 
     if (treeRes.statusCode != 201) {
+      _checkResponse(treeRes);
       throw Exception(_parseError(treeRes.body));
     }
     final newTreeSha = jsonDecode(treeRes.body)['sha'];
@@ -183,6 +257,7 @@ class GitHubClient implements GitClient {
     );
 
     if (commitRes.statusCode != 201) {
+      _checkResponse(commitRes);
       throw Exception(_parseError(commitRes.body));
     }
     final newCommitSha = jsonDecode(commitRes.body)['sha'];
@@ -193,9 +268,10 @@ class GitHubClient implements GitClient {
       final updateRes = await _client.patch(
         Uri.parse(updateRefUrl),
         headers: headers,
-        body: jsonEncode({'sha': newCommitSha, 'force': true}),
+        body: jsonEncode({'sha': newCommitSha, 'force': false}),
       );
       if (updateRes.statusCode != 200) {
+        _checkResponse(updateRes);
         throw Exception(_parseError(updateRes.body));
       }
     } else {
@@ -207,9 +283,27 @@ class GitHubClient implements GitClient {
         body: jsonEncode({'ref': 'refs/heads/$branch', 'sha': newCommitSha}),
       );
       if (createRes.statusCode != 201) {
+        _checkResponse(createRes);
         throw Exception(_parseError(createRes.body));
       }
     }
+
+    return newCommitSha;
+  }
+
+  @override
+  Future<String?> validateToken(String token, {String? baseUrl}) async {
+    final apiUrl = baseUrl != null && baseUrl.isNotEmpty
+        ? '$baseUrl/api/v3/user'
+        : 'https://api.github.com/user';
+    final response = await _client.get(
+      Uri.parse(apiUrl),
+      headers: _headers(token),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['login'] as String?;
+    }
+    return null;
   }
 
   String _parseError(String body) {

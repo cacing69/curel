@@ -908,7 +908,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   void _showMethodPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: TColors.surface,
+      backgroundColor: TColors.background,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

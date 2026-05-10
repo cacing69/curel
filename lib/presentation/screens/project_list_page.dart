@@ -4,6 +4,7 @@ import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/git_connect_dialog.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -261,10 +262,18 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             ),
             if (project.provider != null) ...[
               const SizedBox(width: 8),
-              Icon(
-                Icons.cloud,
-                size: 11,
-                color: isActive ? TColors.green : TColors.cyan,
+              Tooltip(
+                message: project.lastSyncSha != null
+                    ? 'synced'
+                    : 'not synced yet',
+                preferBelow: false,
+                child: Icon(
+                  Icons.cloud,
+                  size: 11,
+                  color: project.lastSyncSha != null
+                      ? (isActive ? TColors.green : TColors.cyan)
+                      : TColors.orange,
+                ),
               ),
             ],
             const SizedBox(width: 8),
@@ -292,6 +301,8 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           color: TColors.surface,
           items: [
             PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
+            if (project.provider == null)
+              PopupMenuItem(value: 4, height: 36, child: _menuItem(Icons.cloud, 'connect to git')),
             if (project.provider != null)
               PopupMenuItem(value: 3, height: 36, child: _menuItem(Icons.cloud_off, 'disconnect git')),
             PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.download, 'export')),
@@ -302,6 +313,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           if (value == 1) _exportProject(project);
           if (value == 2) _deleteProject(project);
           if (value == 3) _disconnectGit(project);
+          if (value == 4) _connectGit(project);
         });
       },
       child: Container(
@@ -311,6 +323,22 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),
     );
+  }
+
+  Future<void> _connectGit(Project project) async {
+    final updated = await showDialog(
+      context: context,
+      builder: (_) => GitConnectDialog(project: project),
+    );
+    if (updated != null && mounted) {
+      await ref.read(projectServiceProvider).update(updated);
+      final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
+      if (activeId == project.id) {
+        ref.read(activeProjectProvider.notifier).set(updated);
+      }
+      showTerminalToast(context, 'project connected to remote');
+      await _load();
+    }
   }
 
   Future<void> _disconnectGit(Project project) async {
@@ -385,7 +413,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           action,
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
@@ -427,7 +455,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           title,
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),

@@ -1,5 +1,7 @@
 import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/providers/services.dart';
+import 'package:curel/data/services/github_client.dart';
+import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +17,15 @@ class GitProvidersPage extends ConsumerStatefulWidget {
 class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   List<GitProviderModel> _providers = [];
   bool _loading = true;
+
+  GitClient _getClient(String type) {
+    switch (type) {
+      case 'github':
+        return GitHubClient();
+      default:
+        throw Exception('Provider $type not supported yet');
+    }
+  }
 
   @override
   void initState() {
@@ -45,7 +56,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              backgroundColor: TColors.surface,
+              backgroundColor: TColors.background,
               title: Text(
                 isEdit ? 'edit provider' : 'add provider',
                 style: const TextStyle(
@@ -137,7 +148,18 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       final token = tokenCtrl.text.trim();
 
       if (name.isEmpty) return;
-      if (!isEdit && token.isEmpty) return; // Token required for new
+      if (!isEdit && token.isEmpty) return;
+
+      // Validate token before saving
+      final tokenToValidate = isEdit ? (token.isNotEmpty ? token : null) : token;
+      if (tokenToValidate != null) {
+        final client = _getClient(type);
+        final username = await client.validateToken(tokenToValidate, baseUrl: baseUrl);
+        if (username == null) {
+          if (mounted) showTerminalToast(context, 'invalid token — check your credentials');
+          return;
+        }
+      }
 
       if (isEdit) {
         await ref.read(gitProviderServiceProvider).update(
@@ -202,7 +224,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: const Text('delete provider?',
             style: TextStyle(
                 color: TColors.foreground,

@@ -46,7 +46,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: TColors.surface,
+      backgroundColor: TColors.background,
       title: const Text(
         'connect to remote git',
         style: TextStyle(

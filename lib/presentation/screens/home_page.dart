@@ -723,7 +723,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           title,
           style: const TextStyle(
@@ -905,7 +905,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           title,
           style: TextStyle(
@@ -966,7 +966,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: TColors.surface,
+        backgroundColor: TColors.background,
         title: Text(
           'save request',
           style: TextStyle(
