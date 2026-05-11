@@ -4,6 +4,7 @@ import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/env_switch.dart';
 import 'package:curel/presentation/widgets/git_connect_dialog.dart';
+import 'package:curel/presentation/widgets/diff_viewer_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -163,8 +164,10 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
 
     if (updated != null && mounted) {
       await ref.read(projectServiceProvider).update(updated);
-      ref.read(activeProjectProvider.notifier).set(updated);
-      showTerminalToast(context, 'project connected to remote');
+      if (mounted) {
+        ref.read(activeProjectProvider.notifier).set(updated);
+        showTerminalToast(context, 'project connected to remote');
+      }
     }
   }
 
@@ -189,7 +192,23 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       clearResponse: true, clearError: true, clearLog: true,
     ));
     try {
-      final result = await ref.read(gitSyncServiceProvider).sync(project);
+      // 1. Check for pending changes
+      final changes = await ref.read(gitSyncServiceProvider).computePendingChanges(project);
+      
+      List<String>? selectedPaths;
+      if (mounted && changes.isNotEmpty) {
+        selectedPaths = await showDialog<List<String>>(
+          context: context,
+          builder: (context) => DiffViewerDialog(changes: changes),
+        );
+        
+        if (selectedPaths == null || selectedPaths.isEmpty) {
+          setState(() => _isSyncing = false);
+          return;
+        }
+      }
+
+      final result = await ref.read(gitSyncServiceProvider).sync(project, selectedPaths: selectedPaths);
       if (mounted) {
         if (result.success) {
           await _updateProject(

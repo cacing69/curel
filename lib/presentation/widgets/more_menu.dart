@@ -7,6 +7,7 @@ class MoreMenu extends StatelessWidget {
   final VoidCallback onHelp;
   final VoidCallback onSettings;
   final VoidCallback onHistory;
+  final VoidCallback? onImportCollection;
 
   const MoreMenu({
     required this.onAbout,
@@ -14,6 +15,7 @@ class MoreMenu extends StatelessWidget {
     required this.onHelp,
     required this.onSettings,
     required this.onHistory,
+    this.onImportCollection,
     super.key,
   });
 
@@ -34,6 +36,25 @@ class MoreMenu extends StatelessWidget {
           ),
           color: TColors.surface,
           items: [
+            if (onImportCollection != null)
+              PopupMenuItem<int>(
+                value: 5,
+                height: 36,
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_download, size: 14, color: TColors.mutedText),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'import collection',
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             PopupMenuItem<int>(
               value: 3,
               height: 36,
@@ -139,6 +160,7 @@ class MoreMenu extends StatelessWidget {
           if (value == 2) onHelp();
           if (value == 3) onHistory();
           if (value == 4) onFeedback();
+          if (value == 5 && onImportCollection != null) onImportCollection!();
         });
       },
       child: Container(

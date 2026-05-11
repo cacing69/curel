@@ -13,6 +13,8 @@ class ActionToolbar extends ConsumerWidget {
   final VoidCallback onPaste;
   final VoidCallback onResolvedPreview;
   final VoidCallback onExecute;
+  final VoidCallback onNewCurl;
+  final VoidCallback onImportCollection;
   final void Function(String curl) onHistorySelect;
   final VoidCallback onHelp;
   final void Function(BuildContext) onNavigateAbout;
@@ -26,6 +28,8 @@ class ActionToolbar extends ConsumerWidget {
     required this.onPaste,
     required this.onResolvedPreview,
     required this.onExecute,
+    required this.onNewCurl,
+    required this.onImportCollection,
     required this.onHistorySelect,
     required this.onHelp,
     required this.onNavigateAbout,
@@ -64,8 +68,11 @@ class ActionToolbar extends ConsumerWidget {
             onHelp: () => onHelp(),
             onSettings: () => onNavigateSettings(context),
             onHistory: () => onNavigateHistory(context),
+            onImportCollection: onImportCollection,
           ),
 
+          const SizedBox(width: 8),
+          TermButton(icon: Icons.add, onTap: onNewCurl),
           const SizedBox(width: 8),
           TermButton(
             icon: Icons.play_arrow,

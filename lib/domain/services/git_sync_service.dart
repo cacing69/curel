@@ -21,7 +21,7 @@ class GitSyncService {
 
   GitSyncService(this._ref, this._providerService, this._fs, this._device, this._diff);
 
-  Future<GitSyncResult> pull(Project project, {bool force = false}) async {
+  Future<GitSyncResult> pull(Project project, {bool force = false, List<String>? selectedPaths}) async {
     if (project.remoteUrl == null ||
         project.provider == null ||
         project.branch == null) {
@@ -76,6 +76,7 @@ class GitSyncService {
     String token,
     GitClient client, {
     bool force = false,
+    List<String>? selectedPaths,
   }) async {
     try {
       // 1. Get Remote SHA
@@ -134,7 +135,12 @@ class GitSyncService {
 
       // 5. INCREMENTAL DIFF
       final localFiles = await _getLocalFiles(project.id);
-      final changes = _diff.computeChanges(localFiles, remoteFiles);
+      var changes = _diff.computeChanges(localFiles, remoteFiles);
+
+      // Partial Sync Filter
+      if (selectedPaths != null) {
+        changes = changes.where((c) => selectedPaths.contains(c.path)).toList();
+      }
 
       if (changes.isEmpty) {
         return GitSyncResult(
@@ -194,7 +200,7 @@ class GitSyncService {
     }
   }
 
-  Future<GitSyncResult> push(Project project, {bool force = false}) async {
+  Future<GitSyncResult> push(Project project, {bool force = false, List<String>? selectedPaths}) async {
     if (project.remoteUrl == null ||
         project.provider == null ||
         project.branch == null) {
@@ -229,6 +235,7 @@ class GitSyncService {
     String token,
     GitClient client, {
     bool force = false,
+    List<String>? selectedPaths,
   }) async {
     try {
       // 1. Optimistic locking: reject push if remote changed since last sync
@@ -264,7 +271,13 @@ class GitSyncService {
 
       final changes = _diff.computeChanges(remoteFiles, localFiles); // old=remote, new=local
       
-      if (changes.isEmpty) {
+      // Partial Sync Filter
+      var filteredChanges = changes;
+      if (selectedPaths != null) {
+        filteredChanges = changes.where((c) => selectedPaths.contains(c.path)).toList();
+      }
+
+      if (filteredChanges.isEmpty) {
         return GitSyncResult(
           success: true,
           message: 'everything is up to date',
@@ -275,7 +288,7 @@ class GitSyncService {
 
       // 4. Prepare files for GitClient (only changed ones)
       final List<GitFile> filesToPush = [];
-      for (final change in changes) {
+      for (final change in filteredChanges) {
         var content = change.newContent ?? '';
         
         // Inject remote_origin_id into curel.json before pushing
@@ -326,7 +339,7 @@ class GitSyncService {
   }
 
   /// Combined Smart Sync (Pull then Push)
-  Future<GitSyncResult> sync(Project project) async {
+  Future<GitSyncResult> sync(Project project, {List<String>? selectedPaths}) async {
     if (project.remoteUrl == null ||
         project.provider == null ||
         project.branch == null) {
@@ -359,7 +372,7 @@ class GitSyncService {
             filesCount: 0);
       } else {
         // Remote has changes or first sync, perform Pull
-        pullRes = await _pullImpl(project, provider, token, client);
+        pullRes = await _pullImpl(project, provider, token, client, selectedPaths: selectedPaths);
         if (!pullRes.success) return pullRes;
       }
 
@@ -367,7 +380,7 @@ class GitSyncService {
       final syncedProject = pullRes.newSyncSha != null
           ? project.copyWith(lastSyncSha: pullRes.newSyncSha)
           : project;
-      final pushRes = await _pushImpl(syncedProject, provider, token, client);
+      final pushRes = await _pushImpl(syncedProject, provider, token, client, selectedPaths: selectedPaths);
       if (!pushRes.success) return pushRes;
 
       return GitSyncResult(

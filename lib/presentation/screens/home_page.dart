@@ -382,6 +382,40 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  Future<void> _importCollection() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      if (bytes == null) return;
+      final json = utf8.decode(bytes);
+      final counts =
+          await ref.read(workspaceServiceProvider).importProject(json);
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'imported ${counts.requests} requests, ${counts.envs} envs',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'error: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
+      }
+    }
+  }
+
+  void _newCurl() {
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (selectedPath == null && _curlController.text.isEmpty) return;
+    _closeRequest();
+  }
+
   void _clear() {
     _curlController.clear();
     ref
@@ -1113,6 +1147,8 @@ class _HomePageState extends ConsumerState<HomePage>
       onPaste: _paste,
       onResolvedPreview: _openResolvedPreview,
       onExecute: executeCurl,
+      onNewCurl: _newCurl,
+      onImportCollection: _importCollection,
       onHistorySelect: (curl) {
         setState(() => curlController.text = curl);
         ref
