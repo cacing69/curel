@@ -44,7 +44,6 @@ class CurlInputField extends StatelessWidget {
             minLines: unlimited ? null : minLines,
             expands: unlimited,
             autocorrect: false,
-            enableSuggestions: false,
             textCapitalization: TextCapitalization.none,
             cursorColor: TColors.green,
             style: const TextStyle(

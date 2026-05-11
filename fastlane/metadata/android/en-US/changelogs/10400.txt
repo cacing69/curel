@@ -1,0 +1,14 @@
+- unify text field styling across all dialog popups to match settings_page style (container wrapping with TColors.surface, no filled, consistent label style)
+- fix lastSyncSha never being updated after push/sync — pushFiles now returns commit SHA, GitSyncResult has newSyncSha field, all callers save SHA to project model
+- add "connect to git" option in project list popup menu for local projects
+- change all AlertDialog background from TColors.surface to TColors.background for visual contrast with text field containers
+- inject .gitignore into push payload and add to pull whitelist so remote repos always have environment protection
+- implement delete propagation — push compares remote paths vs local, sends sha:null for files deleted locally
+- add optimistic locking to push — rejects if remote SHA changed since last sync, with force param for conflict resolution
+- change GitHub ref update from force:true to force:false — API rejects if ref changed between read and write (last layer of protection)
+- implement merge pull strategy — skip overwrite if local file differs from remote (local wins on conflict), only curel.json always overwritten
+- optimize GitHubClient: parallel blob fetch (batches of 10), centralized error handling for 401/403/rate-limit with clear messages
+- add token validation on save provider — tests /user endpoint before persisting, rejects invalid tokens immediately
+- improve sync UI: show actual error in toast, tooltip on sync button, color-coded sync status (green=synced, orange=not synced) in env_bar and project list
+- refactor GitHubClient to accept baseUrl via constructor — all API URLs now use _apiBase, prepares for GitHub Enterprise and GitLab support
+- create GitLabClient implementing GitClient — single-commit API, PRIVATE-TOKEN auth, URL-encoded project path, supports gitlab.com and self-hosted

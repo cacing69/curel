@@ -182,9 +182,12 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
 
   Future<void> _sync() async {
     final project = widget.activeProject;
-    if (project == null) return;
+    if (project == null || _isSyncing) return;
 
     setState(() => _isSyncing = true);
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true, clearError: true, clearLog: true,
+    ));
     try {
       final result = await ref.read(gitSyncServiceProvider).sync(project);
       if (mounted) {
@@ -196,12 +199,12 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
           );
 
           await ref.read(syncControllerProvider).syncAndRefresh();
-          showTerminalToast(context, result.message);
+          _showLog('git sync\n${result.message}');
         } else if (result.hasConflict) {
           if (mounted) {
             final choice = await _showConflictDialog();
             if (choice == 'pull') {
-              final res = await ref.read(gitSyncServiceProvider).pull(project);
+              final res = await ref.read(gitSyncServiceProvider).pull(project, force: true);
               if (res.success && mounted) {
                 await _updateProject(
                   project,
@@ -209,7 +212,9 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
                   originId: res.data is String ? res.data as String : null,
                 );
                 await ref.read(syncControllerProvider).syncAndRefresh();
-                showTerminalToast(context, 'pulled and overwrote local data');
+                _showLog('git sync (pull overwrite)\n${res.message}');
+              } else if (mounted) {
+                _showLog('git sync (pull overwrite)\nerror: ${res.message}');
               }
             } else if (choice == 'push') {
               final res = await ref.read(gitSyncServiceProvider).push(project, force: true);
@@ -219,15 +224,16 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
                   syncSha: res.newSyncSha,
                   originId: project.remoteOriginId ?? project.id,
                 );
-                showTerminalToast(context, 'pushed and overwrote remote data');
+                _showLog('git sync (push overwrite)\n${res.message}');
+              } else if (mounted) {
+                _showLog('git sync (push overwrite)\nerror: ${res.message}');
               }
             }
           }
         } else {
-          final terminalError = 'git sync\nerror: ${result.message}';
           ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
                 clearResponse: true,
-                error: terminalError,
+                error: 'git sync\nerror: ${result.message}',
               ));
           showTerminalToast(context, result.message);
         }
@@ -235,16 +241,22 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     } catch (e) {
       if (mounted) {
         final msg = e.toString().replaceFirst('Exception: ', '');
-        final terminalError = 'git sync\nerror: $msg';
         ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
               clearResponse: true,
-              error: terminalError,
+              error: 'git sync\nerror: $msg',
             ));
         showTerminalToast(context, msg);
       }
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
+  }
+
+  void _showLog(String message) {
+    ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
+      clearResponse: true, log: message,
+    ));
+    showTerminalToast(context, message.split('\n').last);
   }
 
   Future<String?> _showConflictDialog() async {
@@ -377,26 +389,15 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     if (confirm == true && mounted) {
       final disconnectedProject = project.copyWith(
         mode: 'local',
-        // We set these to null but .copyWith needs to handle nulls
-        // Project model uses null as "no value"
-      );
-
-      // Explicitly clear git fields
-      final finalProject = Project(
-        id: disconnectedProject.id,
-        name: disconnectedProject.name,
-        description: disconnectedProject.description,
-        createdAt: disconnectedProject.createdAt,
-        updatedAt: disconnectedProject.updatedAt,
-        mode: 'local',
-        provider: null,
-        remoteUrl: null,
-        branch: null,
         lastSyncSha: null,
+        remoteUrl: null,
+        provider: null,
+        branch: null,
+        remoteOriginId: null,
       );
 
-      await ref.read(projectServiceProvider).update(finalProject);
-      ref.read(activeProjectProvider.notifier).set(finalProject);
+      await ref.read(projectServiceProvider).update(disconnectedProject);
+      ref.read(activeProjectProvider.notifier).set(disconnectedProject);
       showTerminalToast(context, 'project disconnected from git');
     }
   }

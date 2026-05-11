@@ -66,7 +66,7 @@ mixin HomeActions on ConsumerState<HomePage> {
           (s) => s.copyWith(
             isLoading: true,
             clearResponse: true,
-            clearError: true,
+            clearError: true, clearLog: true,
             showHtmlPreview: false,
           ),
         );

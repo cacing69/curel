@@ -234,6 +234,7 @@ class ResponseSection extends ConsumerWidget {
             isLoading: rs.isLoading,
             response: rs.response,
             error: rs.error,
+            log: rs.log,
             selectedTab: rs.selectedTab,
             showHtmlPreview: rs.showHtmlPreview,
             searchActive: rs.searchActive,

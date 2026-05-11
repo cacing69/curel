@@ -12,6 +12,7 @@ enum ResponseTab { headers, body, verbose, trace }
 class ResponseViewer extends StatelessWidget {
   final CurlResponse? response;
   final String? error;
+  final String? log;
   final bool isLoading;
   final ResponseTab selectedTab;
   final bool showHtmlPreview;
@@ -24,6 +25,7 @@ class ResponseViewer extends StatelessWidget {
     this.isLoading = false,
     this.response,
     this.error,
+    this.log,
     this.selectedTab = ResponseTab.body,
     this.showHtmlPreview = false,
     this.searchActive = false,
@@ -77,6 +79,54 @@ class ResponseViewer extends StatelessWidget {
               error!,
               style: const TextStyle(
                 color: TColors.red,
+                fontFamily: 'monospace',
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (log != null) {
+      return Container(
+        width: double.infinity,
+        color: const Color(0xFF1E1E1E),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.sync, size: 14, color: TColors.cyan),
+                const SizedBox(width: 8),
+                const Text(
+                  'sync log',
+                  style: TextStyle(
+                    color: TColors.cyan,
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Builder(
+                  builder: (context) => GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: log!));
+                      showTerminalToast(context, 'copied');
+                    },
+                    child: Icon(Icons.copy, size: 14, color: TColors.mutedText),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              log!,
+              style: const TextStyle(
+                color: TColors.foreground,
                 fontFamily: 'monospace',
                 fontSize: 12,
                 height: 1.4,

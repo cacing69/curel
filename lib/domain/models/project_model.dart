@@ -1,5 +1,11 @@
 import 'dart:convert';
 
+class _Unset {
+  const _Unset();
+}
+
+const _unset = _Unset();
+
 class Project {
   final String id;
   final String name;
@@ -32,11 +38,11 @@ class Project {
     String? description,
     DateTime? updatedAt,
     String? mode,
-    String? lastSyncSha,
-    String? remoteUrl,
-    String? provider,
-    String? branch,
-    String? remoteOriginId,
+    Object? lastSyncSha = _unset,
+    Object? remoteUrl = _unset,
+    Object? provider = _unset,
+    Object? branch = _unset,
+    Object? remoteOriginId = _unset,
   }) {
     return Project(
       id: id,
@@ -45,11 +51,11 @@ class Project {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       mode: mode ?? this.mode,
-      lastSyncSha: lastSyncSha ?? this.lastSyncSha,
-      remoteUrl: remoteUrl ?? this.remoteUrl,
-      provider: provider ?? this.provider,
-      branch: branch ?? this.branch,
-      remoteOriginId: remoteOriginId ?? this.remoteOriginId,
+      lastSyncSha: lastSyncSha == _unset ? this.lastSyncSha : lastSyncSha as String?,
+      remoteUrl: remoteUrl == _unset ? this.remoteUrl : remoteUrl as String?,
+      provider: provider == _unset ? this.provider : provider as String?,
+      branch: branch == _unset ? this.branch : branch as String?,
+      remoteOriginId: remoteOriginId == _unset ? this.remoteOriginId : remoteOriginId as String?,
     );
   }
 

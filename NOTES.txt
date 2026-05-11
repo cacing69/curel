@@ -1,14 +1,15 @@
-- unify text field styling across all dialog popups to match settings_page style (container wrapping with TColors.surface, no filled, consistent label style)
-- fix lastSyncSha never being updated after push/sync — pushFiles now returns commit SHA, GitSyncResult has newSyncSha field, all callers save SHA to project model
-- add "connect to git" option in project list popup menu for local projects
-- change all AlertDialog background from TColors.surface to TColors.background for visual contrast with text field containers
-- inject .gitignore into push payload and add to pull whitelist so remote repos always have environment protection
-- implement delete propagation — push compares remote paths vs local, sends sha:null for files deleted locally
-- add optimistic locking to push — rejects if remote SHA changed since last sync, with force param for conflict resolution
-- change GitHub ref update from force:true to force:false — API rejects if ref changed between read and write (last layer of protection)
-- implement merge pull strategy — skip overwrite if local file differs from remote (local wins on conflict), only curel.json always overwritten
-- optimize GitHubClient: parallel blob fetch (batches of 10), centralized error handling for 401/403/rate-limit with clear messages
-- add token validation on save provider — tests /user endpoint before persisting, rejects invalid tokens immediately
-- improve sync UI: show actual error in toast, tooltip on sync button, color-coded sync status (green=synced, orange=not synced) in env_bar and project list
-- refactor GitHubClient to accept baseUrl via constructor — all API URLs now use _apiBase, prepares for GitHub Enterprise and GitLab support
-- create GitLabClient implementing GitClient — single-commit API, PRIVATE-TOKEN auth, URL-encoded project path, supports gitlab.com and self-hosted
+- remove BitbucketClient - API limitations (10-item pagination, multipart push, no clean deletion). kept GitHub, GitLab, Gitea only
+- remove all Bitbucket references from git_providers_page.dart (dropdown, _getClient, placeholder hints)
+- centralize GitClient factory into GitClient.create() on abstract class - eliminates duplicated _getClient in git_sync_service.dart and git_providers_page.dart. adding new providers now only requires editing git_client.dart
+- fix blank screen after workspace change - pop settings page before triggering App rebuild via _workspaceKey++
+- fix workspace buttons overflow - replace Row with Wrap for responsive layout on smaller screens
+- fix conflict resolution loop - add force param to pull() to skip conflict detection guard when user already chose resolution strategy
+- add error feedback in conflict resolution - both pull and push branches now show toast on failure instead of silently swallowing errors
+- fix GitConnectDialog accepting empty URL - early return if url or branch is empty before popping result
+- add double-tap guard on sync button - early return if _isSyncing is true before triggering sync
+- fix copyWith nullable field clearing - use sentinel value pattern so disconnect can clear git fields with single copyWith call instead of fragile manual constructor
+- fix secure keyboard appearing in curl editor - remove enableSuggestions: false which triggers Android IME_FLAG_NO_PERSONALIZED_LEARNING
+- optimize sync() triple provider resolution - extract _pullImpl/_pushImpl that accept pre-resolved context, reducing secure storage reads from 3x to 1x per sync
+- update memory files (git_sync_maturity.md, product_roadmap.md, MEMORY.md) with finalized Phase 2 state
+- update README.md with current features, add "Why Curel?" section (free, open source, local-first, git-native, privacy)
+- add persistent sync log in terminal area — new `log` field on ResponseState, green-themed "sync log" display in ResponseViewer, sync results written to log instead of toast-only, cleared on new request execution

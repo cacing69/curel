@@ -24,6 +24,7 @@ class ResponseState {
   final CurlResponse? response;
   final bool isLoading;
   final String? error;
+  final String? log;
   final ResponseTab selectedTab;
   final bool showHtmlPreview;
   final bool searchActive;
@@ -34,6 +35,7 @@ class ResponseState {
     this.response,
     this.isLoading = false,
     this.error,
+    this.log,
     this.selectedTab = ResponseTab.body,
     this.showHtmlPreview = false,
     this.searchActive = false,
@@ -45,18 +47,21 @@ class ResponseState {
     CurlResponse? response,
     bool? isLoading,
     String? error,
+    String? log,
     ResponseTab? selectedTab,
     bool? showHtmlPreview,
     bool? searchActive,
     bool? prettify,
     bool? showLineNumbers,
     bool clearError = false,
+    bool clearLog = false,
     bool clearResponse = false,
   }) {
     return ResponseState(
       response: clearResponse ? null : (response ?? this.response),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      log: clearLog ? null : (log ?? this.log),
       selectedTab: selectedTab ?? this.selectedTab,
       showHtmlPreview: showHtmlPreview ?? this.showHtmlPreview,
       searchActive: searchActive ?? this.searchActive,

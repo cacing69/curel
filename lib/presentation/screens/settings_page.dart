@@ -93,10 +93,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     try {
       await ref.read(settingsProvider).setWorkspacePath(result);
       await ref.read(fileSystemProvider).setWorkspaceRoot(result);
+      if (mounted) Navigator.of(context).pop();
       widget.onWorkspaceChanged();
-      if (mounted) {
-        setState(() => _workspaceDisplay = result);
-      }
     } catch (e) {
       if (mounted) {
         showTerminalToast(context, 'failed to set workspace: $e');
@@ -108,10 +106,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     await ref.read(settingsProvider).clearWorkspacePath();
     final effective = await ref.read(settingsProvider).getEffectiveWorkspacePath();
     await ref.read(fileSystemProvider).setWorkspaceRoot(effective);
+    if (mounted) Navigator.of(context).pop();
     widget.onWorkspaceChanged();
-    if (mounted) {
-      setState(() => _workspaceDisplay = effective);
-    }
   }
 
   Future<void> _exportWorkspace() async {
@@ -527,7 +523,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             TermButton(
               icon: Icons.folder_open,
@@ -535,15 +533,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               onTap: _pickWorkspace,
               accent: true,
             ),
-            const SizedBox(width: 8),
             TermButton(
               icon: Icons.refresh,
               label: 'default',
               onTap: _resetWorkspace,
             ),
-            const Spacer(),
             TermButton(icon: Icons.upload_file, label: 'import', onTap: _importWorkspace),
-            const SizedBox(width: 6),
             TermButton(icon: Icons.download, label: 'export', onTap: _exportWorkspace),
           ],
         ),

@@ -1,9 +1,5 @@
 import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/providers/services.dart';
-import 'package:curel/data/services/github_client.dart';
-import 'package:curel/data/services/gitlab_client.dart';
-import 'package:curel/data/services/gitea_client.dart';
-import 'package:curel/data/services/bitbucket_client.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
@@ -20,21 +16,6 @@ class GitProvidersPage extends ConsumerStatefulWidget {
 class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   List<GitProviderModel> _providers = [];
   bool _loading = true;
-
-  GitClient _getClient(String type, {String? baseUrl}) {
-    switch (type) {
-      case 'github':
-        return GitHubClient(baseUrl: baseUrl);
-      case 'gitlab':
-        return GitLabClient(baseUrl: baseUrl);
-      case 'gitea':
-        return GiteaClient(baseUrl: baseUrl);
-      case 'bitbucket':
-        return BitbucketClient(baseUrl: baseUrl);
-      default:
-        throw Exception('Provider $type not supported yet');
-    }
-  }
 
   @override
   void initState() {
@@ -108,7 +89,6 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                             DropdownMenuItem(value: 'github', child: Text('github')),
                             DropdownMenuItem(value: 'gitlab', child: Text('gitlab')),
                             DropdownMenuItem(value: 'gitea', child: Text('gitea')),
-                            DropdownMenuItem(value: 'bitbucket', child: Text('bitbucket')),
                           ],
                           onChanged: (v) {
                             if (v != null) {
@@ -125,9 +105,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                           ? 'https://github.company.com'
                           : typeCtrl.text == 'gitlab'
                               ? 'https://gitlab.company.com'
-                              : typeCtrl.text == 'gitea'
-                                  ? 'https://gitea.company.com'
-                                  : 'https://bitbucket.company.com',
+                              : 'https://gitea.company.com',
                       baseUrlCtrl,
                     ),
                     const SizedBox(height: 12),
@@ -137,11 +115,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                           ? 'ghp_xxx...'
                           : typeCtrl.text == 'gitlab'
                               ? 'glpat-xxx...'
-                              : typeCtrl.text == 'gitea'
-                                  ? 'gtp_xxx...'
-                                  : typeCtrl.text == 'bitbucket'
-                                      ? 'access token...'
-                                      : 'token hex...',
+                              : 'gtp_xxx...',
                       tokenCtrl,
                       obscure: true,
                     ),
@@ -176,7 +150,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                           try {
                             final tokenToValidate = isEdit ? (token.isNotEmpty ? token : null) : token;
                             if (tokenToValidate != null) {
-                              final client = _getClient(type, baseUrl: baseUrl);
+                              final client = GitClient.create(type, baseUrl: baseUrl);
                               final username = await client.validateToken(tokenToValidate, baseUrl: baseUrl);
                               if (username == null) {
                                 if (mounted) showTerminalToast(ctx, 'invalid token — check your credentials');

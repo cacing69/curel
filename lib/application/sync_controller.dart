@@ -36,7 +36,7 @@ class SyncController {
         // 4. Clear response output if the request is gone
         _ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
           clearResponse: true,
-          clearError: true,
+          clearError: true, clearLog: true,
         ));
       }
     }

@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:curel/data/services/filesystem_service.dart';
-import 'package:curel/data/services/github_client.dart';
-import 'package:curel/data/services/gitlab_client.dart';
 import 'package:curel/domain/models/project_model.dart';
+import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
 import 'package:curel/domain/services/device_service.dart';
@@ -20,18 +19,7 @@ class GitSyncService {
 
   GitSyncService(this._ref, this._providerService, this._fs, this._device);
 
-  GitClient _getClient(String type, {String? baseUrl}) {
-    switch (type) {
-      case 'github':
-        return GitHubClient(baseUrl: baseUrl);
-      case 'gitlab':
-        return GitLabClient(baseUrl: baseUrl);
-      default:
-        throw Exception('Provider $type not supported yet');
-    }
-  }
-
-  Future<GitSyncResult> pull(Project project) async {
+  Future<GitSyncResult> pull(Project project, {bool force = false}) async {
     if (project.remoteUrl == null ||
         project.provider == null ||
         project.branch == null) {
@@ -42,7 +30,6 @@ class GitSyncService {
     }
 
     try {
-      // 1. Get Provider and Token
       final provider = await _providerService.getById(project.provider!);
       if (provider == null)
         return GitSyncResult(success: false, message: 'git provider not found');
@@ -54,24 +41,36 @@ class GitSyncService {
           message: 'token missing for provider',
         );
 
-      // 2. Select Client
-      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+      return _pullImpl(project, provider, token, client, force: force);
+    } catch (e) {
+      return GitSyncResult(success: false, message: _cleanError(e));
+    }
+  }
 
-      // 3. Get Remote SHA for sync tracking
+  Future<GitSyncResult> _pullImpl(
+    Project project,
+    GitProviderModel _,
+    String token,
+    GitClient client, {
+    bool force = false,
+  }) async {
+    try {
+      // 1. Get Remote SHA for sync tracking
       final remoteSha = await client.getLatestCommitSha(
         project.remoteUrl!,
         project.branch!,
         token,
       );
 
-      // 4. Fetch Files
+      // 2. Fetch Files
       final remoteFiles = await client.fetchFiles(
         project.remoteUrl!,
         project.branch!,
         token,
       );
 
-      // 5. Validate Remote Signature (curel.json)
+      // 3. Validate Remote Signature (curel.json)
       final remoteCurelJson = remoteFiles.firstWhere(
         (f) => f.path == 'curel.json',
         orElse: () => GitFile(path: '', content: ''),
@@ -85,12 +84,12 @@ class GitSyncService {
         } catch (_) {}
       }
 
-      // 6. SAFETY CHECK: Conflict Detection
+      // 4. SAFETY CHECK: Conflict Detection
       // If remote has files AND local has files (requests) AND they haven't been linked yet
       final localRequests = await _ref.read(requestServiceProvider).listRequests(project.id);
       final isNewConnection = project.remoteOriginId == null;
 
-      if (isNewConnection && remoteFiles.isNotEmpty && localRequests.isNotEmpty) {
+      if (!force && isNewConnection && remoteFiles.isNotEmpty && localRequests.isNotEmpty) {
         // We have data on both sides! Need resolution.
         return GitSyncResult(
           success: false,
@@ -118,7 +117,7 @@ class GitSyncService {
         );
       }
 
-      // 7. Save to Filesystem
+      // 5. Save to Filesystem
       final projectDir = await _fs.getProjectDir(project.id);
       
       // Update local remoteOriginId if this is the first pull
@@ -198,8 +197,21 @@ class GitSyncService {
           message: 'token missing for provider',
         );
 
-      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+      return _pushImpl(project, provider, token, client, force: force);
+    } catch (e) {
+      return GitSyncResult(success: false, message: _cleanError(e));
+    }
+  }
 
+  Future<GitSyncResult> _pushImpl(
+    Project project,
+    GitProviderModel _,
+    String token,
+    GitClient client, {
+    bool force = false,
+  }) async {
+    try {
       // Optimistic locking: reject push if remote changed since last sync
       if (!force && project.lastSyncSha != null) {
         final remoteSha = await client.getLatestCommitSha(
@@ -312,13 +324,13 @@ class GitSyncService {
         return GitSyncResult(
             success: false, message: 'token missing for provider');
 
-      final client = _getClient(provider.type, baseUrl: provider.baseUrl);
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
 
       // 1. SMART CHECK: Fetch latest SHA from Remote
       final remoteSha = await client.getLatestCommitSha(
           project.remoteUrl!, project.branch!, token);
 
-      GitSyncResult? pullRes;
+      GitSyncResult pullRes;
       if (remoteSha != null && remoteSha == project.lastSyncSha) {
         // No changes in remote, skip Pull
         pullRes = GitSyncResult(
@@ -327,7 +339,7 @@ class GitSyncService {
             filesCount: 0);
       } else {
         // Remote has changes or first sync, perform Pull
-        pullRes = await pull(project);
+        pullRes = await _pullImpl(project, provider, token, client);
         if (!pullRes.success) return pullRes;
       }
 
@@ -335,7 +347,7 @@ class GitSyncService {
       final syncedProject = pullRes.newSyncSha != null
           ? project.copyWith(lastSyncSha: pullRes.newSyncSha)
           : project;
-      final pushRes = await push(syncedProject);
+      final pushRes = await _pushImpl(syncedProject, provider, token, client);
       if (!pushRes.success) return pushRes;
 
       return GitSyncResult(

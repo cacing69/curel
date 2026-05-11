@@ -389,7 +389,7 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true,
+            clearError: true, clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -416,7 +416,7 @@ class _HomePageState extends ConsumerState<HomePage>
             .update(
               (s) => s.copyWith(
                 clearResponse: true,
-                clearError: true,
+                clearError: true, clearLog: true,
                 showHtmlPreview: false,
                 searchActive: false,
               ),
@@ -428,7 +428,7 @@ class _HomePageState extends ConsumerState<HomePage>
             .update(
               (s) => s.copyWith(
                 response: result,
-                clearError: true,
+                clearError: true, clearLog: true,
                 showHtmlPreview: false,
                 searchActive: false,
               ),
@@ -679,7 +679,7 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true,
+            clearError: true, clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -703,7 +703,7 @@ class _HomePageState extends ConsumerState<HomePage>
           .update(
             (s) => s.copyWith(
               clearResponse: true,
-              clearError: true,
+              clearError: true, clearLog: true,
               showHtmlPreview: false,
               searchActive: false,
             ),
@@ -801,7 +801,7 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true,
+            clearError: true, clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -844,7 +844,7 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true,
+            clearError: true, clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -870,7 +870,7 @@ class _HomePageState extends ConsumerState<HomePage>
           .update(
             (s) => s.copyWith(
               clearResponse: true,
-              clearError: true,
+              clearError: true, clearLog: true,
               showHtmlPreview: false,
               searchActive: false,
             ),

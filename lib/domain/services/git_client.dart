@@ -1,3 +1,7 @@
+import 'package:curel/data/services/github_client.dart';
+import 'package:curel/data/services/gitlab_client.dart';
+import 'package:curel/data/services/gitea_client.dart';
+
 abstract class GitClient {
   /// Get the latest commit SHA from a branch
   Future<String?> getLatestCommitSha(String remoteUrl, String branch, String token);
@@ -13,6 +17,20 @@ abstract class GitClient {
 
   /// Validate token by testing authentication. Returns username on success, null on failure.
   Future<String?> validateToken(String token, {String? baseUrl});
+
+  /// Single factory — add new providers here only
+  static GitClient create(String type, {String? baseUrl}) {
+    switch (type) {
+      case 'github':
+        return GitHubClient(baseUrl: baseUrl);
+      case 'gitlab':
+        return GitLabClient(baseUrl: baseUrl);
+      case 'gitea':
+        return GiteaClient(baseUrl: baseUrl);
+      default:
+        throw Exception('provider "$type" not supported');
+    }
+  }
 }
 
 class GitFile {

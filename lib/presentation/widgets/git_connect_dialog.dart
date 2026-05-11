@@ -130,10 +130,13 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
           onPressed: _providers.isEmpty
               ? null
               : () {
+                  final url = _urlController.text.trim();
+                  final branch = _branchController.text.trim();
+                  if (url.isEmpty || branch.isEmpty) return;
                   final updated = widget.project.copyWith(
-                    remoteUrl: _urlController.text.trim(),
+                    remoteUrl: url,
                     provider: _selectedProviderId,
-                    branch: _branchController.text.trim(),
+                    branch: branch,
                     mode: 'git',
                   );
                   Navigator.of(context).pop(updated);
