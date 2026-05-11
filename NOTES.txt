@@ -1,0 +1,4 @@
+- Implement Smarter Sync (Incremental Diff) in Phase 3.
+- Add diff_match_patch dependency and create DiffService.
+- Upgrade GitSyncService to only pull/push changed files, reducing bandwidth and risk of data loss.
+- Add computePendingChanges for future Diff Viewer UI.

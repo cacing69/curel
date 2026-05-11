@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/adapters/adapter_registry.dart';
+import 'package:curel/domain/adapters/collection_adapter.dart';
+import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/services/request_service.dart';
@@ -16,14 +18,17 @@ class WorkspaceServiceImpl implements WorkspaceService {
   final EnvService _envService;
   final ProjectService _projectService;
   final RequestService _requestService;
+  final AdapterRegistry _adapterRegistry;
 
   WorkspaceServiceImpl({
     required EnvService envService,
     required ProjectService projectService,
     required RequestService requestService,
+    required AdapterRegistry adapterRegistry,
   })  : _envService = envService,
         _projectService = projectService,
-        _requestService = requestService;
+        _requestService = requestService,
+        _adapterRegistry = adapterRegistry;
 
   @override
   Future<String> exportWorkspace() async {
@@ -118,7 +123,7 @@ class WorkspaceServiceImpl implements WorkspaceService {
     final projectList = data['projects'] as List? ?? [];
     for (final projData in projectList) {
       final counts = await _importProjectData(
-        projData as Map<String, dynamic>,
+        jsonEncode(projData),
       );
       totalProjects++;
       totalEnvs += counts.envs;
@@ -134,57 +139,73 @@ class WorkspaceServiceImpl implements WorkspaceService {
 
   @override
   Future<({int requests, int envs})> importProject(String json) async {
-    final data = jsonDecode(json) as Map<String, dynamic>;
-    if (data['type'] != null && data['type'] != 'project') {
-      throw Exception('this file is a ${data['type']} export, not a project export');
-    }
-    final counts = await _importProjectData(data);
-    return (requests: counts.requests, envs: counts.envs);
+    return _importProjectData(json);
   }
 
-  Future<({int requests, int envs})> _importProjectData(
-    Map<String, dynamic> proj,
+  Future<({int requests, int envs})> _importProjectData(String json) async {
+    // 1. Detect adapter
+    final adapter = _adapterRegistry.findAdapter(json);
+    if (adapter == null) {
+      throw Exception('unsupported file format or corrupted data');
+    }
+
+    // 2. Convert to ImportedCollection
+    final collection = await adapter.convert(json);
+
+    // 3. Save to Filesystem
+    return _saveImportedCollection(collection);
+  }
+
+  Future<({int requests, int envs})> _saveImportedCollection(
+    ImportedCollection collection,
   ) async {
-    final projMeta = proj['project'] as Map<String, dynamic>;
     var totalEnvs = 0;
     var totalRequests = 0;
 
+    // Create project
     final newProject = await _projectService.create(
-      projMeta['name'] as String,
-      description: projMeta['description'] as String?,
+      collection.name,
+      description: collection.description,
     );
 
-    // Import project env
-    final envList = proj['environments'] as List?;
-    if (envList != null && envList.isNotEmpty) {
+    // Import environments
+    if (collection.environments.isNotEmpty) {
+      String? activeEnvId;
+      final List<Environment> envModels = [];
+
+      for (final importedEnv in collection.environments) {
+        final env = Environment(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + totalEnvs.toString(),
+          name: importedEnv.name,
+          variables: importedEnv.variables,
+          updatedAt: DateTime.now(),
+        );
+        envModels.add(env);
+        if (importedEnv.isActive) activeEnvId = env.id;
+        totalEnvs++;
+      }
+
       await _envService.importFromJson(
         newProject.id,
-        jsonEncode({'active': proj['active_env'], 'environments': envList}),
+        jsonEncode({
+          'active': activeEnvId ?? envModels.first.id,
+          'environments': envModels.map((e) => e.toJson()).toList(),
+        }),
       );
-      totalEnvs += envList.length;
     }
 
     // Import requests
-    final requests = proj['requests'] as List? ?? [];
-    for (final reqData in requests) {
-      final req = reqData as Map<String, dynamic>;
-      final path = req['path'] as String;
-      final content = req['content'] as String;
-
-      final sanitized = path.replaceAll('.curl', '');
+    for (final req in collection.requests) {
+      final sanitizedPath = req.path.replaceAll('.curl', '');
       final relativePath = await _requestService.createRequest(
         newProject.id,
-        sanitized,
-        content,
+        sanitizedPath,
+        req.curlContent,
       );
       totalRequests++;
 
-      final metaJson = req['meta'] as Map<String, dynamic>?;
-      if (metaJson != null && metaJson.isNotEmpty) {
-        try {
-          final meta = RequestMeta.fromJson(metaJson);
-          await _requestService.updateMeta(newProject.id, relativePath, meta);
-        } catch (_) {}
+      if (req.meta != null) {
+        await _requestService.updateMeta(newProject.id, relativePath, req.meta!);
       }
     }
 

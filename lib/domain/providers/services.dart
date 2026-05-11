@@ -14,6 +14,8 @@ import 'package:curel/application/sync_controller.dart';
 import 'package:curel/domain/services/git_provider_service.dart';
 import 'package:curel/domain/services/git_sync_service.dart';
 import 'package:curel/domain/services/device_service.dart';
+import 'package:curel/domain/services/diff_service.dart';
+import 'package:curel/domain/adapters/adapter_registry.dart';
 
 final fileSystemProvider = Provider<FileSystemService>(
   (ref) => LocalFileSystemService(),
@@ -56,6 +58,7 @@ final workspaceServiceProvider = Provider<WorkspaceService>(
     envService: ref.read(envServiceProvider),
     projectService: ref.read(projectServiceProvider),
     requestService: ref.read(requestServiceProvider),
+    adapterRegistry: ref.read(adapterRegistryProvider),
   ),
 );
 
@@ -73,10 +76,15 @@ final gitSyncServiceProvider = Provider<GitSyncService>(
     ref.read(gitProviderServiceProvider),
     ref.read(fileSystemProvider),
     ref.read(deviceServiceProvider),
+    ref.read(diffServiceProvider),
   ),
 );
 
 final deviceServiceProvider = Provider<DeviceService>(
   (ref) => DeviceService(),
+);
+
+final diffServiceProvider = Provider<DiffService>(
+  (ref) => DiffService(),
 );
 

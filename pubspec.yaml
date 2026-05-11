@@ -54,6 +54,7 @@ dependencies:
   isar_community_flutter_libs: ^3.3.2
   flutter_riverpod: ^2.6.1
   flutter_image_compress: ^2.4.0
+  diff_match_patch: ^0.4.1
 
 dev_dependencies:
   flutter_test:
