@@ -1,8 +1,8 @@
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/models/request_model.dart';
 
-/// Standardized data structure for a collection being imported into Curel.
-/// This acts as the "Curel Data Convention" for all adapters.
+// ── Import direction (external → curel) ──────────────────────────
+
 class ImportedCollection {
   final String name;
   final String? description;
@@ -30,7 +30,7 @@ class ImportedEnv {
 }
 
 class ImportedRequest {
-  final String path; // relative path, e.g. "auth/login"
+  final String path;
   final String curlContent;
   final RequestMeta? meta;
 
@@ -41,15 +41,58 @@ class ImportedRequest {
   });
 }
 
-/// Interface for all collection adapters (Postman, Insomnia, etc.)
+// ── Export direction (curel → external) ──────────────────────────
+
+class ExportedProject {
+  final String name;
+  final String? description;
+  final List<ExportedEnv> environments;
+  final List<ExportedRequest> requests;
+
+  const ExportedProject({
+    required this.name,
+    this.description,
+    this.environments = const [],
+    this.requests = const [],
+  });
+}
+
+class ExportedEnv {
+  final String name;
+  final List<EnvVariable> variables;
+  final bool isActive;
+
+  const ExportedEnv({
+    required this.name,
+    required this.variables,
+    this.isActive = false,
+  });
+}
+
+class ExportedRequest {
+  final String displayName;
+  final String folderPath;
+  final String curlContent;
+
+  const ExportedRequest({
+    required this.displayName,
+    this.folderPath = '',
+    required this.curlContent,
+  });
+}
+
+// ── Adapter interface ────────────────────────────────────────────
+
 abstract class CollectionAdapter {
   String get id;
   String get name;
-  String get icon; // Optional: icon name from Lucide/Material
+  String get icon;
 
-  /// Check if this adapter can handle the given content
   bool canHandle(String content);
 
-  /// Convert external format to Curel's standardized collection format
+  /// External format → curel
   Future<ImportedCollection> convert(String content);
+
+  /// Curel → external format (JSON string)
+  Future<String> export(ExportedProject project);
 }

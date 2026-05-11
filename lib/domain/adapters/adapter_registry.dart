@@ -27,6 +27,13 @@ class AdapterRegistry {
     }
     return null;
   }
+
+  CollectionAdapter? findById(String id) {
+    for (final adapter in _adapters) {
+      if (adapter.id == id) return adapter;
+    }
+    return null;
+  }
 }
 
 final adapterRegistryProvider = Provider((ref) => AdapterRegistry());

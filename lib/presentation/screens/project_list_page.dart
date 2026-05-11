@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
+import 'package:curel/domain/adapters/adapter_registry.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/git_connect_dialog.dart';
@@ -81,18 +82,62 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
   }
 
   Future<void> _exportProject(Project project) async {
+    final adapters = ref.read(adapterRegistryProvider).availableAdapters;
+
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final position = RelativeRect.fromLTRB(
+      offset.dx,
+      offset.dy + size.height,
+      offset.dx + size.width,
+      0,
+    );
+
+    final selected = await showMenu<(String, String)>(
+      context: context,
+      elevation: 0,
+      position: position,
+      color: TColors.surface,
+      items: adapters.map((a) => PopupMenuItem<(String, String)>(
+        height: 36,
+        value: (a.id, a.name),
+        child: _menuItem(_iconFor(a.id), a.name),
+      )).toList(),
+    );
+
+    if (selected == null || !mounted) return;
+    await _doExport(project, selected.$1, selected.$2);
+  }
+
+  Future<void> _doExport(Project project, String adapterId, String formatName) async {
     try {
-      final json = await ref.read(workspaceServiceProvider).exportProject(project.id);
+      final json = await ref.read(workspaceServiceProvider).exportProjectAs(project.id, adapterId);
+      final ext = _extFor(adapterId);
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'export project',
-        fileName: '${project.name}.json',
+        dialogTitle: 'export as $formatName',
+        fileName: '${project.name}$ext',
         bytes: utf8.encode(json),
       );
-      if (path != null && mounted) showTerminalToast(context, 'exported');
+      if (path != null && mounted) showTerminalToast(context, 'exported as $formatName');
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
     }
   }
+
+  IconData _iconFor(String id) => switch (id) {
+    'postman_v2' => Icons.cloud_upload,
+    'insomnia_v4' => Icons.code,
+    'hoppscotch_v1' => Icons.code,
+    _ => Icons.archive,
+  };
+
+  String _extFor(String id) => switch (id) {
+    'postman_v2' => '.postman_collection.json',
+    'insomnia_v4' => '.insomnia.json',
+    'hoppscotch_v1' => '.hoppscotch.json',
+    _ => '.json',
+  };
 
   Future<void> _importProject() async {
     try {

@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:curel/domain/adapters/collection_adapter.dart';
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/services/curl_parser_service.dart';
 
-/// Adapter for Hoppscotch export format (v1 JSON).
-/// Detects via "_type": "collection" and a top‑level "name" field.
 class HoppscotchAdapter implements CollectionAdapter {
   @override
   String get id => 'hoppscotch_v1';
@@ -14,7 +13,6 @@ class HoppscotchAdapter implements CollectionAdapter {
   String get name => 'Hoppscotch';
 
   @override
-  // Lucide does not have a dedicated icon; use generic "code".
   String get icon => 'code';
 
   @override
@@ -27,13 +25,15 @@ class HoppscotchAdapter implements CollectionAdapter {
     }
   }
 
+  // ── Import ──────────────────────────────────────────────────────
+
   @override
   Future<ImportedCollection> convert(String content) async {
     final data = jsonDecode(content) as Map<String, dynamic>;
     final List<dynamic> items = data['items'] as List<dynamic>? ?? [];
     final List<ImportedRequest> requests = [];
 
-    void _traverse(List<dynamic> list, String parentPath) {
+    void traverse(List<dynamic> list, String parentPath) {
       for (final item in list) {
         if (item is! Map<String, dynamic>) continue;
         final type = item['type'];
@@ -51,14 +51,13 @@ class HoppscotchAdapter implements CollectionAdapter {
             meta: RequestMeta(displayName: item['name'] as String?),
           ));
         } else if (type == 'folder' && item['items'] is List) {
-          _traverse(item['items'] as List<dynamic>, currentPath);
+          traverse(item['items'] as List<dynamic>, currentPath);
         }
       }
     }
 
-    _traverse(items, '');
+    traverse(items, '');
 
-    // Hoppscotch can contain environment variables under "environment" key.
     final List<ImportedEnv> envs = [];
     if (data['environment'] is Map<String, dynamic>) {
       final envMap = data['environment'] as Map<String, dynamic>;
@@ -80,6 +79,89 @@ class HoppscotchAdapter implements CollectionAdapter {
       requests: requests,
     );
   }
+
+  // ── Export ──────────────────────────────────────────────────────
+
+  @override
+  Future<String> export(ExportedProject project) async {
+    final items = _buildItemsTree(project.requests);
+
+    final result = <String, dynamic>{
+      '_type': 'collection',
+      'name': project.name,
+      if (project.description != null && project.description!.isNotEmpty)
+        'description': project.description,
+      'items': items,
+    };
+
+    // Environment
+    if (project.environments.isNotEmpty) {
+      final env = project.environments.first;
+      result['environment'] = {
+        'name': env.name,
+        'variables': env.variables.map((v) {
+          return {'key': v.key, 'value': ''};
+        }).toList(),
+      };
+    }
+
+    return const JsonEncoder.withIndent('  ').convert(result);
+  }
+
+  List<Map<String, dynamic>> _buildItemsTree(List<ExportedRequest> requests) {
+    final folders = <String, Map<String, dynamic>>{};
+    final orphans = <Map<String, dynamic>>[];
+
+    for (final req in requests) {
+      final item = _curlToHoppscotchItem(req);
+      if (item == null) continue;
+
+      if (req.folderPath.isEmpty) {
+        orphans.add(item);
+      } else {
+        final parts = req.folderPath.split('/');
+        final folderName = parts.first;
+        folders.putIfAbsent(folderName, () => {
+          'name': folderName,
+          'type': 'folder',
+          'items': <Map<String, dynamic>>[],
+        });
+        (folders[folderName]!['items'] as List).add(item);
+      }
+    }
+
+    return [...folders.values, ...orphans];
+  }
+
+  Map<String, dynamic>? _curlToHoppscotchItem(ExportedRequest req) {
+    final parsed = _safeParse(req.curlContent);
+    if (parsed == null) return null;
+
+    final curl = parsed.curl;
+    final headers = <Map<String, dynamic>>[];
+    curl.headers?.forEach((key, value) {
+      headers.add({'key': key, 'value': value});
+    });
+
+    return {
+      'name': req.displayName,
+      'type': 'request',
+      'method': curl.method,
+      'url': curl.uri.toString(),
+      'headers': headers,
+      if (curl.data != null) 'body': curl.data,
+    };
+  }
+
+  ParsedCurl? _safeParse(String curlContent) {
+    try {
+      return parseCurl(curlContent);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Shared helpers ──────────────────────────────────────────────
 
   String _buildCurl(String method, String url, List<dynamic>? headers, dynamic body) {
     final parts = <String>['curl'];

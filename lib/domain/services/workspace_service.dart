@@ -11,6 +11,7 @@ abstract class WorkspaceService {
   Future<String> exportWorkspace();
   Future<({int projects, int requests, int envs})> importWorkspace(String json);
   Future<String> exportProject(String projectId);
+  Future<String> exportProjectAs(String projectId, String adapterId);
   Future<({int requests, int envs})> importProject(String json);
 }
 
@@ -62,6 +63,55 @@ class WorkspaceServiceImpl implements WorkspaceService {
       'exported_at': DateTime.now().toIso8601String(),
       ...data,
     });
+  }
+
+  @override
+  Future<String> exportProjectAs(String projectId, String adapterId) async {
+    final project = await _projectService.getById(projectId);
+    if (project == null) throw Exception('project not found');
+
+    final adapter = _adapterRegistry.findById(adapterId);
+    if (adapter == null) throw Exception('unknown export format');
+
+    final envs = await _buildExportedEnvs(projectId);
+    final requests = await _buildExportedRequests(projectId);
+
+    return adapter.export(ExportedProject(
+      name: project.name,
+      description: project.description,
+      environments: envs,
+      requests: requests,
+    ));
+  }
+
+  Future<List<ExportedEnv>> _buildExportedEnvs(String projectId) async {
+    final allEnvs = await _envService.getAll(projectId);
+    final active = await _envService.getActive(projectId);
+    return allEnvs.map((env) => ExportedEnv(
+      name: env.name,
+      variables: env.variables,
+      isActive: env.id == active?.id,
+    )).toList();
+  }
+
+  Future<List<ExportedRequest>> _buildExportedRequests(String projectId) async {
+    final requestItems = await _requestService.listRequests(projectId);
+    final requests = <ExportedRequest>[];
+    for (final item in requestItems) {
+      final content = await _requestService.readCurl(projectId, item.relativePath);
+      if (content == null) continue;
+
+      final path = item.relativePath.replaceAll('.curl', '');
+      final lastSlash = path.lastIndexOf('/');
+      final folderPath = lastSlash > 0 ? path.substring(0, lastSlash) : '';
+
+      requests.add(ExportedRequest(
+        displayName: item.displayName,
+        folderPath: folderPath,
+        curlContent: content,
+      ));
+    }
+    return requests;
   }
 
   Future<Map<String, dynamic>> _exportProjectData(String projectId) async {

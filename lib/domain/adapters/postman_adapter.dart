@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:curel/domain/adapters/collection_adapter.dart';
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/services/curl_parser_service.dart';
+import 'package:curl_parser/curl_parser.dart';
 
 class PostmanAdapter implements CollectionAdapter {
   @override
@@ -30,6 +32,8 @@ class PostmanAdapter implements CollectionAdapter {
       return false;
     }
   }
+
+  // ── Import ──────────────────────────────────────────────────────
 
   @override
   Future<ImportedCollection> convert(String content) async {
@@ -75,6 +79,157 @@ class PostmanAdapter implements CollectionAdapter {
     );
   }
 
+  // ── Export ──────────────────────────────────────────────────────
+
+  @override
+  Future<String> export(ExportedProject project) async {
+    final items = _buildFolderTree(project.requests);
+
+    final variables = <Map<String, dynamic>>[];
+    for (final env in project.environments) {
+      for (final v in env.variables) {
+        variables.add({
+          'key': _toPostmanVar(v.key),
+          'value': '',
+          'type': 'string',
+        });
+      }
+    }
+
+    final collection = <String, dynamic>{
+      'info': {
+        'name': project.name,
+        if (project.description != null && project.description!.isNotEmpty)
+          'description': project.description,
+        'schema':
+            'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+      },
+      'item': items,
+      if (variables.isNotEmpty) 'variable': variables,
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(collection);
+  }
+
+  List<Map<String, dynamic>> _buildFolderTree(List<ExportedRequest> requests) {
+    final root = <String, Map<String, dynamic>>{};
+    final orphans = <Map<String, dynamic>>[];
+
+    for (final req in requests) {
+      final item = _curlToPostmanItem(req);
+      if (item == null) continue;
+
+      if (req.folderPath.isEmpty) {
+        orphans.add(item);
+      } else {
+        final parts = req.folderPath.split('/');
+        final folderName = parts.first;
+        root.putIfAbsent(folderName, () => {
+          'name': folderName,
+          'item': <Map<String, dynamic>>[],
+        });
+        (root[folderName]!['item'] as List).add(item);
+      }
+    }
+
+    return [...root.values, ...orphans];
+  }
+
+  Map<String, dynamic>? _curlToPostmanItem(ExportedRequest req) {
+    final parsed = _safeParse(req.curlContent);
+    if (parsed == null) return null;
+
+    final curl = parsed.curl;
+    final url = curl.uri.toString();
+    final method = curl.method;
+
+    final headers = <Map<String, dynamic>>[];
+    curl.headers?.forEach((key, value) {
+      headers.add({'key': key, 'value': _toPostmanVar(value), 'type': 'text'});
+    });
+
+    final body = _buildPostmanBody(curl);
+
+    final request = <String, dynamic>{
+      'method': method,
+      'header': headers,
+      'url': _buildPostmanUrl(url),
+      if (body != null) 'body': body,
+    };
+
+    return {
+      'name': req.displayName,
+      'request': request,
+    };
+  }
+
+  Map<String, dynamic>? _buildPostmanBody(Curl curl) {
+    if (curl.data != null) {
+      final data = _toPostmanVar(curl.data!);
+      String? language;
+      try {
+        jsonDecode(data);
+        language = 'json';
+      } catch (_) {
+        language = 'text';
+      }
+      return {
+        'mode': 'raw',
+        'raw': data,
+        'options': {'raw': {'language': language}},
+      };
+    }
+
+    if (curl.formData != null && curl.formData!.isNotEmpty) {
+      return {
+        'mode': 'formdata',
+        'formdata': curl.formData!.map((f) {
+          return {
+            'key': f.name,
+            'value': _toPostmanVar(f.value),
+            'type': f.value.startsWith('@') ? 'file' : 'text',
+          };
+        }).toList(),
+      };
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic> _buildPostmanUrl(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) return {'raw': rawUrl};
+
+    return {
+      'raw': rawUrl,
+      'protocol': uri.scheme,
+      'host': uri.host.split('.'),
+      if (uri.port > 0) 'port': uri.port.toString(),
+      if (uri.pathSegments.isNotEmpty) 'path': uri.pathSegments,
+      if (uri.queryParameters.isNotEmpty)
+        'query': uri.queryParameters.entries
+            .map((e) => {'key': e.key, 'value': e.value})
+            .toList(),
+    };
+  }
+
+  ParsedCurl? _safeParse(String curlContent) {
+    try {
+      return parseCurl(curlContent);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _toPostmanVar(String input) {
+    return input.replaceAllMapped(
+      RegExp(r'<<([A-Za-z_][A-Za-z0-9_]*)>>'),
+      (m) => '{{${m.group(1)}}}',
+    );
+  }
+
+  // ── Shared helpers ──────────────────────────────────────────────
+
   void _flattenItems(
     List items,
     String parentPath,
@@ -108,7 +263,6 @@ class PostmanAdapter implements CollectionAdapter {
     final req = item['request'];
     if (req == null) return 'curl';
 
-    // request can be string (URL only, GET assumed) or object
     if (req is String) {
       return 'curl $_convertVars(req)';
     }
@@ -123,7 +277,6 @@ class PostmanAdapter implements CollectionAdapter {
       parts.add('-X $method');
     }
 
-    // Headers
     final headers = reqMap['header'] as List?;
     if (headers != null) {
       for (final h in headers) {
@@ -135,7 +288,6 @@ class PostmanAdapter implements CollectionAdapter {
       }
     }
 
-    // Body
     final body = reqMap['body'] as Map<String, dynamic>?;
     if (body != null) {
       final mode = body['mode'] as String?;
@@ -143,7 +295,6 @@ class PostmanAdapter implements CollectionAdapter {
         case 'raw':
           final raw = (body['raw'] as String?) ?? '';
           parts.add("-d '${_esc(_convertVars(raw))}'");
-          // Add Content-Type if not already set
           final hasContentType = headers?.any((h) {
                 final hMap = h as Map<String, dynamic>;
                 if (hMap['disabled'] == true) return false;
@@ -231,11 +382,9 @@ class PostmanAdapter implements CollectionAdapter {
   String _extractUrl(dynamic urlData) {
     if (urlData is String) return urlData;
     if (urlData is Map<String, dynamic>) {
-      // Use raw if available
       final raw = urlData['raw'] as String?;
       if (raw != null && raw.isNotEmpty) return raw;
 
-      // Reconstruct from parts
       final protocol = urlData['protocol'] as String? ?? 'https';
       final host = _joinHost(urlData['host']);
       final port = urlData['port'] as String?;
