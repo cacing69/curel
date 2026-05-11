@@ -1,6 +1,8 @@
 import 'package:curel/domain/adapters/collection_adapter.dart';
 import 'package:curel/domain/adapters/internal/curel_native_adapter.dart';
 import 'package:curel/domain/adapters/postman_adapter.dart';
+import 'package:curel/domain/adapters/insomnia_adapter.dart';
+import 'package:curel/domain/adapters/hoppscotch_adapter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AdapterRegistry {
@@ -9,6 +11,8 @@ class AdapterRegistry {
   AdapterRegistry() {
     _register(CurelNativeAdapter());
     _register(PostmanAdapter());
+    _register(InsomniaAdapter());
+    _register(HoppscotchAdapter());
   }
 
   void _register(CollectionAdapter adapter) {
