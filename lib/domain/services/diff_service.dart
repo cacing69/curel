@@ -66,7 +66,7 @@ class DiffService {
             type: ChangeType.modified,
             oldContent: local,
             newContent: remote,
-            diffs: compare(local, remote),
+            diffs: compare(remote, local),
           ));
         }
       }
