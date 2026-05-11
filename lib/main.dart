@@ -1,6 +1,7 @@
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/screens/home_page.dart';
-import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/theme/app_theme.dart';
+import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +33,11 @@ class _AppState extends ConsumerState<App> {
     httpClient.setUserAgent(ua);
     final workspace = await settings.getEffectiveWorkspacePath();
     await fs.setWorkspaceRoot(workspace);
+
+    // Load saved theme
+    final themeId = await settings.getTheme();
+    setAppTheme(themeId);
+
     await ref.read(syncControllerProvider).syncAndRefresh();
     if (mounted) setState(() {});
   }
@@ -45,75 +51,20 @@ class _AppState extends ConsumerState<App> {
     ref.read(httpClientProvider).setUserAgent(ua);
   }
 
+  void _onThemeChanged() {
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: TColors.background,
-        colorScheme: const ColorScheme.dark(
-          primary: TColors.accentText,
-          surface: TColors.surface,
-          error: TColors.error,
-        ),
-        textTheme: const TextTheme(
-          bodySmall: TextStyle(fontFamily: 'monospace'),
-          bodyMedium: TextStyle(fontFamily: 'monospace'),
-          bodyLarge: TextStyle(fontFamily: 'monospace'),
-        ),
-        dialogTheme: DialogThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ButtonStyle(
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: ButtonStyle(
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: ButtonStyle(
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-        ),
-        popupMenuTheme: PopupMenuThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        cardTheme: CardThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        bottomSheetTheme: BottomSheetThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        chipTheme: ChipThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-      ),
+      theme: buildThemeData(),
       home: HomePage(
         key: ValueKey(_workspaceKey),
         onUserAgentChanged: _onUserAgentChanged,
         onWorkspaceChanged: _onWorkspaceChanged,
+        onThemeChanged: _onThemeChanged,
       ),
     );
   }

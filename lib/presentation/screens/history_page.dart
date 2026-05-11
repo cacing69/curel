@@ -14,7 +14,7 @@ class HistoryPage extends ConsumerStatefulWidget {
   final String? currentProjectName;
   final ValueChanged<String> onSelect;
 
-  const HistoryPage({
+  HistoryPage({
     this.currentProjectId,
     this.currentProjectName,
     required this.onSelect,
@@ -90,11 +90,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(color: TColors.green),
                     )
                   : itemsEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'empty',
                         style: TextStyle(
@@ -128,28 +128,28 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             _view == _HistoryView.history ? 'history' : 'bookmark',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontSize: 11,
               fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           FlatTab(
             label: 'history',
             selected: _view == _HistoryView.history,
@@ -159,7 +159,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               _load();
             },
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           FlatTab(
             label: 'bookmark',
             selected: _view == _HistoryView.bookmark,
@@ -169,7 +169,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               _load();
             },
           ),
-          const Spacer(),
+          Spacer(),
           if (widget.currentProjectId != null) ...[
             GestureDetector(
               onTap: () {
@@ -189,7 +189,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                         ? TColors.green
                         : TColors.mutedText,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     _showOnlyCurrentProject
                         ? (widget.currentProjectName ?? 'project')
@@ -205,7 +205,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
           ],
           GestureDetector(
             onTap: () async {
@@ -214,7 +214,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: TColors.background,
-                    title: const Text(
+                    title: Text(
                       'clear bookmark?',
                       style: TextStyle(
                         color: TColors.foreground,
@@ -225,14 +225,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text(
+                        child: Text(
                           'cancel',
                           style: TextStyle(color: TColors.mutedText),
                         ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text(
+                        child: Text(
                           'clear',
                           style: TextStyle(color: TColors.red),
                         ),
@@ -251,7 +251,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: TColors.background,
-                  title: const Text(
+                  title: Text(
                     'clear history?',
                     style: TextStyle(
                       color: TColors.foreground,
@@ -262,14 +262,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text(
+                      child: Text(
                         'cancel',
                         style: TextStyle(color: TColors.mutedText),
                       ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text(
+                      child: Text(
                         'clear',
                         style: TextStyle(color: TColors.red),
                       ),
@@ -282,7 +282,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 _load();
               }
             },
-            child: const Icon(Icons.delete_sweep, size: 18, color: TColors.red),
+            child: Icon(Icons.delete_sweep, size: 18, color: TColors.red),
           ),
         ],
       ),
@@ -323,7 +323,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         Navigator.pop(context);
       },
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -331,14 +331,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               children: [
                 Text(
                   item.method ?? 'CURL',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.purple,
                     fontFamily: 'monospace',
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 if (code != null)
                   Text(
                     '$code',
@@ -350,7 +350,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       fontSize: 10,
                     ),
                   ),
-                const Spacer(),
+                Spacer(),
                 GestureDetector(
                   onTap: () => _toggleBookmark(item),
                   child: Icon(
@@ -359,10 +359,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     color: isBookmarked ? TColors.green : TColors.mutedText,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text(
                   time,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.mutedText,
                     fontFamily: 'monospace',
                     fontSize: 10,
@@ -370,10 +370,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               item.url ?? item.curlCommand,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.foreground,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -382,10 +382,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               overflow: TextOverflow.ellipsis,
             ),
             if (item.projectId != null) ...[
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 'src: history • project: ${item.projectId}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: TColors.mutedText,
                   fontFamily: 'monospace',
                   fontSize: 10,
@@ -394,7 +394,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               item.curlCommand,
               style: TextStyle(
@@ -421,7 +421,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         Navigator.pop(context);
       },
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -429,14 +429,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               children: [
                 Text(
                   item.method ?? 'CURL',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.purple,
                     fontFamily: 'monospace',
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 if (code != null)
                   Text(
                     '$code',
@@ -448,7 +448,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       fontSize: 10,
                     ),
                   ),
-                const Spacer(),
+                Spacer(),
                 GestureDetector(
                   onTap: () async {
                     await ref.read(bookmarkServiceProvider).removeById(item.id);
@@ -462,16 +462,16 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     });
                     showTerminalToast(context, 'bookmark removed');
                   },
-                  child: const Icon(
+                  child: Icon(
                     Icons.bookmark,
                     size: 16,
                     color: TColors.green,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text(
                   time,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.mutedText,
                     fontFamily: 'monospace',
                     fontSize: 10,
@@ -479,10 +479,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               item.url ?? item.curlCommand,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.foreground,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -490,10 +490,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'src: ${item.source} • project: ${item.projectName ?? item.projectId ?? '-'}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 10,
@@ -501,7 +501,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               item.curlCommand,
               style: TextStyle(

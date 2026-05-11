@@ -40,14 +40,14 @@ class CurlHighlightController extends TextEditingController {
         spans.add(
           TextSpan(
             text: m.group(1),
-            style: const TextStyle(color: TColors.purple),
+            style: TextStyle(color: TColors.purple),
           ),
         );
       } else if (m.group(2) != null) {
         spans.add(
           TextSpan(
             text: m.group(2),
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontWeight: FontWeight.bold,
             ),
@@ -57,28 +57,28 @@ class CurlHighlightController extends TextEditingController {
         spans.add(
           TextSpan(
             text: m.group(3),
-            style: const TextStyle(color: TColors.orange),
+            style: TextStyle(color: TColors.orange),
           ),
         );
       } else if (m.group(5) != null) {
         spans.add(
           TextSpan(
             text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
+            style: TextStyle(color: TColors.yellow),
           ),
         );
       } else if (m.group(6) != null) {
         spans.add(
           TextSpan(
             text: m.group(6),
-            style: const TextStyle(color: TColors.yellow),
+            style: TextStyle(color: TColors.yellow),
           ),
         );
       } else if (m.group(7) != null) {
         spans.add(
           TextSpan(
             text: m.group(7),
-            style: const TextStyle(color: TColors.green),
+            style: TextStyle(color: TColors.green),
           ),
         );
       } else if (m.group(8) != null) {
@@ -87,7 +87,7 @@ class CurlHighlightController extends TextEditingController {
           spans.add(
             TextSpan(
               text: word,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.purple,
                 fontWeight: FontWeight.bold,
               ),

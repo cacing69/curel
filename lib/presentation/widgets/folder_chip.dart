@@ -12,7 +12,7 @@ class FolderChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         color: TColors.background,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -21,7 +21,7 @@ class FolderChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.orange,
                 fontFamily: 'monospace',
                 fontSize: 10,

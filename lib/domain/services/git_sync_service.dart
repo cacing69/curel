@@ -429,11 +429,254 @@ class GitSyncService {
     }
   }
 
+  /// Pull with per-file conflict resolution.
+  /// `resolutions` maps path → 'local' (keep local) or 'remote' (use remote).
+  Future<GitSyncResult> pullWithResolution(
+    Project project,
+    Map<String, String> resolutions,
+  ) async {
+    if (project.remoteUrl == null || project.provider == null || project.branch == null) {
+      return GitSyncResult(success: false, message: 'project not connected to remote');
+    }
+
+    try {
+      final provider = await _providerService.getById(project.provider!);
+      if (provider == null) {
+        return GitSyncResult(success: false, message: 'git provider not found');
+      }
+
+      final token = await _providerService.getToken(provider.id);
+      if (token == null) {
+        return GitSyncResult(success: false, message: 'token missing for provider');
+      }
+
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+
+      final remoteSha = await client.getLatestCommitSha(
+        project.remoteUrl!, project.branch!, token,
+      );
+
+      final remoteFilesList = await client.fetchFiles(
+        project.remoteUrl!, project.branch!, token,
+      );
+      final remoteFiles = {for (var f in remoteFilesList) f.path: f.content};
+      final localFiles = await _getLocalFiles(project.id);
+
+      String? remoteOriginId;
+      final curelJson = remoteFiles['curel.json'];
+      if (curelJson != null) {
+        try {
+          final json = jsonDecode(curelJson);
+          remoteOriginId = json['remote_origin_id'] ?? json['id'];
+        } catch (_) {}
+      }
+
+      final projectDir = await _fs.getProjectDir(project.id);
+      int written = 0;
+
+      for (final entry in resolutions.entries) {
+        if (entry.value != 'remote') continue; // skip local-kept files
+
+        final path = entry.key;
+        final remoteContent = remoteFiles[path];
+        if (remoteContent == null) {
+          // File doesn't exist on remote — delete locally
+          final fullPath = p.join(projectDir, path);
+          final file = File(fullPath);
+          if (await file.exists()) await file.delete();
+          continue;
+        }
+
+        var content = remoteContent;
+        if (path == 'curel.json') {
+          try {
+            final json = jsonDecode(content) as Map<String, dynamic>;
+            json['id'] = project.id;
+            json['remote_origin_id'] = project.remoteOriginId ?? remoteOriginId;
+            json['remote_url'] = project.remoteUrl;
+            json['provider'] = project.provider;
+            json['branch'] = project.branch;
+            json['mode'] = 'git';
+            content = JsonEncoder.withIndent('  ').convert(json);
+          } catch (_) {}
+        }
+
+        final fullPath = p.join(projectDir, path);
+        final dir = Directory(p.dirname(fullPath));
+        if (!await dir.exists()) await dir.create(recursive: true);
+        await File(fullPath).writeAsString(content);
+        written++;
+      }
+
+      // Also pull files that are only on remote (added) and not in resolutions
+      final changes = _diff.computeChanges(localFiles, remoteFiles);
+      for (final change in changes) {
+        if (change.type != ChangeType.added) continue;
+        if (resolutions.containsKey(change.path)) continue;
+
+        var content = change.newContent!;
+        if (change.path == 'curel.json') {
+          try {
+            final json = jsonDecode(content) as Map<String, dynamic>;
+            json['id'] = project.id;
+            json['remote_origin_id'] = project.remoteOriginId ?? remoteOriginId;
+            json['remote_url'] = project.remoteUrl;
+            json['provider'] = project.provider;
+            json['branch'] = project.branch;
+            json['mode'] = 'git';
+            content = JsonEncoder.withIndent('  ').convert(json);
+          } catch (_) {}
+        }
+
+        final fullPath = p.join(projectDir, change.path);
+        final dir = Directory(p.dirname(fullPath));
+        if (!await dir.exists()) await dir.create(recursive: true);
+        await File(fullPath).writeAsString(content);
+        written++;
+      }
+
+      return GitSyncResult(
+        success: true,
+        message: 'resolved: $written file(s) updated',
+        filesCount: written,
+        newSyncSha: remoteSha,
+        data: remoteOriginId,
+      );
+    } catch (e) {
+      return GitSyncResult(success: false, message: _cleanError(e));
+    }
+  }
+
+  /// Push with per-file conflict resolution.
+  /// Files resolved as 'local' get pushed. Files resolved as 'remote' are skipped.
+  Future<GitSyncResult> pushWithResolution(
+    Project project,
+    Map<String, String> resolutions,
+  ) async {
+    if (project.remoteUrl == null || project.provider == null || project.branch == null) {
+      return GitSyncResult(success: false, message: 'project not connected to remote');
+    }
+
+    try {
+      final provider = await _providerService.getById(project.provider!);
+      if (provider == null) {
+        return GitSyncResult(success: false, message: 'git provider not found');
+      }
+
+      final token = await _providerService.getToken(provider.id);
+      if (token == null) {
+        return GitSyncResult(success: false, message: 'token missing for provider');
+      }
+
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+
+      final remoteSha = await client.getLatestCommitSha(
+        project.remoteUrl!, project.branch!, token,
+      );
+
+      final remoteFilesList = await client.fetchFiles(
+        project.remoteUrl!, project.branch!, token,
+      );
+      final remoteFiles = {for (var f in remoteFilesList) f.path: f.content};
+      final localFiles = await _getLocalFiles(project.id);
+
+      if (!localFiles.containsKey('.gitignore')) {
+        localFiles['.gitignore'] = '# Curel ignore file\nenvironments/\n.env\n*.local\n';
+      }
+
+      final allChanges = _diff.computeChanges(remoteFiles, localFiles);
+
+      // Filter: only push files resolved as 'local' or not in conflict
+      final filesToPush = <GitFile>[];
+      for (final change in allChanges) {
+        final resolution = resolutions[change.path];
+        if (resolution == 'remote') continue; // skip remote-kept files
+
+        var content = change.newContent ?? '';
+        if (change.path == 'curel.json') {
+          try {
+            final json = jsonDecode(content) as Map<String, dynamic>;
+            json['remote_origin_id'] = project.remoteOriginId ?? project.id;
+            content = JsonEncoder.withIndent('  ').convert(json);
+          } catch (_) {}
+        }
+
+        filesToPush.add(GitFile(
+          path: change.path,
+          content: content,
+          deletion: change.type == ChangeType.deleted,
+        ));
+      }
+
+      if (filesToPush.isEmpty) {
+        return GitSyncResult(
+          success: true,
+          message: 'no changes to push after resolution',
+          filesCount: 0,
+          newSyncSha: remoteSha,
+        );
+      }
+
+      final now = DateTime.now();
+      final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+      final time = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+      final packageInfo = await PackageInfo.fromPlatform();
+      final version = packageInfo.version;
+      final fingerprint = await _device.getFingerprint();
+      final commitMessage = 'curel v$version ($fingerprint) $date $time';
+
+      final newSha = await client.pushFiles(
+        project.remoteUrl!, project.branch!, token, filesToPush, commitMessage,
+      );
+
+      return GitSyncResult(
+        success: true,
+        message: 'resolved and pushed ${filesToPush.length} changes',
+        filesCount: filesToPush.length,
+        newSyncSha: newSha,
+      );
+    } catch (e) {
+      return GitSyncResult(success: false, message: _cleanError(e));
+    }
+  }
+
   String _cleanError(Object e) {
     final msg = e.toString();
     if (msg.startsWith('Exception: ')) {
       return msg.substring(11);
     }
     return msg;
+  }
+
+  Future<List<String>> listBranches(Project project) async {
+    if (project.remoteUrl == null || project.provider == null) return [];
+
+    try {
+      final provider = await _providerService.getById(project.provider!);
+      if (provider == null) return [];
+
+      final token = await _providerService.getToken(provider.id);
+      if (token == null) return [];
+
+      final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+      return client.listBranches(project.remoteUrl!, token);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> createBranch(Project project, String newBranch, String fromBranch) async {
+    if (project.remoteUrl == null || project.provider == null) {
+      throw Exception('project not connected to remote');
+    }
+
+    final provider = await _providerService.getById(project.provider!);
+    if (provider == null) throw Exception('git provider not found');
+
+    final token = await _providerService.getToken(provider.id);
+    if (token == null) throw Exception('token missing for provider');
+
+    final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
+    await client.createBranch(project.remoteUrl!, newBranch, fromBranch, token);
   }
 }

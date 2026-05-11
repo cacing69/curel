@@ -12,7 +12,7 @@ class RequestDrawer extends ConsumerStatefulWidget {
   final VoidCallback? onNewRequest;
   final String? selectedPath;
 
-  const RequestDrawer({
+  RequestDrawer({
     required this.projectId,
     required this.onRequestSelected,
     this.onNewRequest,
@@ -73,10 +73,10 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          const Text(
+          Text(
             'requests',
             style: TextStyle(
               color: TColors.foreground,
@@ -85,16 +85,16 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             '${_requests.length}',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.mutedText,
               fontSize: 10,
               fontFamily: 'monospace',
             ),
           ),
-          const Spacer(),
+          Spacer(),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Icon(Icons.close, size: 14, color: TColors.mutedText),
@@ -107,9 +107,9 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   Widget _buildSearch() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: TextField(
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.text,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -117,7 +117,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         cursorColor: TColors.green,
         decoration: InputDecoration(
           hintText: 'search...',
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -136,7 +136,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   }
 
   Widget _buildLoading() {
-    return const Center(
+    return Center(
       child: CircularProgressIndicator(
         color: TColors.green,
         strokeWidth: 2,
@@ -169,14 +169,14 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       if (folder.isNotEmpty) {
         slivers.add(SliverToBoxAdapter(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: Row(
               children: [
                 Icon(Icons.folder, size: 12, color: TColors.orange),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   folder,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.orange,
                     fontFamily: 'monospace',
                     fontSize: 11,
@@ -234,11 +234,11 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       onTap: () => widget.onRequestSelected(item.relativePath),
       child: Container(
         color: selected ? TColors.surface : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             _methodDot(item),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 item.displayName,
@@ -260,7 +260,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
                 ),
               ),
             ],
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             GestureDetector(
               onTapDown: (details) => _showContextMenu(context, item, details),
               child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
@@ -333,10 +333,10 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     return Row(
       children: [
         Icon(icon, size: 14, color: TColors.mutedText),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.foreground,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -354,7 +354,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         backgroundColor: TColors.background,
         title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
         content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,
@@ -389,7 +389,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   Widget _buildFooter() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Row(
         children: [
           TermButton(
@@ -398,7 +398,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
             onTap: widget.onNewRequest,
             accent: true,
           ),
-          const Spacer(),
+          Spacer(),
           TermButton(icon: Icons.sync, label: 'sync', onTap: _load),
         ],
       ),

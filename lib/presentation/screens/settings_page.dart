@@ -20,7 +20,7 @@ class SettingsPage extends ConsumerStatefulWidget {
   final void Function() onWorkspaceChanged;
   final String? projectId;
 
-  const SettingsPage({
+  SettingsPage({
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
     this.projectId,
@@ -198,7 +198,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
-    const secure = FlutterSecureStorage();
+    final secure = FlutterSecureStorage();
     await secure.deleteAll();
 
     final fs = LocalFileSystemService();
@@ -230,14 +230,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                         color: TColors.green,
                         strokeWidth: 2,
                       ),
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 20,
                       ),
@@ -253,7 +253,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             controller: _uaController,
                             maxLines: 3,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           _buildSection(
                             label: 'connect timeout',
                             description:
@@ -263,7 +263,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             controller: _connectTimeoutController,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           _buildSection(
                             label: 'max time',
                             description:
@@ -273,7 +273,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             controller: _maxTimeController,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           GestureDetector(
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -284,7 +284,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ),
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: 10,
                                 vertical: 8,
                               ),
@@ -296,8 +296,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     size: 14,
                                     color: TColors.cyan,
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8),
+                                  Text(
                                     'env',
                                     style: TextStyle(
                                       color: TColors.cyan,
@@ -306,7 +306,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const Spacer(),
+                                  Spacer(),
                                   Icon(
                                     Icons.chevron_right,
                                     size: 14,
@@ -316,16 +316,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           GestureDetector(
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const GitProvidersPage(),
+                                builder: (_) => GitProvidersPage(),
                               ),
                             ),
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: 10,
                                 vertical: 8,
                               ),
@@ -337,8 +337,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     size: 14,
                                     color: TColors.cyan,
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8),
+                                  Text(
                                     'git providers',
                                     style: TextStyle(
                                       color: TColors.cyan,
@@ -347,7 +347,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const Spacer(),
+                                  Spacer(),
                                   Icon(
                                     Icons.chevron_right,
                                     size: 14,
@@ -357,9 +357,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           _buildWorkspaceSection(),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           Row(
                             children: [
                               TermButton(
@@ -368,7 +368,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 onTap: _save,
                                 accent: true,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               TermButton(
                                 icon: Icons.refresh,
                                 label: 'reset fields',
@@ -380,10 +380,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 32),
+                          SizedBox(height: 32),
                           Container(height: 1, color: TColors.border),
-                          const SizedBox(height: 20),
-                          const Text(
+                          SizedBox(height: 20),
+                          Text(
                             'danger zone',
                             style: TextStyle(
                               color: TColors.red,
@@ -392,8 +392,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
+                          SizedBox(height: 6),
+                          Text(
                             'erase all data and restore the app to a fresh install state.',
                             style: TextStyle(
                               color: TColors.mutedText,
@@ -402,7 +402,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               height: 1.4,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12),
                           TermButton(
                             icon: Icons.delete_forever,
                             label: 'reset app',
@@ -432,26 +432,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.cyan,
             fontFamily: 'monospace',
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
           description,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
             fontSize: 11,
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,
@@ -460,14 +460,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             cursorColor: TColors.green,
             keyboardType: keyboardType,
             obscureText: obscureText,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',
               fontSize: 13,
             ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 13,
@@ -488,7 +488,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'workspace',
           style: TextStyle(
             color: TColors.cyan,
@@ -497,8 +497,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
+        SizedBox(height: 6),
+        Text(
           'where projects and requests are stored. '
           'choose a folder visible in your file manager for easy access.',
           style: TextStyle(
@@ -508,21 +508,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: Text(
             _workspaceDisplay,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',
               fontSize: 11,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -549,19 +549,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'settings',
             style: TextStyle(
               color: TColors.foreground,

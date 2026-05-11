@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProjectListPage extends ConsumerStatefulWidget {
-  const ProjectListPage({
+  ProjectListPage({
     super.key,
   });
 
@@ -175,7 +175,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                         color: TColors.green,
                         strokeWidth: 2,
@@ -196,15 +196,15 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
+            child: Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'projects',
             style: TextStyle(
               color: TColors.foreground,
@@ -231,7 +231,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
               fontFamily: 'monospace',
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'create one to start organizing requests',
             style: TextStyle(
@@ -262,7 +262,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
       onTap: () => _selectProject(project),
       child: Container(
         color: isActive ? TColors.surface : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             Icon(
@@ -270,7 +270,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
               size: 16,
               color: isActive ? TColors.green : TColors.mutedText,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +287,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
                   if (project.description != null && project.description!.isNotEmpty)
                     Text(
                       project.description!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
                         fontSize: 10,
@@ -299,14 +299,14 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             ),
             Text(
               '$count',
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 11,
               ),
             ),
             if (project.provider != null) ...[
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Tooltip(
                 message: project.lastSyncSha != null
                     ? 'synced'
@@ -321,7 +321,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
                 ),
               ),
             ],
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             _popupMenu(project),
           ],
         ),
@@ -363,7 +363,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
       },
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: EdgeInsets.symmetric(horizontal: 6),
         color: TColors.surface,
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),
@@ -422,10 +422,10 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
     return Row(
       children: [
         Icon(icon, size: 14, color: TColors.mutedText),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.foreground,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -438,13 +438,13 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
   Widget _buildFooter() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Row(
         children: [
           TermButton(icon: Icons.add, label: 'new project', onTap: _createProject, accent: true),
-          const Spacer(),
+          Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _importProject),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           TermButton(icon: Icons.sync, label: 'sync', onTap: _load),
         ],
       ),
@@ -464,7 +464,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
         ),
         content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,

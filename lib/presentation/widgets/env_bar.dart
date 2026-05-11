@@ -5,6 +5,8 @@ import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/env_switch.dart';
 import 'package:curel/presentation/widgets/git_connect_dialog.dart';
 import 'package:curel/presentation/widgets/diff_viewer_dialog.dart';
+import 'package:curel/presentation/widgets/conflict_dialog.dart';
+import 'package:curel/presentation/widgets/branch_picker_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,15 +40,15 @@ class EnvBar extends ConsumerWidget {
     final selectedPath = ref.watch(selectedRequestPathProvider);
     return Container(
       height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      padding: EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
         color: TColors.surface,
         border: Border(bottom: BorderSide(color: TColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
           _GitSyncButton(activeProject: activeProject),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: GestureDetector(
               onTap: onOpenProjects,
@@ -58,7 +60,7 @@ class EnvBar extends ConsumerWidget {
                     size: 14,
                     color: TColors.mutedText,
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       activeProject?.name ?? 'no project',
@@ -76,7 +78,7 @@ class EnvBar extends ConsumerWidget {
                     ),
                   ),
                   if (activeProject != null) ...[
-                    const Text(
+                    Text(
                       ' › ',
                       style: TextStyle(color: TColors.mutedText, fontSize: 10),
                     ),
@@ -104,33 +106,33 @@ class EnvBar extends ConsumerWidget {
             ),
           ),
           if (activeProject != null) ...[
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             if (selectedPath != null || hasCurlText)
               GestureDetector(
                 onTap: onCloseRequest,
-                child: const Icon(Icons.close, size: 14, color: TColors.mutedText),
+                child: Icon(Icons.close, size: 14, color: TColors.mutedText),
               ),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             GestureDetector(
               onTap: onCloseProject,
-              child: const Icon(Icons.folder_off, size: 14, color: TColors.mutedText),
+              child: Icon(Icons.folder_off, size: 14, color: TColors.mutedText),
             ),
             ...[
               if (selectedPath != null) ...[
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 GestureDetector(
                   onTap: onSaveRequest,
-                  child: const Icon(Icons.save, size: 14, color: TColors.green),
+                  child: Icon(Icons.save, size: 14, color: TColors.green),
                 ),
               ],
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               GestureDetector(
                 onTap: onSaveRequestAs,
-                child: const Icon(Icons.save_as, size: 14, color: TColors.mutedText),
+                child: Icon(Icons.save_as, size: 14, color: TColors.mutedText),
               ),
             ],
           ],
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           EnvSwitch(
             projectId: ref.read(activeProjectProvider)?.id,
             onChanged: onEnvChanged,
@@ -221,32 +223,43 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
           _showLog('git sync\n${result.message}');
         } else if (result.hasConflict) {
           if (mounted) {
-            final choice = await _showConflictDialog();
-            if (choice == 'pull') {
-              final res = await ref.read(gitSyncServiceProvider).pull(project, force: true);
-              if (res.success && mounted) {
-                await _updateProject(
-                  project,
-                  syncSha: res.newSyncSha,
-                  originId: res.data is String ? res.data as String : null,
-                );
-                await ref.read(syncControllerProvider).syncAndRefresh();
-                _showLog('git sync (pull overwrite)\n${res.message}');
-              } else if (mounted) {
-                _showLog('git sync (pull overwrite)\nerror: ${res.message}');
-              }
-            } else if (choice == 'push') {
-              final res = await ref.read(gitSyncServiceProvider).push(project, force: true);
-              if (res.success && mounted) {
-                await _updateProject(
-                  project,
-                  syncSha: res.newSyncSha,
-                  originId: project.remoteOriginId ?? project.id,
-                );
-                _showLog('git sync (push overwrite)\n${res.message}');
-              } else if (mounted) {
-                _showLog('git sync (push overwrite)\nerror: ${res.message}');
-              }
+            final changes = await ref.read(gitSyncServiceProvider).computePendingChanges(project);
+            if (changes.isEmpty) {
+              showTerminalToast(context, 'conflict detected but no changes found');
+              return;
+            }
+
+            final resolutions = await showDialog<Map<String, String>>(
+              context: context,
+              builder: (_) => ConflictDialog(changes: changes),
+            );
+
+            if (resolutions == null || !mounted) return;
+
+            // Apply resolutions: pull remote-kept files, then push local-kept files
+            final pullRes = await ref.read(gitSyncServiceProvider).pullWithResolution(project, resolutions);
+            if (pullRes.success) {
+              await _updateProject(
+                project,
+                syncSha: pullRes.newSyncSha,
+                originId: pullRes.data is String ? pullRes.data as String : null,
+              );
+            } else if (mounted) {
+              _showLog('conflict resolution\nerror: ${pullRes.message}');
+              return;
+            }
+
+            final pushRes = await ref.read(gitSyncServiceProvider).pushWithResolution(project, resolutions);
+            if (pushRes.success && mounted) {
+              await _updateProject(
+                project,
+                syncSha: pushRes.newSyncSha,
+                originId: project.remoteOriginId ?? project.id,
+              );
+              await ref.read(syncControllerProvider).syncAndRefresh();
+              _showLog('conflict resolved\n${pushRes.message}');
+            } else if (mounted) {
+              _showLog('conflict resolution\nerror: ${pushRes.message}');
             }
           }
         } else {
@@ -278,60 +291,16 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     showTerminalToast(context, message.split('\n').last);
   }
 
-  Future<String?> _showConflictDialog() async {
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TColors.background,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: const Text(
-          'sync conflict detected',
-          style: TextStyle(
-            color: TColors.orange,
-            fontFamily: 'monospace',
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'both local and remote have existing data. choose how to resolve this conflict:',
-          style: TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 12,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('cancel',
-                style: TextStyle(color: TColors.mutedText, fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'pull'),
-            child: const Text('pull & overwrite local',
-                style: TextStyle(color: TColors.cyan, fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'push'),
-            child: const Text('push & overwrite remote',
-                style: TextStyle(color: TColors.green, fontSize: 12)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.activeProject == null) {
-      return const Icon(Icons.terminal, size: 12, color: TColors.green);
+      return Icon(Icons.terminal, size: 12, color: TColors.green);
     }
 
     final isGit = widget.activeProject!.mode == 'git';
 
     if (_isSyncing) {
-      return const SizedBox(
+      return SizedBox(
         width: 10,
         height: 10,
         child: CircularProgressIndicator(
@@ -341,27 +310,88 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       );
     }
 
-    return Tooltip(
-      message: isGit
-          ? widget.activeProject!.lastSyncSha != null
-              ? 'tap to sync · long press to disconnect'
-              : 'not synced yet · tap to sync'
-          : 'tap to connect git',
-      preferBelow: false,
-      child: GestureDetector(
-        onTap: isGit ? _sync : _connect,
-        onLongPress: isGit ? _showDisconnectDialog : null,
-        child: Icon(
-          isGit ? Icons.sync : Icons.cloud_off,
-          size: 14,
-          color: isGit
-              ? (widget.activeProject!.lastSyncSha != null
-                  ? TColors.green
-                  : TColors.orange)
-              : TColors.mutedText,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: isGit
+              ? widget.activeProject!.lastSyncSha != null
+                  ? 'tap to sync · long press to disconnect'
+                  : 'not synced yet · tap to sync'
+              : 'tap to connect git',
+          preferBelow: false,
+          child: GestureDetector(
+            onTap: isGit ? _sync : _connect,
+            onLongPress: isGit ? _showDisconnectDialog : null,
+            child: Icon(
+              isGit ? Icons.sync : Icons.cloud_off,
+              size: 14,
+              color: isGit
+                  ? (widget.activeProject!.lastSyncSha != null
+                      ? TColors.green
+                      : TColors.orange)
+                  : TColors.mutedText,
+            ),
+          ),
         ),
+        if (isGit && widget.activeProject!.branch != null) ...[
+          SizedBox(width: 4),
+          GestureDetector(
+            onTap: _openBranchPicker,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.activeProject!.branch!,
+                    style: TextStyle(
+                      color: TColors.cyan,
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                    ),
+                  ),
+                  SizedBox(width: 2),
+                  Icon(Icons.arrow_drop_down, size: 10, color: TColors.cyan),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _openBranchPicker() async {
+    final project = widget.activeProject;
+    if (project == null) return;
+
+    final selectedBranch = await showDialog<String>(
+      context: context,
+      builder: (_) => BranchPickerDialog(
+        currentBranch: project.branch ?? 'main',
+        projectId: project.id,
       ),
     );
+
+    if (selectedBranch == null || !mounted || selectedBranch == project.branch) return;
+
+    // Switch branch
+    final updated = project.copyWith(branch: selectedBranch, lastSyncSha: null);
+    await ref.read(projectServiceProvider).update(updated);
+    ref.read(activeProjectProvider.notifier).set(updated);
+
+    // Pull from new branch
+    final res = await ref.read(gitSyncServiceProvider).pull(updated, force: true);
+    if (res.success) {
+      final synced = updated.copyWith(lastSyncSha: res.newSyncSha);
+      await ref.read(projectServiceProvider).update(synced);
+      ref.read(activeProjectProvider.notifier).set(synced);
+      await ref.read(syncControllerProvider).syncAndRefresh();
+      if (mounted) showTerminalToast(context, 'switched to "$selectedBranch"');
+    } else if (mounted) {
+      showTerminalToast(context, 'switched to "$selectedBranch" (pull failed: ${res.message})');
+    }
   }
 
   Future<void> _showDisconnectDialog() async {
@@ -372,8 +402,8 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: TColors.background,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        title: const Text(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text(
           'disconnect git',
           style: TextStyle(
             color: TColors.foreground,
@@ -382,7 +412,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
+        content: Text(
           'stop syncing this project with remote repository? local files will be kept.',
           style: TextStyle(
             color: TColors.mutedText,
@@ -393,12 +423,12 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('cancel',
+            child: Text('cancel',
                 style: TextStyle(color: TColors.mutedText, fontSize: 12)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('disconnect',
+            child: Text('disconnect',
                 style: TextStyle(color: TColors.red, fontSize: 12)),
           ),
         ],

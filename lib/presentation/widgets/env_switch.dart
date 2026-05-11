@@ -127,7 +127,7 @@ class _EnvSwitchState extends ConsumerState<EnvSwitch> {
       },
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.symmetric(horizontal: 8),
         color: TColors.surface,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -139,7 +139,7 @@ class _EnvSwitchState extends ConsumerState<EnvSwitch> {
                 _activeName!.length > 6
                     ? '${_activeName!.substring(0, 4)}…'
                     : _activeName!,
-                style: const TextStyle(
+                style: TextStyle(
                   color: TColors.cyan,
                   fontFamily: 'monospace',
                   fontSize: 10,

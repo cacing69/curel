@@ -44,16 +44,16 @@ class ResponseViewer extends StatelessWidget {
     if (error != null) {
       return Container(
         width: double.infinity,
-        color: const Color(0xFF1E1E1E), // Darker background for error
-        padding: const EdgeInsets.all(12),
+        color: Color(0xFF1E1E1E), // Darker background for error
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.error_outline, size: 14, color: TColors.red),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'terminal error',
                   style: TextStyle(
                     color: TColors.red,
@@ -74,10 +74,10 @@ class ResponseViewer extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             SelectableText(
               error!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.red,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -92,16 +92,16 @@ class ResponseViewer extends StatelessWidget {
     if (log != null) {
       return Container(
         width: double.infinity,
-        color: const Color(0xFF1E1E1E),
-        padding: const EdgeInsets.all(12),
+        color: Color(0xFF1E1E1E),
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.sync, size: 14, color: TColors.cyan),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'sync log',
                   style: TextStyle(
                     color: TColors.cyan,
@@ -122,10 +122,10 @@ class ResponseViewer extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             SelectableText(
               log!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.foreground,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -144,7 +144,7 @@ class ResponseViewer extends StatelessWidget {
 
       if (selectedTab == ResponseTab.headers) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8),
           child: SelectionArea(
             child: RichText(
               text: response!.formatHeadersSpan(),
@@ -156,7 +156,7 @@ class ResponseViewer extends StatelessWidget {
 
       if (selectedTab == ResponseTab.verbose) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8),
           child: SelectionArea(
             child: RichText(
               text: response!.formatVerboseLogSpan(),
@@ -169,7 +169,7 @@ class ResponseViewer extends StatelessWidget {
       if (selectedTab == ResponseTab.trace) {
         final lines = response!.traceLogLines;
         return ListView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8),
           itemCount: lines.length,
           itemBuilder: (context, index) {
             return Text.rich(TextSpan(children: lines[index]));
@@ -183,7 +183,7 @@ class ResponseViewer extends StatelessWidget {
           searchActive: true,
           onClose: onCloseSearch,
           syntaxLanguage: response!.highlightLanguage,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
             color: TColors.text,
@@ -245,18 +245,18 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
           children: [
             Container(
               color: TColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back,
                       size: 18,
                       color: TColors.mutedText,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   FlatTab(
                     label: 'headers',
                     selected: _selectedTab == ResponseTab.headers,
@@ -265,7 +265,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       _showHtmlPreview = false;
                     }),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   FlatTab(
                     label: 'body',
                     selected:
@@ -276,7 +276,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     }),
                   ),
                   if (widget.response.isHtml) ...[
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     FlatTab(
                       label: 'preview',
                       selected: _showHtmlPreview,
@@ -289,7 +289,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                   ],
                   if (widget.response.traceLog != null &&
                       widget.response.traceLog!.isNotEmpty) ...[
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     FlatTab(
                       label: 'trace',
                       selected: _selectedTab == ResponseTab.trace,
@@ -308,7 +308,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       );
                       showTerminalToast(context, 'copied to clipboard');
                     },
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.only(right: 8),
                       child: Icon(
                         Icons.copy,
@@ -329,7 +329,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                     ),
                   ),
                   if (widget.response.highlightLanguage == 'json') ...[
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => setState(() => _prettify = !_prettify),
                       child: Icon(
@@ -339,7 +339,7 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                       ),
                     ),
                   ],
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   GestureDetector(
                     onTap: () =>
                         setState(() => _showLineNumbers = !_showLineNumbers),
@@ -351,34 +351,34 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                           : TColors.mutedText,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     widget.response.contentTypeLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.cyan,
                       fontSize: 11,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     widget.response.timeLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.mutedText,
                       fontSize: 11,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     widget.response.bodySizeLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.mutedText,
                       fontSize: 11,
                       fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
                     style: TextStyle(
@@ -439,7 +439,7 @@ class _TerminalLoaderState extends State<_TerminalLoader>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 80),
+      duration: Duration(milliseconds: 80),
     )..repeat();
   }
 
@@ -461,14 +461,14 @@ class _TerminalLoaderState extends State<_TerminalLoader>
           children: [
             Text(
               _frames[index],
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.green,
                 fontFamily: 'monospace',
                 fontSize: 16,
               ),
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'loading',
               style: TextStyle(
                 color: TColors.mutedText,

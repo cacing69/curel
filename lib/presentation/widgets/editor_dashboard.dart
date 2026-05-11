@@ -10,7 +10,7 @@ class EditorDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TColors.background,
         border: Border(
           top: BorderSide(color: TColors.border, width: 1),
@@ -37,7 +37,7 @@ class CompactIconButton extends StatelessWidget {
       onPressed: onTap,
       icon: Icon(icon, size: 16),
       color: TColors.mutedText,
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(8),
       constraints: const BoxConstraints(),
       splashRadius: 20,
     );

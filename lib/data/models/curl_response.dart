@@ -109,7 +109,7 @@ class CurlResponse {
     children.add(
       TextSpan(
         text: 'Status: ',
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.mutedText,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -134,7 +134,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '  $key',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -144,7 +144,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: ': ${values.join(", ")}\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.mutedText,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -171,7 +171,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -182,7 +182,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.green,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -193,7 +193,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.mutedText,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -204,7 +204,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.text,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -229,7 +229,7 @@ class CurlResponse {
         result.add([
           TextSpan(
             text: line,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.mutedText,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -240,7 +240,7 @@ class CurlResponse {
         result.add([
           TextSpan(
             text: line,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -251,7 +251,7 @@ class CurlResponse {
         result.add([
           TextSpan(
             text: line,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.green,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -264,7 +264,7 @@ class CurlResponse {
         result.add([
           TextSpan(
             text: line,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.text,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -286,7 +286,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.mutedText,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -297,7 +297,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -308,7 +308,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.green,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -321,7 +321,7 @@ class CurlResponse {
         children.add(
           TextSpan(
             text: '$line\n',
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.text,
               fontFamily: 'monospace',
               fontSize: 12,
@@ -343,7 +343,7 @@ class CurlResponse {
       return [
         TextSpan(
           text: '$line\n',
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.text,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -363,7 +363,7 @@ class CurlResponse {
     return [
       TextSpan(
         text: offset,
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.mutedText,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -371,7 +371,7 @@ class CurlResponse {
       ),
       TextSpan(
         text: hexPart,
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.orange,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -379,7 +379,7 @@ class CurlResponse {
       ),
       TextSpan(
         text: '$asciiPart\n',
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.purple,
           fontFamily: 'monospace',
           fontSize: 12,

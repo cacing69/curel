@@ -33,10 +33,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class HomePage extends ConsumerStatefulWidget {
   final void Function(String userAgent) onUserAgentChanged;
   final void Function() onWorkspaceChanged;
+  final void Function()? onThemeChanged;
 
-  const HomePage({
+  HomePage({
     required this.onUserAgentChanged,
     required this.onWorkspaceChanged,
+    this.onThemeChanged,
     super.key,
   });
 
@@ -55,9 +57,9 @@ class _HomePageState extends ConsumerState<HomePage>
   final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
   OverlayEntry? _envOverlayEntry;
-  List<String> _envOverlayOptions = const [];
+  List<String> _envOverlayOptions = [];
   Offset _envOverlayOffset = Offset.zero;
-  List<({String key, String lower})> _envKeyIndex = const [];
+  List<({String key, String lower})> _envKeyIndex = [];
 
   String get _requestDisplayName {
     final path = ref.read(selectedRequestPathProvider);
@@ -235,8 +237,8 @@ class _HomePageState extends ConsumerState<HomePage>
       caretOffset: caret,
     );
 
-    const menuMaxWidth = 220.0;
-    const menuMaxHeight = 180.0;
+    final menuMaxWidth = 220.0;
+    final menuMaxHeight = 180.0;
     final fieldSize = fieldBox.size;
 
     final maxDx = (fieldSize.width - menuMaxWidth);
@@ -266,7 +268,7 @@ class _HomePageState extends ConsumerState<HomePage>
             child: Material(
               color: Colors.transparent,
               child: Container(
-                constraints: const BoxConstraints(
+                constraints: BoxConstraints(
                   maxHeight: menuMaxHeight,
                   maxWidth: menuMaxWidth,
                 ),
@@ -300,13 +302,13 @@ class _HomePageState extends ConsumerState<HomePage>
                         _hideEnvOverlay();
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 8,
                         ),
                         child: Text(
                           '<<$opt>>',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TColors.foreground,
                             fontFamily: 'monospace',
                             fontSize: 11,
@@ -760,13 +762,13 @@ class _HomePageState extends ConsumerState<HomePage>
         backgroundColor: TColors.background,
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.foreground,
             fontFamily: 'monospace',
             fontSize: 14,
           ),
         ),
-        content: const Text(
+        content: Text(
           'you have unsaved changes. save before closing?',
           style: TextStyle(
             color: TColors.mutedText,
@@ -777,7 +779,7 @@ class _HomePageState extends ConsumerState<HomePage>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(0),
-            child: const Text(
+            child: Text(
               'cancel',
               style: TextStyle(
                 color: TColors.mutedText,
@@ -787,14 +789,14 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(1),
-            child: const Text(
+            child: Text(
               'discard',
               style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(2),
-            child: const Text(
+            child: Text(
               'save',
               style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
             ),
@@ -890,7 +892,7 @@ class _HomePageState extends ConsumerState<HomePage>
   Future<void> _openProjects() async {
     final projectId = await Navigator.of(
       context,
-    ).push<String>(MaterialPageRoute(builder: (_) => const ProjectListPage()));
+    ).push<String>(MaterialPageRoute(builder: (_) => ProjectListPage()));
     if (!mounted) return;
     if (projectId != null) {
       await _loadActiveProject();
@@ -1014,7 +1016,7 @@ class _HomePageState extends ConsumerState<HomePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               color: TColors.surface,
               child: TextField(
                 controller: controller,
@@ -1041,7 +1043,7 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
             ),
             if (folders.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 'folders:',
                 style: TextStyle(
@@ -1050,7 +1052,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   fontSize: 10,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
@@ -1159,7 +1161,7 @@ class _HomePageState extends ConsumerState<HomePage>
       onHelp: () => _showHelp(context),
       onNavigateAbout: (ctx) => Navigator.of(
         ctx,
-      ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
+      ).push(MaterialPageRoute(builder: (_) => AboutPage())),
       onNavigateFeedback: (ctx) => Navigator.of(ctx).push(
         MaterialPageRoute(
           builder: (_) => FeedbackPage(
@@ -1221,7 +1223,7 @@ class _HomePageState extends ConsumerState<HomePage>
             if (es.isFullscreen) ...[
               Container(
                 color: TColors.surface,
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 5,
                 ),
@@ -1232,22 +1234,22 @@ class _HomePageState extends ConsumerState<HomePage>
                       icon: Icons.close,
                       onTap: _exitFullscreen,
                     ),
-                    const SizedBox(width: 4),
-                    const WindowDot(color: TColors.yellow),
-                    const SizedBox(width: 4),
-                    const WindowDot(color: TColors.green),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 4),
+                    WindowDot(color: TColors.yellow),
+                    SizedBox(width: 4),
+                    WindowDot(color: TColors.green),
+                    SizedBox(width: 10),
                     Text(
                       selectedPath != null
                           ? _requestDisplayName
                           : 'curl editor',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
                         fontSize: 13,
                       ),
                     ),
-                    const Spacer(),
+                    Spacer(),
                     HelpButton(onTap: () => _showHelp(context)),
                   ],
                 ),
@@ -1259,7 +1261,7 @@ class _HomePageState extends ConsumerState<HomePage>
               Expanded(
                 child: Container(
                   color: TColors.surface,
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
@@ -1272,7 +1274,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 onTap: _enterFullscreen,
                 child: Container(
                   color: TColors.surface,
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
@@ -1321,7 +1323,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     onTap: () => _editorFocusNode.requestFocus(),
                     child: Container(
                       color: TColors.surface,
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
@@ -1335,7 +1337,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     envBar: _buildEnvBar(),
                     actionBar: _buildActionToolbar(),
                   ),
-                  const Spacer(),
+                  Spacer(),
                 ],
               ),
             ),

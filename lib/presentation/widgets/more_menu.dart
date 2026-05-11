@@ -42,9 +42,9 @@ class MoreMenu extends StatelessWidget {
                 height: 36,
                 child: Row(
                   children: [
-                    const Icon(Icons.cloud_download, size: 14, color: TColors.mutedText),
+                    Icon(Icons.cloud_download, size: 14, color: TColors.mutedText),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'import collection',
                       style: TextStyle(
                         color: TColors.foreground,
@@ -60,9 +60,9 @@ class MoreMenu extends StatelessWidget {
               height: 36,
               child: Row(
                 children: [
-                  const Icon(Icons.history, size: 14, color: TColors.mutedText),
+                  Icon(Icons.history, size: 14, color: TColors.mutedText),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'history',
                     style: TextStyle(
                       color: TColors.foreground,
@@ -78,13 +78,13 @@ class MoreMenu extends StatelessWidget {
               height: 36,
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.chat_bubble_outline,
                     size: 14,
                     color: TColors.mutedText,
                   ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'feedback',
                     style: TextStyle(
                       color: TColors.foreground,
@@ -165,7 +165,7 @@ class MoreMenu extends StatelessWidget {
       },
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.symmetric(horizontal: 10),
         color: TColors.surface,
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),

@@ -33,12 +33,12 @@ class ResponseSection extends ConsumerWidget {
           ),
           if (rs.response != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'res',
                         style: TextStyle(
                           color: TColors.purple,
@@ -47,7 +47,7 @@ class ResponseSection extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         '${rs.response!.statusCode ?? '-'}',
                         style: TextStyle(
@@ -59,28 +59,28 @@ class ResponseSection extends ConsumerWidget {
                           fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         rs.response!.timeLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TColors.mutedText,
                           fontFamily: 'monospace',
                           fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         rs.response!.bodySizeLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TColors.mutedText,
                           fontFamily: 'monospace',
                           fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         rs.response!.contentTypeLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TColors.cyan,
                           fontFamily: 'monospace',
                           fontSize: 11,
@@ -96,7 +96,7 @@ class ResponseSection extends ConsumerWidget {
                                     showHtmlPreview: true,
                                     searchActive: false,
                                   )),
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.only(left: 4),
                             child: Icon(Icons.visibility, size: 16, color: TColors.mutedText),
                           ),
@@ -104,14 +104,14 @@ class ResponseSection extends ConsumerWidget {
                       ],
                       GestureDetector(
                         onTap: onCopyActivePreview,
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.only(left: 4),
                           child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
                         ),
                       ),
                       GestureDetector(
                         onTap: onSaveResponse,
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.only(left: 4),
                           child: Icon(Icons.save, size: 16, color: TColors.mutedText),
                         ),
@@ -121,7 +121,7 @@ class ResponseSection extends ConsumerWidget {
                             .read(responseStateProvider.notifier)
                             .update((s) => s.copyWith(searchActive: !s.searchActive)),
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 4),
+                          padding: EdgeInsets.only(left: 4),
                           child: Icon(
                             rs.searchActive ? Icons.search_off : Icons.search,
                             size: 16,
@@ -135,7 +135,7 @@ class ResponseSection extends ConsumerWidget {
                               .read(responseStateProvider.notifier)
                               .update((s) => s.copyWith(prettify: !s.prettify)),
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 4),
+                            padding: EdgeInsets.only(left: 4),
                             child: Icon(
                               rs.prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
                               size: 16,
@@ -149,7 +149,7 @@ class ResponseSection extends ConsumerWidget {
                             .read(responseStateProvider.notifier)
                             .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 4),
+                          padding: EdgeInsets.only(left: 4),
                           child: Icon(
                             Icons.format_list_numbered,
                             size: 16,
@@ -159,14 +159,14 @@ class ResponseSection extends ConsumerWidget {
                       ),
                       GestureDetector(
                         onTap: onOpenFullscreen,
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.only(left: 4),
                           child: Icon(Icons.fullscreen, size: 16, color: TColors.mutedText),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Row(
                     children: [
                       FlatTab(
@@ -179,7 +179,7 @@ class ResponseSection extends ConsumerWidget {
                                   showHtmlPreview: false,
                                 )),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       FlatTab(
                         label: 'body',
                         selected: rs.selectedTab == ResponseTab.body && !rs.showHtmlPreview,
@@ -192,7 +192,7 @@ class ResponseSection extends ConsumerWidget {
                       ),
                       if (rs.response!.verboseLog != null &&
                           rs.response!.verboseLog!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         FlatTab(
                           label: 'verbose',
                           selected: rs.selectedTab == ResponseTab.verbose,
@@ -206,7 +206,7 @@ class ResponseSection extends ConsumerWidget {
                       ],
                       if (rs.response!.traceLog != null &&
                           rs.response!.traceLog!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         FlatTab(
                           label: 'trace',
                           selected: rs.selectedTab == ResponseTab.trace,

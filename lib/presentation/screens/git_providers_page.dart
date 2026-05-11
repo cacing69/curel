@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class GitProvidersPage extends ConsumerStatefulWidget {
-  const GitProvidersPage({super.key});
+  GitProvidersPage({super.key});
 
   @override
   ConsumerState<GitProvidersPage> createState() => _GitProvidersPageState();
@@ -50,7 +50,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
               backgroundColor: TColors.background,
               title: Text(
                 isEdit ? 'edit provider' : 'add provider',
-                style: const TextStyle(
+                style: TextStyle(
                   color: TColors.foreground,
                   fontFamily: 'monospace',
                   fontSize: 14,
@@ -62,8 +62,8 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildField('name', 'my github', nameCtrl),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12),
+                    Text(
                       'type',
                       style: TextStyle(
                         color: TColors.cyan,
@@ -71,21 +71,21 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                         fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: 10),
                       color: TColors.background,
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: typeCtrl.text,
                           dropdownColor: TColors.surface,
                           isExpanded: true,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TColors.foreground,
                             fontFamily: 'monospace',
                             fontSize: 13,
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(value: 'github', child: Text('github')),
                             DropdownMenuItem(value: 'gitlab', child: Text('gitlab')),
                             DropdownMenuItem(value: 'gitea', child: Text('gitea')),
@@ -98,7 +98,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildField(
                       'base url (optional)',
                       typeCtrl.text == 'github'
@@ -108,7 +108,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                               : 'https://gitea.company.com',
                       baseUrlCtrl,
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildField(
                       isEdit ? 'token (leave empty to keep)' : 'token (pat)',
                       typeCtrl.text == 'github'
@@ -125,7 +125,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
               actions: [
                 TextButton(
                   onPressed: validating ? null : () => Navigator.of(ctx).pop(false),
-                  child: const Text(
+                  child: Text(
                     'cancel',
                     style: TextStyle(
                       color: TColors.mutedText,
@@ -179,12 +179,12 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
                           }
                         },
                   child: validating
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: TColors.green))
-                      : const Text(
+                      : Text(
                           'save',
                           style: TextStyle(
                             color: TColors.green,
@@ -213,29 +213,29 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.cyan,
             fontFamily: 'monospace',
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,
             obscureText: obscure,
             cursorColor: TColors.green,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',
               fontSize: 13,
             ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 13,
@@ -257,7 +257,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.background,
-        title: const Text(
+        title: Text(
           'delete provider?',
           style: TextStyle(
             color: TColors.foreground,
@@ -267,7 +267,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         ),
         content: Text(
           'are you sure you want to delete ${provider.name}?',
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -276,7 +276,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
+            child: Text(
               'cancel',
               style: TextStyle(
                 color: TColors.mutedText,
@@ -286,7 +286,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
+            child: Text(
               'delete',
               style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
             ),
@@ -312,7 +312,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                         color: TColors.green,
                         strokeWidth: 2,
@@ -338,19 +338,19 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'git providers',
             style: TextStyle(
               color: TColors.foreground,
@@ -365,7 +365,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   }
 
   Widget _buildEmpty() {
-    return const Center(
+    return Center(
       child: Text(
         'no git providers configured.\nadd one to enable remote sync.',
         textAlign: TextAlign.center,
@@ -381,28 +381,28 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
 
   Widget _buildTile(GitProviderModel provider) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
           Icon(Icons.cloud_circle, size: 16, color: TColors.cyan),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   provider.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.foreground,
                     fontFamily: 'monospace',
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'type: ${provider.type}${provider.baseUrl != null && provider.baseUrl!.isNotEmpty ? ' | url: ${provider.baseUrl}' : ''}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.mutedText,
                     fontFamily: 'monospace',
                     fontSize: 11,
@@ -412,17 +412,17 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.edit, size: 16, color: TColors.mutedText),
+            icon: Icon(Icons.edit, size: 16, color: TColors.mutedText),
             onPressed: () => _showProviderDialog(provider: provider),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            constraints: BoxConstraints(),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           IconButton(
-            icon: const Icon(Icons.delete, size: 16, color: TColors.red),
+            icon: Icon(Icons.delete, size: 16, color: TColors.red),
             onPressed: () => _deleteProvider(provider),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            constraints: BoxConstraints(),
           ),
         ],
       ),
@@ -432,7 +432,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   Widget _buildFooter() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           TermButton(

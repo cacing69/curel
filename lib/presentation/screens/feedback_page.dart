@@ -255,57 +255,57 @@ class _FeedbackPageState extends State<FeedbackPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildCategoryTabs(),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildField(
                       controller: _titleController,
                       hint: 'title',
                       maxLines: 1,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _buildField(
                       controller: _messageController,
                       hint: 'describe the issue or suggestion...',
                       maxLines: 5,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _buildAttachRow(),
                     if (_images.isNotEmpty) _buildImagePreviews(),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _buildDetailsToggle(),
                     if (_showDetails) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       _buildField(
                         controller: _stepsController,
                         hint: 'steps to reproduce (1) ... (2) ...',
                         maxLines: 3,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       _buildField(
                         controller: _expectedController,
                         hint: 'expected result',
                         maxLines: 2,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       _buildField(
                         controller: _actualController,
                         hint: 'actual result',
                         maxLines: 2,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       _buildField(
                         controller: _contactController,
                         hint: 'contact (email / discord)',
                         maxLines: 1,
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildActions(),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -319,15 +319,15 @@ class _FeedbackPageState extends State<FeedbackPage> {
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           GestureDetector(
             onTap: _sending ? null : () => Navigator.of(context).pop(),
-            child: const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
+            child: Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'feedback',
             style: TextStyle(
               color: TColors.foreground,
@@ -347,11 +347,11 @@ class _FeedbackPageState extends State<FeedbackPage> {
       children: tabs.map((t) {
         final active = _category == t;
         return Padding(
-          padding: const EdgeInsets.only(right: 4),
+          padding: EdgeInsets.only(right: 4),
           child: GestureDetector(
             onTap: _sending ? null : () => setState(() => _category = t),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               color: active ? TColors.green.withValues(alpha: 0.15) : TColors.surface,
               child: Text(
                 t,
@@ -374,21 +374,21 @@ class _FeedbackPageState extends State<FeedbackPage> {
     int maxLines = 1,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       color: TColors.surface,
       child: TextField(
         controller: controller,
         maxLines: maxLines,
         minLines: 1,
         cursorColor: TColors.green,
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.foreground,
           fontFamily: 'monospace',
           fontSize: 12,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -406,14 +406,14 @@ class _FeedbackPageState extends State<FeedbackPage> {
   Widget _buildAttachRow() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
         children: [
           GestureDetector(
             onTap: _sending ? null : _pickImages,
             child: Icon(Icons.attach_file, size: 16, color: TColors.cyan),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             _images.isEmpty ? 'attach images' : '${_images.length}/3',
             style: TextStyle(
@@ -437,7 +437,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
   Widget _buildImagePreviews() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+      padding: EdgeInsets.fromLTRB(10, 4, 10, 8),
       child: Wrap(
         spacing: 6,
         runSpacing: 6,
@@ -460,9 +460,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   child: GestureDetector(
                     onTap: _sending ? null : () => setState(() => _images.removeAt(i)),
                     child: Container(
-                      padding: const EdgeInsets.all(1),
+                      padding: EdgeInsets.all(1),
                       color: TColors.surface,
-                      child: const Icon(Icons.close, size: 10, color: TColors.mutedText),
+                      child: Icon(Icons.close, size: 10, color: TColors.mutedText),
                     ),
                   ),
                 ),
@@ -478,7 +478,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       onTap: _sending ? null : () => setState(() => _showDetails = !_showDetails),
       child: Container(
         color: TColors.surface,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           children: [
             Icon(
@@ -486,7 +486,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               size: 14,
               color: TColors.mutedText,
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               'details',
               style: TextStyle(
@@ -495,7 +495,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                 fontSize: 11,
               ),
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Text(
               '(optional)',
               style: TextStyle(
@@ -521,7 +521,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ),
         const Spacer(),
         if (_sending)
-          const SizedBox(
+          SizedBox(
             width: 14,
             height: 14,
             child: CircularProgressIndicator(

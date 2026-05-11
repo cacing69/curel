@@ -1,27 +1,27 @@
+import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 abstract class TColors {
-  // Dracula theme palette
-  static const background = Color(0xFF282A36);
-  static const surface = Color(0xFF44475A);
-  static const foreground = Color(0xFFF8F8F2);
-  static const comment = Color(0xFF6272A4);
-  static const cyan = Color(0xFF8BE9FD);
-  static const green = Color(0xFF50FA7B);
-  static const orange = Color(0xFFFFB86C);
-  static const pink = Color(0xFFFF79C6);
-  static const purple = Color(0xFFBD93F9);
-  static const red = Color(0xFFFF5555);
-  static const yellow = Color(0xFFF1FA8C);
+  static Color get background => $tokens.background;
+  static Color get surface => $tokens.surface;
+  static Color get foreground => $tokens.foreground;
+  static Color get comment => $tokens.mutedText;
+  static Color get cyan => $tokens.cyan;
+  static Color get green => $tokens.green;
+  static Color get orange => $tokens.orange;
+  static Color get pink => $tokens.pink;
+  static Color get purple => $tokens.purple;
+  static Color get red => $tokens.red;
+  static Color get yellow => $tokens.yellow;
 
   // Semantic aliases
-  static const text = foreground;
-  static const mutedText = comment;
-  static const accent = green;
-  static const accentText = green;
-  static const error = red;
-  static const warning = yellow;
-  static const border = comment;
+  static Color get text => $tokens.text;
+  static Color get mutedText => $tokens.mutedText;
+  static Color get accent => $tokens.accent;
+  static Color get accentText => $tokens.accent;
+  static Color get error => $tokens.error;
+  static Color get warning => $tokens.warning;
+  static Color get border => $tokens.border;
 }
 
 const syntaxTheme = {
@@ -151,13 +151,13 @@ class _ToastOverlayState extends State<_ToastOverlay>
         child: Material(
           color: TColors.surface,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               border: Border.all(color: TColors.border),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.terminal_outlined,
                   size: 14,
                   color: TColors.green,
@@ -166,7 +166,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
                 Expanded(
                   child: Text(
                     widget.message.toLowerCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.foreground,
                       fontFamily: 'monospace',
                       fontSize: 12,
@@ -183,7 +183,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.chevron_right,
                           size: 14,
                           color: TColors.green,
@@ -191,7 +191,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
                         const SizedBox(width: 4),
                         Text(
                           widget.actionLabel!.toLowerCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TColors.green,
                             fontFamily: 'monospace',
                             fontSize: 12,

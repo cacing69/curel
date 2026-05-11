@@ -312,6 +312,56 @@ class GitHubClient implements GitClient {
     return null;
   }
 
+  @override
+  Future<List<String>> listBranches(String remoteUrl, String token) async {
+    final uri = Uri.parse(remoteUrl);
+    final segments = uri.pathSegments;
+    if (segments.length < 2) return [];
+
+    final owner = segments[0];
+    final repo = segments[1].replaceAll('.git', '');
+
+    final url = '$_apiBase/repos/$owner/$repo/branches?per_page=100';
+    final response = await _client.get(Uri.parse(url), headers: _headers(token));
+
+    if (response.statusCode != 200) return [];
+
+    final List data = jsonDecode(response.body);
+    return data.map((b) => b['name'] as String).toList();
+  }
+
+  @override
+  Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token) async {
+    final uri = Uri.parse(remoteUrl);
+    final segments = uri.pathSegments;
+    if (segments.length < 2) throw Exception('invalid GitHub URL');
+
+    final owner = segments[0];
+    final repo = segments[1].replaceAll('.git', '');
+    final headers = {..._headers(token), 'Content-Type': 'application/json'};
+
+    // Get SHA of source branch
+    final refUrl = '$_apiBase/repos/$owner/$repo/git/refs/heads/$fromBranch';
+    final refRes = await _client.get(Uri.parse(refUrl), headers: headers);
+    if (refRes.statusCode != 200) {
+      throw Exception('source branch "$fromBranch" not found');
+    }
+    final sha = jsonDecode(refRes.body)['object']['sha'];
+
+    // Create new branch ref
+    final createUrl = '$_apiBase/repos/$owner/$repo/git/refs';
+    final createRes = await _client.post(
+      Uri.parse(createUrl),
+      headers: headers,
+      body: jsonEncode({'ref': 'refs/heads/$branch', 'sha': sha}),
+    );
+
+    if (createRes.statusCode != 201) {
+      _checkResponse(createRes);
+      throw Exception(_parseError(createRes.body));
+    }
+  }
+
   String _parseError(String body) {
     try {
       final data = jsonDecode(body);

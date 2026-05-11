@@ -44,7 +44,7 @@ class ActionToolbar extends ConsumerWidget {
     final rs = ref.watch(responseStateProvider);
     return Container(
       height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
           CompactIconButton(icon: Icons.science, onTap: onBuilder),

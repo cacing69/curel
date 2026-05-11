@@ -47,13 +47,13 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
                     Image.asset('logo.png', width: 80, height: 80),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Curel',
                       style: TextStyle(
                         color: TColors.green,
@@ -66,14 +66,14 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                     if (_version.isNotEmpty)
                       Text(
                         'v$_version',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TColors.mutedText,
                           fontSize: 12,
                           fontFamily: 'monospace',
                         ),
                       ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'a git-native, local-first curl workspace.\n'
                       'organize requests into projects, manage '
                       'environments with layered variables, and '
@@ -119,7 +119,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
   Widget _buildFingerprintSection() {
     return Column(
       children: [
-        const Text(
+        Text(
           'device fingerprint',
           style: TextStyle(
             color: TColors.mutedText,
@@ -134,7 +134,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             showTerminalToast(context, 'fingerprint copied');
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: TColors.surface,
               border: Border.all(color: TColors.border, width: 0.5),
@@ -144,7 +144,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
               children: [
                 Text(
                   _fingerprint,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.cyan,
                     fontSize: 12,
                     fontFamily: 'monospace',
@@ -152,7 +152,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Icon(Icons.copy, size: 12, color: TColors.mutedText),
+                Icon(Icons.copy, size: 12, color: TColors.mutedText),
               ],
             ),
           ),
@@ -164,19 +164,19 @@ class _AboutPageState extends ConsumerState<AboutPage> {
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'about',
             style: TextStyle(
               color: TColors.foreground,

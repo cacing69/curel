@@ -7,7 +7,7 @@ class DiffViewerDialog extends StatefulWidget {
   final List<FileChange> changes;
   final String title;
 
-  const DiffViewerDialog({
+  DiffViewerDialog({
     super.key,
     required this.changes,
     this.title = 'pending changes',
@@ -40,14 +40,14 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.changes.isEmpty) return const SizedBox.shrink();
+    if (widget.changes.isEmpty) return SizedBox.shrink();
     
     final currentChange = widget.changes[_selectedIndex];
 
     return Dialog(
       backgroundColor: TColors.background,
-      insetPadding: const EdgeInsets.all(20),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      insetPadding: EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: Container(
         width: double.infinity,
         height: double.infinity,
@@ -58,51 +58,51 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: TColors.surface,
               child: Row(
                 children: [
-                  const Icon(Icons.compare_arrows, size: 18, color: TColors.foreground),
-                  const SizedBox(width: 8),
+                  Icon(Icons.compare_arrows, size: 18, color: TColors.foreground),
+                  SizedBox(width: 8),
                   Text(
                     widget.title.toLowerCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.foreground,
                       fontFamily: 'monospace',
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: TColors.foreground),
+                    icon: Icon(Icons.close, size: 18, color: TColors.foreground),
                     onPressed: () => Navigator.pop(context, null),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: BoxConstraints(),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: TColors.border),
+            Divider(height: 1, color: TColors.border),
             
             // Selection Controls
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Row(
                 children: [
                   _SmallButton(
                     label: 'select all',
                     onPressed: () => _toggleAll(true),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _SmallButton(
                     label: 'none',
                     onPressed: () => _toggleAll(false),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   Text(
                     '${_selectedPaths.length} of ${widget.changes.length} selected',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.comment,
                       fontFamily: 'monospace',
                       fontSize: 10,
@@ -111,7 +111,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                 ],
               ),
             ),
-            const Divider(height: 1, color: TColors.border),
+            Divider(height: 1, color: TColors.border),
 
             // Content
             Expanded(
@@ -122,7 +122,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                   SizedBox(
                     width: 160,
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(right: BorderSide(color: TColors.border)),
                       ),
                       child: ListView.builder(
@@ -155,7 +155,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                           return InkWell(
                             onTap: () => setState(() => _selectedIndex = index),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                               color: isSelected ? TColors.surface : Colors.transparent,
                               child: Row(
                                 children: [
@@ -166,7 +166,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                                       value: isChecked,
                                       activeColor: TColors.green,
                                       checkColor: TColors.background,
-                                      side: const BorderSide(color: TColors.comment),
+                                      side: BorderSide(color: TColors.comment),
                                       onChanged: (val) {
                                         setState(() {
                                           if (val == true) {
@@ -178,7 +178,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                                       },
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                  SizedBox(width: 4),
                                   Text(
                                     typeSymbol,
                                     style: TextStyle(
@@ -188,7 +188,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       change.path,
@@ -221,9 +221,9 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
             ),
             
             // Footer
-            const Divider(height: 1, color: TColors.border),
+            Divider(height: 1, color: TColors.border),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -232,7 +232,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                     onPressed: () => Navigator.pop(context, null),
                     color: TColors.comment,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   _ActionButton(
                     label: 'sync ${_selectedPaths.length} files',
                     onPressed: _selectedPaths.isEmpty ? () {} : () => Navigator.pop(context, _selectedPaths.toList()),
@@ -259,7 +259,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
     // Modified: Line by line diff
     final diffs = change.diffs ?? [];
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       itemCount: diffs.length,
       itemBuilder: (context, index) {
         final diff = diffs[index];
@@ -315,7 +315,7 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
 
   Widget _buildRawView(String content, Color color) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Text(
         content,
         style: TextStyle(
@@ -332,18 +332,18 @@ class _SmallButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
 
-  const _SmallButton({required this.label, required this.onPressed});
+  _SmallButton({required this.label, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(border: Border.all(color: TColors.comment)),
         child: Text(
           label.toLowerCase(),
-          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 10),
+          style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 10),
         ),
       ),
     );
@@ -356,7 +356,7 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final IconData? icon;
 
-  const _ActionButton({
+  _ActionButton({
     required this.label,
     required this.onPressed,
     required this.color,
@@ -369,7 +369,7 @@ class _ActionButton extends StatelessWidget {
       onTap: onPressed,
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           border: Border.all(color: color),
         ),
@@ -378,7 +378,7 @@ class _ActionButton extends StatelessWidget {
           children: [
             if (icon != null) ...[
               Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
             ],
             Text(
               label.toLowerCase(),

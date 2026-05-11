@@ -232,6 +232,34 @@ class GitLabClient implements GitClient {
     return null;
   }
 
+  @override
+  Future<List<String>> listBranches(String remoteUrl, String token) async {
+    final projectId = await _resolveProjectId(remoteUrl, token);
+    final url = '$_apiBase/projects/$projectId/repository/branches';
+    final response = await _client.get(Uri.parse(url), headers: _headers(token));
+
+    if (response.statusCode != 200) return [];
+
+    final List data = jsonDecode(response.body);
+    return data.map((b) => b['name'] as String).toList();
+  }
+
+  @override
+  Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token) async {
+    final projectId = await _resolveProjectId(remoteUrl, token);
+    final url = '$_apiBase/projects/$projectId/repository/branches';
+    final response = await _client.post(
+      Uri.parse(url),
+      headers: {..._headers(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({'branch': branch, 'ref': fromBranch}),
+    );
+
+    if (response.statusCode != 201) {
+      _checkResponse(response);
+      throw Exception(_parseError(response.body));
+    }
+  }
+
   String _parseError(String body) {
     try {
       final data = jsonDecode(body);

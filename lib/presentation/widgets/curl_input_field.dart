@@ -10,7 +10,7 @@ class CurlInputField extends StatelessWidget {
   final int? maxLines;
   final int minLines;
 
-  const CurlInputField({
+  CurlInputField({
     required this.controller,
     required this.focusNode,
     required this.textFieldKey,
@@ -26,7 +26,7 @@ class CurlInputField extends StatelessWidget {
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '❯ ',
           style: TextStyle(
             color: TColors.green,
@@ -46,13 +46,13 @@ class CurlInputField extends StatelessWidget {
             autocorrect: false,
             textCapitalization: TextCapitalization.none,
             cursorColor: TColors.green,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'monospace',
               fontSize: 13,
               height: 1.4,
               color: TColors.text,
             ),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'paste or type a curl command...',
               hintStyle: TextStyle(
                 color: TColors.mutedText,
@@ -80,12 +80,12 @@ class CurlInputField extends StatelessWidget {
             listenable: controller,
             builder: (context, _) {
               if (controller.text.isEmpty) {
-                return const SizedBox.shrink();
+                return SizedBox.shrink();
               }
               return GestureDetector(
                 onTap: onClear,
                 child: Container(
-                  padding: const EdgeInsets.all(2),
+                  padding: EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: TColors.surface,
                     borderRadius: BorderRadius.zero,

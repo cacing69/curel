@@ -14,7 +14,7 @@ enum _EnvScope { project, global }
 class EnvPage extends ConsumerStatefulWidget {
   final String? projectId;
 
-  const EnvPage({this.projectId, super.key});
+  EnvPage({this.projectId, super.key});
 
   @override
   ConsumerState<EnvPage> createState() => _EnvPageState();
@@ -224,27 +224,27 @@ class _EnvPageState extends ConsumerState<EnvPage> {
 
         title: Text(
           action,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.foreground,
             fontFamily: 'monospace',
             fontSize: 14,
           ),
         ),
         content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,
             autofocus: true,
             cursorColor: TColors.green,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',
               fontSize: 13,
             ),
             decoration: InputDecoration(
               hintText: 'name',
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 13,
@@ -260,7 +260,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               'cancel',
               style: TextStyle(
                 color: TColors.mutedText,
@@ -270,7 +270,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text(
+            child: Text(
               'ok',
               style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
             ),
@@ -298,7 +298,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
 
           title: Text(
             action,
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.foreground,
               fontFamily: 'monospace',
               fontSize: 14,
@@ -308,20 +308,20 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 color: TColors.surface,
                 child: TextField(
                   controller: keyCtrl,
                   autofocus: initialKey == null,
                   cursorColor: TColors.green,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.cyan,
                     fontFamily: 'monospace',
                     fontSize: 13,
                   ),
                   decoration: InputDecoration(
                     hintText: 'KEY',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: TColors.mutedText,
                       fontFamily: 'monospace',
                       fontSize: 13,
@@ -334,22 +334,22 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 color: TColors.surface,
                 child: TextField(
                   controller: valCtrl,
                   autofocus: initialKey != null,
                   cursorColor: TColors.green,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.foreground,
                     fontFamily: 'monospace',
                     fontSize: 13,
                   ),
                   decoration: InputDecoration(
                     hintText: 'value',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: TColors.mutedText,
                       fontFamily: 'monospace',
                       fontSize: 13,
@@ -362,7 +362,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               GestureDetector(
                 onTap: () => setDialogState(() => sensitive = !sensitive),
                 child: Row(
@@ -374,8 +374,8 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                       size: 16,
                       color: sensitive ? TColors.green : TColors.mutedText,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
+                    SizedBox(width: 8),
+                    Text(
                       'sensitive',
                       style: TextStyle(
                         color: TColors.mutedText,
@@ -391,7 +391,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text(
+              child: Text(
                 'cancel',
                 style: TextStyle(
                   color: TColors.mutedText,
@@ -406,7 +406,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                 if (k.isEmpty) return;
                 Navigator.of(ctx).pop((key: k, value: v, sensitive: sensitive));
               },
-              child: const Text(
+              child: Text(
                 'ok',
                 style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
               ),
@@ -430,7 +430,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                         color: TColors.green,
                         strokeWidth: 2,
@@ -452,19 +452,19 @@ class _EnvPageState extends ConsumerState<EnvPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'env',
             style: TextStyle(
               color: TColors.foreground,
@@ -473,11 +473,11 @@ class _EnvPageState extends ConsumerState<EnvPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Spacer(),
+          Spacer(),
           GestureDetector(
             onTap: () => _switchScope(_EnvScope.project),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               color: _scope == _EnvScope.project
                   ? TColors.green.withValues(alpha: 0.15)
                   : Colors.transparent,
@@ -493,11 +493,11 @@ class _EnvPageState extends ConsumerState<EnvPage> {
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           GestureDetector(
             onTap: () => _switchScope(_EnvScope.global),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               color: _scope == _EnvScope.global
                   ? TColors.purple.withValues(alpha: 0.15)
                   : Colors.transparent,
@@ -554,25 +554,25 @@ class _EnvPageState extends ConsumerState<EnvPage> {
       itemBuilder: (_, i) {
         final v = env.variables[i];
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           color: i.isEven ? TColors.background : TColors.surface,
           child: Row(
             children: [
               Text(
                 '<<${v.key}>>',
-                style: const TextStyle(
+                style: TextStyle(
                   color: TColors.purple,
                   fontFamily: 'monospace',
                   fontSize: 11,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   v.sensitive
                       ? '***'
                       : (_values['${env.id}_${v.key}'] ?? ''),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TColors.mutedText,
                     fontFamily: 'monospace',
                     fontSize: 11,
@@ -584,7 +584,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                 onTap: () => _editVariable(env, i),
                 child: Icon(Icons.edit, size: 12, color: TColors.mutedText),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               GestureDetector(
                 onTap: () => _deleteVariable(env, i),
                 child: Icon(Icons.delete, size: 12, color: TColors.red),
@@ -610,7 +610,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
     return Container(
       color: TColors.surface,
       child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        tilePadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         childrenPadding: EdgeInsets.zero,
         backgroundColor: Colors.transparent,
         collapsedBackgroundColor: Colors.transparent,
@@ -628,7 +628,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                 color: isActive ? TColors.green : TColors.mutedText,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 env.name,
@@ -642,13 +642,13 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             ),
             Text(
               '${env.variables.length}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.mutedText,
                 fontFamily: 'monospace',
                 fontSize: 11,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             _popupMenu(env),
           ],
         ),
@@ -657,25 +657,25 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             final idx = entry.key;
             final v = entry.value;
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               color: TColors.background,
               child: Row(
                 children: [
                   Text(
                     '<<${v.key}>>',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TColors.purple,
                       fontFamily: 'monospace',
                       fontSize: 11,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       v.sensitive
                           ? '***'
                           : (_values['${env.id}_${v.key}'] ?? ''),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
                         fontSize: 11,
@@ -687,7 +687,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
                     onTap: () => _editVariable(env, idx),
                     child: Icon(Icons.edit, size: 12, color: TColors.mutedText),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   GestureDetector(
                     onTap: () => _deleteVariable(env, idx),
                     child: Icon(Icons.delete, size: 12, color: TColors.red),
@@ -698,10 +698,10 @@ class _EnvPageState extends ConsumerState<EnvPage> {
           }),
           Container(
             color: TColors.background,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: GestureDetector(
               onTap: () => _addVariable(env),
-              child: const Text(
+              child: Text(
                 '+ add var',
                 style: TextStyle(
                   color: TColors.cyan,
@@ -756,7 +756,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
       },
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: EdgeInsets.symmetric(horizontal: 6),
         color: TColors.surface,
         child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
       ),
@@ -767,10 +767,10 @@ class _EnvPageState extends ConsumerState<EnvPage> {
     return Row(
       children: [
         Icon(icon, size: 14, color: TColors.mutedText),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: TColors.foreground,
             fontFamily: 'monospace',
             fontSize: 12,
@@ -784,7 +784,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
     final isGlobal = _scope == _EnvScope.global;
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Row(
         children: [
           if (isGlobal)
@@ -803,9 +803,9 @@ class _EnvPageState extends ConsumerState<EnvPage> {
               onTap: _createEnv,
               accent: true,
             ),
-          const Spacer(),
+          Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _import),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           TermButton(icon: Icons.download, label: 'export', onTap: _export),
         ],
       ),

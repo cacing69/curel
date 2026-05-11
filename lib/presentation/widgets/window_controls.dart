@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class HelpButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const HelpButton({required this.onTap, super.key});
+  HelpButton({required this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class HelpButton extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: TColors.mutedText, width: 1),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             '?',
             style: TextStyle(
@@ -38,7 +38,7 @@ class WindowDot extends StatelessWidget {
   final IconData? icon;
   final VoidCallback? onTap;
 
-  const WindowDot({required this.color, this.icon, this.onTap, super.key});
+  WindowDot({required this.color, this.icon, this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {

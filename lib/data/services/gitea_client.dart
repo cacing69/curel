@@ -250,6 +250,49 @@ class GiteaClient implements GitClient {
     return null;
   }
 
+  @override
+  Future<List<String>> listBranches(String remoteUrl, String token) async {
+    final uri = Uri.parse(remoteUrl);
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (segments.length < 2) return [];
+
+    final owner = segments[0];
+    final repo = segments[1].replaceAll('.git', '');
+
+    final url = '$_apiBase/repos/$owner/$repo/branches';
+    final response = await _client.get(Uri.parse(url), headers: _headers(token));
+
+    if (response.statusCode != 200) return [];
+
+    final List data = jsonDecode(response.body);
+    return data.map((b) => b['name'] as String).toList();
+  }
+
+  @override
+  Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token) async {
+    final uri = Uri.parse(remoteUrl);
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (segments.length < 2) throw Exception('invalid Gitea URL');
+
+    final owner = segments[0];
+    final repo = segments[1].replaceAll('.git', '');
+
+    final url = '$_apiBase/repos/$owner/$repo/branches';
+    final response = await _client.post(
+      Uri.parse(url),
+      headers: {..._headers(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'new_branch_name': branch,
+        'old_branch_name': fromBranch,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      _checkResponse(response);
+      throw Exception(_parseError(response.body));
+    }
+  }
+
   String _parseError(String body) {
     try {
       final data = jsonDecode(body);

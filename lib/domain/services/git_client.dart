@@ -18,6 +18,12 @@ abstract class GitClient {
   /// Validate token by testing authentication. Returns username on success, null on failure.
   Future<String?> validateToken(String token, {String? baseUrl});
 
+  /// List all branch names in the remote repository
+  Future<List<String>> listBranches(String remoteUrl, String token);
+
+  /// Create a new branch from an existing branch
+  Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token);
+
   /// Single factory — add new providers here only
   static GitClient create(String type, {String? baseUrl}) {
     switch (type) {

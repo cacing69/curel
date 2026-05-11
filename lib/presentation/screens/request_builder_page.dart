@@ -50,7 +50,7 @@ class RequestBuilderPage extends ConsumerStatefulWidget {
   final String? initialCurl;
   final String? projectId;
 
-  const RequestBuilderPage({
+  RequestBuilderPage({
     this.initialCurl,
     this.projectId,
     super.key,
@@ -83,7 +83,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   late final _authPasswordController = TextEditingController();
   late final _bearerTokenController = TextEditingController();
   List<String> _envKeys = [];
-  List<({String key, String lower})> _envKeyIndex = const [];
+  List<({String key, String lower})> _envKeyIndex = [];
   final _autocompleteValues = <TextEditingController, TextEditingValue>{};
 
   @override
@@ -201,7 +201,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
       optionsBuilder: (value) {
         _autocompleteValues[controller] = value;
         final q = _envQueryAtCaret(value);
-        if (q == null) return const Iterable<String>.empty();
+        if (q == null) return Iterable<String>.empty();
         final query = q.query.toLowerCase();
         return _envKeyIndex
             .where((e) => query.isEmpty || e.lower.startsWith(query))
@@ -240,7 +240,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
         final list = options.toList();
         final box = fieldKey.currentContext?.findRenderObject() as RenderBox?;
         final size = box?.size ?? Size.zero;
-        const menuMaxWidth = 260.0;
+        final menuMaxWidth = 260.0;
         final value = _autocompleteValues[controller] ?? controller.value;
         final caret = value.selection.baseOffset;
         final caretPoint = (caret >= 0 && caret <= value.text.length)
@@ -263,8 +263,8 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
             child: Transform.translate(
               offset: Offset(dx, dy),
               child: Container(
-                margin: const EdgeInsets.only(top: 4),
-                constraints: const BoxConstraints(
+                margin: EdgeInsets.only(top: 4),
+                constraints: BoxConstraints(
                   maxHeight: 180,
                   maxWidth: 260,
                 ),
@@ -280,13 +280,13 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                     return InkWell(
                       onTap: () => onSelected(opt),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 8,
                         ),
                         child: Text(
                           '<<$opt>>',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TColors.foreground,
                             fontFamily: 'monospace',
                             fontSize: 11,
@@ -651,8 +651,8 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                           color: TColors.green,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         'executing...',
                         style: TextStyle(
                           color: TColors.mutedText,
@@ -703,8 +703,8 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                                       color: TColors.green,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8),
+                                  Text(
                                     'executing...',
                                     style: TextStyle(
                                       color: TColors.mutedText,
@@ -739,10 +739,10 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
       children: [
         Container(
           color: TColors.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'curl preview',
                 style: TextStyle(
                   color: TColors.purple,
@@ -751,13 +751,13 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               GestureDetector(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: curl));
                   showTerminalToast(context, 'curl copied to clipboard');
                 },
-                child: const Icon(
+                child: Icon(
                   Icons.copy,
                   size: 14,
                   color: TColors.mutedText,
@@ -768,10 +768,10 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: SelectableText(
               curl,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.text,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -788,19 +788,19 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'builder',
             style: TextStyle(
               color: TColors.foreground,
@@ -809,13 +809,13 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Spacer(),
+          Spacer(),
           GestureDetector(
             onTap: _isLoading ? null : _execute,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               color: TColors.green.withValues(alpha: 0.15),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.play_arrow, size: 14, color: TColors.green),
@@ -842,20 +842,20 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   Widget _buildMethodUrlRow() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
         children: [
           _buildMethodDropdown(),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: _envAutocompleteTextField(
               controller: _urlController,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.text,
                 fontFamily: 'monospace',
                 fontSize: 13,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'https://api.example.com/endpoint',
                 hintStyle: TextStyle(
                   color: TColors.mutedText,
@@ -880,7 +880,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
     return GestureDetector(
       onTap: () => _showMethodPicker(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: TColors.background,
           border: Border.all(color: TColors.border, width: 1),
@@ -897,8 +897,8 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.unfold_more, size: 12, color: TColors.mutedText),
+            SizedBox(width: 4),
+            Icon(Icons.unfold_more, size: 12, color: TColors.mutedText),
           ],
         ),
       ),
@@ -925,7 +925,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                 ),
               ),
               trailing: m == _method
-                  ? const Icon(Icons.check, size: 16, color: TColors.green)
+                  ? Icon(Icons.check, size: 16, color: TColors.green)
                   : null,
               onTap: () {
                 setState(() => _method = m);
@@ -961,19 +961,19 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   Widget _buildTabBar() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         children: BuilderTab.values.map((tab) {
           final selected = _selectedTab == tab;
           if (tab == BuilderTab.body && !_hasBody) {
-            return const SizedBox.shrink();
+            return SizedBox.shrink();
           }
           return Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: 12),
             child: GestureDetector(
               onTap: () => setState(() => _selectedTab = tab),
               child: Container(
-                padding: const EdgeInsets.only(bottom: 2),
+                padding: EdgeInsets.only(bottom: 2),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
@@ -1074,12 +1074,12 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             itemCount: entries.length,
             itemBuilder: (_, i) {
               final entry = entries[i];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
                     SizedBox(
@@ -1093,7 +1093,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 2,
                       child: _field(
@@ -1102,7 +1102,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                         onChanged: (v) => onKeyChanged(i, v),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 3,
                       child: _field(
@@ -1111,11 +1111,11 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                         onChanged: (v) => onValueChanged(i, v),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     GestureDetector(
                       onTap: entries.length > 1 ? () => onRemove(i) : null,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.close,
                           size: 14,
@@ -1132,7 +1132,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
           child: Row(
             children: [TermButton(icon: Icons.add, label: 'add', onTap: onAdd)],
           ),
@@ -1156,18 +1156,18 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   Widget _buildBodyTypeSelector() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: BodyType.values.map((bt) {
             final selected = _bodyType == bt;
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: 8),
               child: GestureDetector(
                 onTap: () => setState(() => _bodyType = bt),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 3,
                   ),
@@ -1219,11 +1219,11 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
 
   Widget _buildBodyEditor({required String hint}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: _envAutocompleteTextField(
         controller: _bodyController,
         maxLines: null,
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.text,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -1290,12 +1290,12 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             itemCount: entries.length,
             itemBuilder: (_, i) {
               final entry = entries[i];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
                     Expanded(
@@ -1309,7 +1309,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 3,
                       child: entry.isFile && isFormData
@@ -1329,7 +1329,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                             ),
                     ),
                     if (isFormData) ...[
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -1341,7 +1341,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                           });
                         },
                         child: Padding(
-                          padding: const EdgeInsets.all(4),
+                          padding: EdgeInsets.all(4),
                           child: Icon(
                             Icons.insert_drive_file,
                             size: 16,
@@ -1352,7 +1352,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     GestureDetector(
                       onTap: entries.length > 1
                           ? () => setState(() {
@@ -1365,7 +1365,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
                             })
                           : null,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.close,
                           size: 14,
@@ -1382,7 +1382,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
           child: Row(
             children: [
               TermButton(
@@ -1408,11 +1408,11 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
 
   Widget _buildAuthTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'basic auth',
             style: TextStyle(
               color: TColors.purple,
@@ -1421,14 +1421,14 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _envAutocompleteTextField(
             controller: _authUserController,
             style: _fieldStyle,
             decoration: _fieldDecoration('username'),
             onChanged: (v) => _authUser = v,
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           _envAutocompleteTextField(
             controller: _authPasswordController,
             obscureText: true,
@@ -1436,8 +1436,8 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
             decoration: _fieldDecoration('password'),
             onChanged: (v) => _authPassword = v,
           ),
-          const SizedBox(height: 20),
-          const Text(
+          SizedBox(height: 20),
+          Text(
             'bearer token',
             style: TextStyle(
               color: TColors.purple,
@@ -1446,7 +1446,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _envAutocompleteTextField(
             controller: _bearerTokenController,
             style: _fieldStyle,
@@ -1463,7 +1463,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   Widget _buildFooter() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Row(
         children: [
           TermButton(
@@ -1474,7 +1474,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
               showTerminalToast(context, 'curl copied to clipboard');
             },
           ),
-          const Spacer(),
+          Spacer(),
           TermButton(
             icon: Icons.play_arrow,
             label: 'execute',
@@ -1488,7 +1488,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
 
   // ── Reusable field builder ────────────────────────────────────
 
-  static const _fieldStyle = TextStyle(
+  static final _fieldStyle = TextStyle(
     color: TColors.text,
     fontFamily: 'monospace',
     fontSize: 12,
@@ -1496,25 +1496,25 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
 
   static InputDecoration _fieldDecoration(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(
+    hintStyle: TextStyle(
       color: TColors.mutedText,
       fontFamily: 'monospace',
       fontSize: 12,
     ),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.zero,
-      borderSide: const BorderSide(color: TColors.border, width: 1),
+      borderSide: BorderSide(color: TColors.border, width: 1),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.zero,
-      borderSide: const BorderSide(color: TColors.border, width: 1),
+      borderSide: BorderSide(color: TColors.border, width: 1),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.zero,
-      borderSide: const BorderSide(color: TColors.green, width: 1),
+      borderSide: BorderSide(color: TColors.green, width: 1),
     ),
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
   );
 
   Widget _field({
@@ -1550,7 +1550,7 @@ class _FieldWrapper extends StatefulWidget {
   Function(TextEditingValue value)
   envQueryAtCaret;
 
-  const _FieldWrapper({
+  _FieldWrapper({
     required this.initialText,
     required this.hint,
     this.onChanged,
@@ -1567,7 +1567,7 @@ class _FieldWrapper extends StatefulWidget {
 class _FieldWrapperState extends State<_FieldWrapper> {
   late final _controller = TextEditingController(text: widget.initialText);
   final _fieldKey = GlobalKey();
-  TextEditingValue _lastAutocompleteValue = const TextEditingValue();
+  TextEditingValue _lastAutocompleteValue = TextEditingValue();
 
   @override
   void didUpdateWidget(covariant _FieldWrapper old) {
@@ -1600,25 +1600,25 @@ class _FieldWrapperState extends State<_FieldWrapper> {
         ),
         decoration: InputDecoration(
           hintText: widget.hint,
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             color: TColors.mutedText,
             fontFamily: 'monospace',
             fontSize: 12,
           ),
-          border: const OutlineInputBorder(
+          border: OutlineInputBorder(
             borderRadius: BorderRadius.zero,
             borderSide: BorderSide(color: TColors.border, width: 1),
           ),
-          enabledBorder: const OutlineInputBorder(
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.zero,
             borderSide: BorderSide(color: TColors.border, width: 1),
           ),
-          focusedBorder: const OutlineInputBorder(
+          focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.zero,
             borderSide: BorderSide(color: TColors.green, width: 1),
           ),
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding: EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 6,
           ),
@@ -1670,7 +1670,7 @@ class _FieldWrapperState extends State<_FieldWrapper> {
       optionsBuilder: (value) {
         _lastAutocompleteValue = value;
         final q = widget.envQueryAtCaret(value);
-        if (q == null) return const Iterable<String>.empty();
+        if (q == null) return Iterable<String>.empty();
         final query = q.query.toLowerCase();
         return widget.envKeyIndex
             .where((e) => query.isEmpty || e.lower.startsWith(query))
@@ -1701,7 +1701,7 @@ class _FieldWrapperState extends State<_FieldWrapper> {
         final list = options.toList();
         final box = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
         final size = box?.size ?? Size.zero;
-        const menuMaxWidth = 240.0;
+        final menuMaxWidth = 240.0;
         final caret = _lastAutocompleteValue.selection.baseOffset;
         final caretPoint =
             (caret >= 0 && caret <= _lastAutocompleteValue.text.length)
@@ -1716,8 +1716,8 @@ class _FieldWrapperState extends State<_FieldWrapper> {
             child: Transform.translate(
               offset: Offset(dx, 0),
               child: Container(
-                margin: const EdgeInsets.only(top: 6),
-                constraints: const BoxConstraints(
+                margin: EdgeInsets.only(top: 6),
+                constraints: BoxConstraints(
                   maxHeight: 180,
                   maxWidth: 240,
                 ),
@@ -1733,13 +1733,13 @@ class _FieldWrapperState extends State<_FieldWrapper> {
                     return InkWell(
                       onTap: () => onSelected(opt),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 8,
                         ),
                         child: Text(
                           '<<$opt>>',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TColors.foreground,
                             fontFamily: 'monospace',
                             fontSize: 11,

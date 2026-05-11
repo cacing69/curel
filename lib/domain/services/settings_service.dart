@@ -7,6 +7,7 @@ const _keyUserAgent = 'user_agent';
 const _keyConnectTimeout = 'connect_timeout';
 const _keyMaxTime = 'max_time';
 const _keyWorkspacePath = 'workspace_path';
+const _keyTheme = 'app_theme';
 
 const defaultConnectTimeout = 30;
 const defaultMaxTime = 0;
@@ -23,6 +24,8 @@ abstract class SettingsService {
   Future<String> getEffectiveWorkspacePath();
   Future<void> setWorkspacePath(String? value);
   Future<void> clearWorkspacePath();
+  Future<String> getTheme();
+  Future<void> setTheme(String themeId);
 }
 
 class PreferencesSettingsService implements SettingsService {
@@ -116,5 +119,17 @@ class PreferencesSettingsService implements SettingsService {
   Future<void> clearWorkspacePath() async {
     final prefs = await _instance;
     await prefs.remove(_keyWorkspacePath);
+  }
+
+  @override
+  Future<String> getTheme() async {
+    final prefs = await _instance;
+    return prefs.getString(_keyTheme) ?? 'dracula';
+  }
+
+  @override
+  Future<void> setTheme(String themeId) async {
+    final prefs = await _instance;
+    await prefs.setString(_keyTheme, themeId);
   }
 }

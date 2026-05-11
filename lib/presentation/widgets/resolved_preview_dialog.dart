@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 class ResolvedPreviewDialog extends StatelessWidget {
   final Future<String> future;
 
-  const ResolvedPreviewDialog({required this.future, super.key});
+  ResolvedPreviewDialog({required this.future, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +18,10 @@ class ResolvedPreviewDialog extends StatelessWidget {
           children: [
             Container(
               color: TColors.surface,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'resolved command',
                     style: TextStyle(
                       color: TColors.purple,
@@ -30,7 +30,7 @@ class ResolvedPreviewDialog extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: Icon(
@@ -48,7 +48,7 @@ class ResolvedPreviewDialog extends StatelessWidget {
                 future: future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
+                    return Center(
                       child: CircularProgressIndicator(
                         color: TColors.green,
                         strokeWidth: 2,
@@ -58,12 +58,12 @@ class ResolvedPreviewDialog extends StatelessWidget {
                   final text = snapshot.data ?? '';
                   final lines = _splitToHighlightLines(text);
                   return ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12),
                     itemCount: lines.length,
                     itemBuilder: (context, index) {
                       return Text.rich(
                         TextSpan(
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 12,
                             height: 1.5,
@@ -89,14 +89,14 @@ class ResolvedPreviewDialog extends StatelessWidget {
         allSpans.add(
           TextSpan(
             text: m.group(1),
-            style: const TextStyle(color: TColors.purple),
+            style: TextStyle(color: TColors.purple),
           ),
         );
       } else if (m.group(2) != null) {
         allSpans.add(
           TextSpan(
             text: m.group(2),
-            style: const TextStyle(
+            style: TextStyle(
               color: TColors.cyan,
               fontWeight: FontWeight.bold,
             ),
@@ -106,28 +106,28 @@ class ResolvedPreviewDialog extends StatelessWidget {
         allSpans.add(
           TextSpan(
             text: m.group(3),
-            style: const TextStyle(color: TColors.orange),
+            style: TextStyle(color: TColors.orange),
           ),
         );
       } else if (m.group(5) != null) {
         allSpans.add(
           TextSpan(
             text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
+            style: TextStyle(color: TColors.yellow),
           ),
         );
       } else if (m.group(6) != null) {
         allSpans.add(
           TextSpan(
             text: m.group(6),
-            style: const TextStyle(color: TColors.yellow),
+            style: TextStyle(color: TColors.yellow),
           ),
         );
       } else if (m.group(7) != null) {
         allSpans.add(
           TextSpan(
             text: m.group(7),
-            style: const TextStyle(color: TColors.green),
+            style: TextStyle(color: TColors.green),
           ),
         );
       } else if (m.group(8) != null) {
@@ -136,7 +136,7 @@ class ResolvedPreviewDialog extends StatelessWidget {
           allSpans.add(
             TextSpan(
               text: word,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.purple,
                 fontWeight: FontWeight.bold,
               ),

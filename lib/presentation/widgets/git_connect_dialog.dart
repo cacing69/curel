@@ -47,7 +47,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: TColors.background,
-      title: const Text(
+      title: Text(
         'connect to remote git',
         style: TextStyle(
           color: TColors.foreground,
@@ -56,7 +56,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
         ),
       ),
       content: _loading
-          ? const SizedBox(
+          ? SizedBox(
               height: 100,
               child: Center(
                   child: CircularProgressIndicator(
@@ -66,25 +66,25 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('select git provider',
+                  Text('select git provider',
                       style: TextStyle(
                           color: TColors.cyan,
                           fontFamily: 'monospace',
                           fontSize: 12)),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   if (_providers.isEmpty)
-                    const Text('no providers configured. go to settings first.',
+                    Text('no providers configured. go to settings first.',
                         style: TextStyle(color: TColors.red, fontSize: 11))
                   else
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: 10),
                       color: TColors.background,
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedProviderId,
                           dropdownColor: TColors.surface,
                           isExpanded: true,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: TColors.foreground,
                               fontFamily: 'monospace',
                               fontSize: 13),
@@ -99,7 +99,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   _buildField(
                     'repository url',
                     'https://github.com/user/repo',
@@ -107,14 +107,14 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                     enabled: widget.project.remoteUrl == null,
                   ),
                   if (widget.project.remoteUrl != null)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 4),
                       child: Text(
                         'disconnect git first to change repository',
                         style: TextStyle(color: TColors.orange, fontSize: 10, fontFamily: 'monospace'),
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   _buildField('branch', 'main', _branchController),
                 ],
               ),
@@ -122,7 +122,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('cancel',
+          child: Text('cancel',
               style: TextStyle(
                   color: TColors.mutedText, fontFamily: 'monospace')),
         ),
@@ -141,7 +141,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                   );
                   Navigator.of(context).pop(updated);
                 },
-          child: const Text('connect',
+          child: Text('connect',
               style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
         ),
       ],
@@ -160,9 +160,9 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                 fontFamily: 'monospace',
                 fontSize: 12,
                 fontWeight: FontWeight.bold)),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
           child: TextField(
             controller: controller,
@@ -174,7 +174,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                 fontSize: 13),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                   color: TColors.mutedText,
                   fontFamily: 'monospace',
                   fontSize: 13),
