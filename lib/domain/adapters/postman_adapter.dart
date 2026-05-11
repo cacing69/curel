@@ -21,10 +21,10 @@ class PostmanAdapter implements CollectionAdapter {
       final schema = data['info']?['schema'];
       if (schema is String &&
           (schema.contains('schema.getpostman.com') ||
-              schema.contains('schema.postman.com'))) {
+              schema.contains('schema.postman.com') ||
+              schema.contains('collection/v2'))) {
         return true;
       }
-      // Fallback: has info.name and item array, looks like Postman
       return data['info']?['name'] != null && data['item'] is List;
     } catch (_) {
       return false;
@@ -34,7 +34,11 @@ class PostmanAdapter implements CollectionAdapter {
   @override
   Future<ImportedCollection> convert(String content) async {
     final data = jsonDecode(content) as Map<String, dynamic>;
-    final info = data['info'] as Map<String, dynamic>;
+
+    final info = data['info'];
+    if (info is! Map<String, dynamic>) {
+      throw FormatException('invalid postman collection: missing info block');
+    }
 
     final name = info['name'] as String? ?? 'imported collection';
     final description = _extractDescription(info['description']);
@@ -49,8 +53,19 @@ class PostmanAdapter implements CollectionAdapter {
       ));
     }
 
+    final items = data['item'];
+    if (items is! List || items.isEmpty) {
+      throw FormatException(
+          'invalid postman collection: no requests found');
+    }
+
     final requests = <ImportedRequest>[];
-    _flattenItems(data['item'] as List, '', requests);
+    _flattenItems(items, '', requests);
+
+    if (requests.isEmpty) {
+      throw FormatException(
+          'postman collection has no enabled requests');
+    }
 
     return ImportedCollection(
       name: name,
@@ -67,10 +82,11 @@ class PostmanAdapter implements CollectionAdapter {
   ) {
     for (final item in items) {
       final itemMap = item as Map<String, dynamic>;
+      if (itemMap['disabled'] == true) continue;
+
       final itemName = _sanitize((itemMap['name'] as String?) ?? 'unnamed');
 
       if (itemMap.containsKey('request')) {
-        // Leaf item — a request
         final path = parentPath.isEmpty ? itemName : '$parentPath/$itemName';
         final curl = _buildCurl(itemMap);
         result.add(ImportedRequest(
@@ -81,7 +97,6 @@ class PostmanAdapter implements CollectionAdapter {
           ),
         ));
       } else if (itemMap['item'] is List) {
-        // Folder — recurse
         final folderPath =
             parentPath.isEmpty ? itemName : '$parentPath/$itemName';
         _flattenItems(itemMap['item'] as List, folderPath, result);
@@ -191,6 +206,20 @@ class PostmanAdapter implements CollectionAdapter {
               '';
           if (entries.isNotEmpty) {
             parts.add(entries);
+          }
+        case 'graphql':
+          final gql = body['graphql'] as Map<String, dynamic>?;
+          if (gql != null) {
+            final payload = <String, dynamic>{};
+            final query = gql['query'] as String?;
+            if (query != null) payload['query'] = query;
+            final vars = gql['variables'] as Map<String, dynamic>?;
+            if (vars != null) payload['variables'] = vars;
+            if (payload.isNotEmpty) {
+              final raw = const JsonEncoder().convert(payload);
+              parts.add("-d '${_esc(_convertVars(raw))}'");
+              parts.add("-H 'Content-Type: application/json'");
+            }
           }
       }
     }
