@@ -84,6 +84,12 @@ if [ -n "$CHANGELOG" ]; then
   mkdir -p "$(dirname "$LOCAL_CHANGELOG_FILE")"
   echo "$CHANGELOG" > "$LOCAL_CHANGELOG_FILE"
   echo "Changelog written to $LOCAL_CHANGELOG_FILE"
+
+  FDROID_CHANGELOG_FILE="$FDROID_REPO/dev.cacing69.curel/en-US/changelogs/$NEW_BUILD.txt"
+
+  mkdir -p "$(dirname "$FDROID_CHANGELOG_FILE")"
+  echo "$CHANGELOG" > "$FDROID_CHANGELOG_FILE"
+  echo "Changelog written to $FDROID_CHANGELOG_FILE"
 fi
 
 # Commit and push to fdroid repo (subshell so cwd returns after)
