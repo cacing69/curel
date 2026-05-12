@@ -430,12 +430,7 @@ class _EnvPageState extends ConsumerState<EnvPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    )
+                  ? const Center(child: TerminalLoader())
                   : _scope == _EnvScope.global
                   ? _buildGlobalList()
                   : _envs.isEmpty

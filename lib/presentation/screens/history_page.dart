@@ -90,9 +90,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? Center(
-                      child: CircularProgressIndicator(color: TColors.green),
-                    )
+                  ? const Center(child: TerminalLoader())
                   : itemsEmpty
                   ? Center(
                       child: Text(

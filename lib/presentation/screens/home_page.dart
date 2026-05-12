@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/request_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
+import 'package:curel/presentation/widgets/import_preview_dialog.dart';
 import 'package:curel/presentation/screens/project_list_page.dart';
 import 'package:curel/presentation/widgets/action_toolbar.dart';
 import 'package:curel/presentation/widgets/curl_highlight_controller.dart';
@@ -391,11 +393,27 @@ class _HomePageState extends ConsumerState<HomePage>
         allowedExtensions: ['json'],
       );
       if (result == null || result.files.isEmpty) return;
-      final bytes = result.files.first.bytes;
-      if (bytes == null) return;
-      final json = utf8.decode(bytes);
-      final counts =
-          await ref.read(workspaceServiceProvider).importProject(json);
+      final file = result.files.first;
+      final json = file.bytes != null
+          ? utf8.decode(file.bytes!)
+          : await File(file.path!).readAsString();
+
+      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      if (preview == null) {
+        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        return;
+      }
+
+      if (!mounted) return;
+      final confirmed = await showDialog<String>(
+        context: context,
+        builder: (_) => ImportPreviewDialog(preview: preview),
+      );
+      if (confirmed == null || !mounted) return;
+
+      final counts = confirmed.isEmpty
+          ? await ref.read(workspaceServiceProvider).importProject(json)
+          : await ref.read(workspaceServiceProvider).importIntoProject(json, confirmed);
       if (mounted) {
         showTerminalToast(
           context,
@@ -1176,6 +1194,7 @@ class _HomePageState extends ConsumerState<HomePage>
           builder: (_) => SettingsPage(
             onUserAgentChanged: widget.onUserAgentChanged,
             onWorkspaceChanged: widget.onWorkspaceChanged,
+            onThemeChanged: widget.onThemeChanged,
             projectId: ref.read(activeProjectProvider)?.id,
           ),
         ),

@@ -136,12 +136,7 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   }
 
   Widget _buildLoading() {
-    return Center(
-      child: CircularProgressIndicator(
-        color: TColors.green,
-        strokeWidth: 2,
-      ),
-    );
+    return const Center(child: TerminalLoader());
   }
 
   Widget _buildList() {

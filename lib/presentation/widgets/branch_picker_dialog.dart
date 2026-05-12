@@ -106,7 +106,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
         width: 280,
         height: 320,
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: TColors.green, strokeWidth: 2))
+            ? const Center(child: TerminalLoader())
             : _error != null
                 ? Center(
                     child: Text(

@@ -312,12 +312,7 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    )
+                  ? const Center(child: TerminalLoader())
                   : _providers.isEmpty
                   ? _buildEmpty()
                   : ListView.separated(

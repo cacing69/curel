@@ -1,13 +1,14 @@
 #!/bin/bash
 set -e
 
-# Usage: ./fdroid-build.sh [major|minor]
-#   minor - bump patch (default): 1.3.4 → 1.3.5  build 10305
-#   major - bump minor, reset patch: 1.3.4 → 1.4.0  build 10400
+# Usage: ./fdroid-build.sh [patch|minor|major]
+#   patch - bump patch (default): 1.3.4 → 1.3.5  build 10305
+#   minor - bump minor, reset patch: 1.3.4 → 1.4.0  build 10400
+#   major - bump major, reset minor+patch: 1.3.4 → 2.0.0  build 20000
 #
 #   Build number = MAJOR * 10000 + MINOR * 100 + PATCH
 
-MODE=${1:-minor}
+MODE=${1:-patch}
 
 # Parse current version from pubspec.yaml
 CURRENT=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
@@ -19,17 +20,22 @@ PATCH=$(echo "$VERSION" | cut -d. -f3)
 
 case "$MODE" in
   major)
+    NEW_MAJOR=$((MAJOR + 1))
+    NEW_MINOR=0
+    NEW_PATCH=0
+    ;;
+  minor)
     NEW_MAJOR=$MAJOR
     NEW_MINOR=$((MINOR + 1))
     NEW_PATCH=0
     ;;
-  minor)
+  patch)
     NEW_MAJOR=$MAJOR
     NEW_MINOR=$MINOR
     NEW_PATCH=$((PATCH + 1))
     ;;
   *)
-    echo "Usage: $0 [major|minor]"
+    echo "Usage: $0 [patch|minor|major]"
     exit 1
     ;;
 esac

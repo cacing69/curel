@@ -38,7 +38,7 @@ class ResponseViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: _TerminalLoader());
+      return const Center(child: TerminalLoader());
     }
 
     if (error != null) {
@@ -421,64 +421,4 @@ void openFullscreenResponse(BuildContext context, CurlResponse response) {
   );
 }
 
-class _TerminalLoader extends StatefulWidget {
-  const _TerminalLoader();
-
-  @override
-  State<_TerminalLoader> createState() => _TerminalLoaderState();
-}
-
-class _TerminalLoaderState extends State<_TerminalLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  static const _frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 80),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final index =
-            (_controller.value * _frames.length).floor() % _frames.length;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _frames[index],
-              style: TextStyle(
-                color: TColors.green,
-                fontFamily: 'monospace',
-                fontSize: 16,
-              ),
-            ),
-            SizedBox(width: 8),
-            Text(
-              'loading',
-              style: TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 12,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
+// _TerminalLoader removed — use TerminalLoader from terminal_theme.dart

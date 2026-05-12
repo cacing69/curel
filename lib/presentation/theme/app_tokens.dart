@@ -112,9 +112,145 @@ const oneDarkTokens = AppThemeTokens(
   yellow: Color(0xFFE5C07B),
 );
 
+const nordTokens = AppThemeTokens(
+  id: 'nord',
+  name: 'Nord',
+  background: Color(0xFF2E3440),
+  surface: Color(0xFF3B4252),
+  foreground: Color(0xFFECEFF4),
+  text: Color(0xFFECEFF4),
+  mutedText: Color(0xFF4C566A),
+  border: Color(0xFF434C5E),
+  error: Color(0xFFBF616A),
+  warning: Color(0xFFEBCB8B),
+  accent: Color(0xFF88C0D0),
+  cyan: Color(0xFF8FBCBB),
+  green: Color(0xFFA3BE8C),
+  orange: Color(0xFFD08770),
+  pink: Color(0xFFB48EAD),
+  purple: Color(0xFFB48EAD),
+  red: Color(0xFFBF616A),
+  yellow: Color(0xFFEBCB8B),
+);
+
+const monokaiTokens = AppThemeTokens(
+  id: 'monokai',
+  name: 'Monokai',
+  background: Color(0xFF272822),
+  surface: Color(0xFF3E3D32),
+  foreground: Color(0xFFF8F8F2),
+  text: Color(0xFFF8F8F2),
+  mutedText: Color(0xFF75715E),
+  border: Color(0xFF49483E),
+  error: Color(0xFFF92672),
+  warning: Color(0xFFE6DB74),
+  accent: Color(0xFFA6E22E),
+  cyan: Color(0xFF66D9E8),
+  green: Color(0xFFA6E22E),
+  orange: Color(0xFFFD971F),
+  pink: Color(0xFFF92672),
+  purple: Color(0xFFAE81FF),
+  red: Color(0xFFF92672),
+  yellow: Color(0xFFE6DB74),
+);
+
+const tokyoNightTokens = AppThemeTokens(
+  id: 'tokyo_night',
+  name: 'Tokyo Night',
+  background: Color(0xFF1A1B26),
+  surface: Color(0xFF1F2335),
+  foreground: Color(0xFFC0CAF5),
+  text: Color(0xFFC0CAF5),
+  mutedText: Color(0xFF565F89),
+  border: Color(0xFF292E42),
+  error: Color(0xFFF7768E),
+  warning: Color(0xFFE0AF68),
+  accent: Color(0xFF7AA2F7),
+  cyan: Color(0xFF7DCFFF),
+  green: Color(0xFF9ECE6A),
+  orange: Color(0xFFFF9E64),
+  pink: Color(0xFFF7768E),
+  purple: Color(0xFFBB9AF7),
+  red: Color(0xFFF7768E),
+  yellow: Color(0xFFE0AF68),
+);
+
+const gruvboxDarkTokens = AppThemeTokens(
+  id: 'gruvbox_dark',
+  name: 'Gruvbox',
+  background: Color(0xFF282828),
+  surface: Color(0xFF3C3836),
+  foreground: Color(0xFFEBDBB2),
+  text: Color(0xFFEBDBB2),
+  mutedText: Color(0xFF928374),
+  border: Color(0xFF504945),
+  error: Color(0xFFFB4934),
+  warning: Color(0xFFFABD2F),
+  accent: Color(0xFFB8BB26),
+  cyan: Color(0xFF8EC07C),
+  green: Color(0xFFB8BB26),
+  orange: Color(0xFFFE8019),
+  pink: Color(0xFFD3869B),
+  purple: Color(0xFFD3869B),
+  red: Color(0xFFFB4934),
+  yellow: Color(0xFFFABD2F),
+);
+
+// ── Light themes ──────────────────────────────────────────────────
+
+const oneLightTokens = AppThemeTokens(
+  id: 'one_light',
+  name: 'One Light',
+  background: Color(0xFFFAFAFA),
+  surface: Color(0xFFEFEFF0),
+  foreground: Color(0xFF383A42),
+  text: Color(0xFF383A42),
+  mutedText: Color(0xFFA0A1A7),
+  border: Color(0xFFD4D4D5),
+  error: Color(0xFFE45649),
+  warning: Color(0xFFC18401),
+  accent: Color(0xFF4078F2),
+  cyan: Color(0xFF0184BC),
+  green: Color(0xFF50A14F),
+  orange: Color(0xFFC18401),
+  pink: Color(0xFFE45649),
+  purple: Color(0xFFA626A4),
+  red: Color(0xFFE45649),
+  yellow: Color(0xFFC18401),
+);
+
+const solarizedLightTokens = AppThemeTokens(
+  id: 'solarized_light',
+  name: 'Solarized',
+  background: Color(0xFFFDF6E3),
+  surface: Color(0xFFEEE8D5),
+  foreground: Color(0xFF586E75),
+  text: Color(0xFF586E75),
+  mutedText: Color(0xFF93A1A1),
+  border: Color(0xFFCCC4A8),
+  error: Color(0xFFDC322F),
+  warning: Color(0xFFCB4B16),
+  accent: Color(0xFF268BD2),
+  cyan: Color(0xFF2AA198),
+  green: Color(0xFF859900),
+  orange: Color(0xFFCB4B16),
+  pink: Color(0xFFD33682),
+  purple: Color(0xFF6C71C4),
+  red: Color(0xFFDC322F),
+  yellow: Color(0xFFB58900),
+);
+
 const allThemes = <String, AppThemeTokens>{
+  // dark
   'dracula': draculaTokens,
   'one_dark': oneDarkTokens,
+  'nord': nordTokens,
+  'monokai': monokaiTokens,
+  'tokyo_night': tokyoNightTokens,
+  'gruvbox_dark': gruvboxDarkTokens,
+  // light
+  'one_light': oneLightTokens,
+  'solarized_light': solarizedLightTokens,
 };
 
 // ── Spacing Constants ──────────────────────────────────────────────

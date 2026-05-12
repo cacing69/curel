@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
+import 'package:curel/presentation/widgets/import_preview_dialog.dart';
 import 'package:curel/domain/adapters/adapter_registry.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -146,10 +148,30 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         allowedExtensions: ['json'],
       );
       if (result == null || result.files.isEmpty) return;
-      final bytes = result.files.first.bytes;
-      if (bytes == null) return;
-      final json = utf8.decode(bytes);
-      final counts = await ref.read(workspaceServiceProvider).importProject(json);
+      final file = result.files.first;
+      final json = file.bytes != null
+          ? utf8.decode(file.bytes!)
+          : await File(file.path!).readAsString();
+
+      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      if (preview == null) {
+        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        return;
+      }
+
+      if (!mounted) return;
+      final targetProjectId = await showDialog<String>(
+        context: context,
+        builder: (_) => ImportPreviewDialog(
+          preview: preview,
+          projects: _projects,
+        ),
+      );
+      if (targetProjectId == null || !mounted) return;
+
+      final counts = targetProjectId.isEmpty
+          ? await ref.read(workspaceServiceProvider).importProject(json)
+          : await ref.read(workspaceServiceProvider).importIntoProject(json, targetProjectId);
       await _load();
       if (mounted) {
         showTerminalToast(
@@ -175,12 +197,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    )
+                  ? const Center(child: TerminalLoader())
                   : _projects.isEmpty
                       ? _buildEmpty()
                       : _buildList(),

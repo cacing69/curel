@@ -1,6 +1,78 @@
 import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:flutter/material.dart';
 
+// ── Terminal-style loading spinner ────────────────────────────────
+
+class TerminalLoader extends StatefulWidget {
+  /// [compact] shows only the spinning braille character — no "loading" label.
+  /// Use compact for inline/icon-replacement contexts (e.g. toolbar buttons).
+  final bool compact;
+
+  const TerminalLoader({this.compact = false, super.key});
+
+  @override
+  State<TerminalLoader> createState() => _TerminalLoaderState();
+}
+
+class _TerminalLoaderState extends State<TerminalLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  static const _frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final index =
+            (_controller.value * _frames.length).floor() % _frames.length;
+        final spinChar = Text(
+          _frames[index],
+          style: TextStyle(
+            color: TColors.green,
+            fontFamily: 'monospace',
+            fontSize: widget.compact ? 13 : 16,
+          ),
+        );
+
+        if (widget.compact) return spinChar;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            spinChar,
+            const SizedBox(width: 8),
+            Text(
+              'loading',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 abstract class TColors {
   static Color get background => $tokens.background;
   static Color get surface => $tokens.surface;
@@ -122,7 +194,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     )..forward();
-    
+
     // Auto-dismiss after 2s, but longer if there's an action
     final duration = widget.actionLabel != null ? 5 : 2;
     Future.delayed(Duration(seconds: duration), _dismiss);
