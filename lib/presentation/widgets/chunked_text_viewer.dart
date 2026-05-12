@@ -6,27 +6,51 @@ class ChunkedTextViewer extends StatelessWidget {
   final String text;
   final String? language;
   final TextStyle style;
+  final bool showLineNumbers;
 
-  const ChunkedTextViewer({
+  ChunkedTextViewer({
     required this.text,
     this.language,
-    this.style = const TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 12,
-      color: TColors.text,
-    ),
+    TextStyle? style,
+    this.showLineNumbers = false,
     super.key,
-  });
+  }) : style = style ?? TextStyle(
+         fontFamily: 'monospace',
+         fontSize: 12,
+         color: TColors.text,
+       );
 
   @override
   Widget build(BuildContext context) {
     final lines = _splitLines();
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.all(8),
       itemCount: lines.length,
       itemBuilder: (context, index) {
-        return Text.rich(
-          TextSpan(style: style, children: lines[index]),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showLineNumbers) ...[
+              SizedBox(
+                width: 32,
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: TColors.mutedText.withValues(alpha: 0.5),
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text.rich(
+                TextSpan(style: style, children: lines[index]),
+              ),
+            ),
+          ],
         );
       },
     );

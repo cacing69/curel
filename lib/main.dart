@@ -1,24 +1,23 @@
-import 'package:curel/data/services/curl_http_client.dart';
-import 'package:curel/domain/services/clipboard_service.dart';
-import 'package:curel/domain/services/settings_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/screens/home_page.dart';
-import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/theme/app_theme.dart';
+import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const App());
+  runApp(const ProviderScope(child: App()));
 }
 
-class App extends StatefulWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
 
   @override
-  State<App> createState() => _AppState();
+  ConsumerState<App> createState() => _AppState();
 }
 
-class _AppState extends State<App> {
-  final _httpClient = DioCurlHttpClient();
-  final _settingsService = PreferencesSettingsService();
+class _AppState extends ConsumerState<App> {
+  int _workspaceKey = 0;
 
   @override
   void initState() {
@@ -27,33 +26,45 @@ class _AppState extends State<App> {
   }
 
   Future<void> _loadSettings() async {
-    final ua = await _settingsService.getUserAgent();
-    _httpClient.setUserAgent(ua);
+    final settings = ref.read(settingsProvider);
+    final fs = ref.read(fileSystemProvider);
+    final httpClient = ref.read(httpClientProvider);
+    final ua = await settings.getUserAgent();
+    httpClient.setUserAgent(ua);
+    final workspace = await settings.getEffectiveWorkspacePath();
+    await fs.setWorkspaceRoot(workspace);
+
+    // Load saved theme
+    final themeId = await settings.getTheme();
+    setAppTheme(themeId);
+
+    await ref.read(syncControllerProvider).syncAndRefresh();
+    if (mounted) setState(() {});
+  }
+
+  void _onWorkspaceChanged() async {
+    await ref.read(syncControllerProvider).syncAndRefresh();
+    if (mounted) setState(() => _workspaceKey++);
+  }
+
+  void _onUserAgentChanged(String ua) {
+    ref.read(httpClientProvider).setUserAgent(ua);
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: TColors.background,
-        colorScheme: const ColorScheme.dark(
-          primary: TColors.accentText,
-          surface: TColors.surface,
-          error: TColors.error,
-        ),
-        textTheme: const TextTheme(
-          bodySmall: TextStyle(fontFamily: 'monospace'),
-          bodyMedium: TextStyle(fontFamily: 'monospace'),
-          bodyLarge: TextStyle(fontFamily: 'monospace'),
-        ),
-      ),
+      theme: buildThemeData(),
       home: HomePage(
-        httpClient: _httpClient,
-        clipboardService: FlutterClipboardService(),
-        settingsService: _settingsService,
-        onUserAgentChanged: (ua) => _httpClient.setUserAgent(ua),
+        key: ValueKey(_workspaceKey),
+        onUserAgentChanged: _onUserAgentChanged,
+        onWorkspaceChanged: _onWorkspaceChanged,
+        onThemeChanged: _onThemeChanged,
       ),
     );
   }

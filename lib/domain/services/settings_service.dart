@@ -1,9 +1,13 @@
+import 'package:path_provider/path_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _keyUserAgent = 'user_agent';
 const _keyConnectTimeout = 'connect_timeout';
 const _keyMaxTime = 'max_time';
+const _keyWorkspacePath = 'workspace_path';
+const _keyTheme = 'app_theme';
 
 const defaultConnectTimeout = 30;
 const defaultMaxTime = 0;
@@ -16,6 +20,12 @@ abstract class SettingsService {
   Future<void> setConnectTimeout(int? value);
   Future<int> getMaxTime();
   Future<void> setMaxTime(int? value);
+  Future<String?> getWorkspacePath();
+  Future<String> getEffectiveWorkspacePath();
+  Future<void> setWorkspacePath(String? value);
+  Future<void> clearWorkspacePath();
+  Future<String> getTheme();
+  Future<void> setTheme(String themeId);
 }
 
 class PreferencesSettingsService implements SettingsService {
@@ -79,5 +89,47 @@ class PreferencesSettingsService implements SettingsService {
     } else {
       await prefs.setInt(_keyMaxTime, value);
     }
+  }
+
+  @override
+  Future<String?> getWorkspacePath() async {
+    final prefs = await _instance;
+    return prefs.getString(_keyWorkspacePath);
+  }
+
+  @override
+  Future<String> getEffectiveWorkspacePath() async {
+    final custom = await getWorkspacePath();
+    if (custom != null && custom.isNotEmpty) return custom;
+    final appDir = await getApplicationSupportDirectory();
+    return p.join(appDir.path, 'curel');
+  }
+
+  @override
+  Future<void> setWorkspacePath(String? value) async {
+    final prefs = await _instance;
+    if (value == null || value.isEmpty) {
+      await prefs.remove(_keyWorkspacePath);
+    } else {
+      await prefs.setString(_keyWorkspacePath, value);
+    }
+  }
+
+  @override
+  Future<void> clearWorkspacePath() async {
+    final prefs = await _instance;
+    await prefs.remove(_keyWorkspacePath);
+  }
+
+  @override
+  Future<String> getTheme() async {
+    final prefs = await _instance;
+    return prefs.getString(_keyTheme) ?? 'dracula';
+  }
+
+  @override
+  Future<void> setTheme(String themeId) async {
+    final prefs = await _instance;
+    await prefs.setString(_keyTheme, themeId);
   }
 }

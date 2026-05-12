@@ -13,20 +13,21 @@ class SearchableText extends StatefulWidget {
   final Map<String, TextStyle>? syntaxTheme;
   final VoidCallback? onClose;
 
-  const SearchableText({
+  SearchableText({
     required this.text,
     this.searchActive = false,
-    this.style = const TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 12,
-      color: TColors.text,
-    ),
-    this.padding = const EdgeInsets.all(4),
+    TextStyle? style,
+    EdgeInsetsGeometry? padding,
     this.syntaxLanguage,
     this.syntaxTheme,
     this.onClose,
     super.key,
-  });
+  }) : style = style ?? TextStyle(
+         fontFamily: 'monospace',
+         fontSize: 12,
+         color: TColors.text,
+       ),
+       padding = padding ?? EdgeInsets.all(4);
 
   @override
   State<SearchableText> createState() => _SearchableTextState();
@@ -152,7 +153,7 @@ class _SearchableTextState extends State<SearchableText> {
       final maxScroll = _scrollController.position.maxScrollExtent;
       _scrollController.animateTo(
         target.clamp(0.0, maxScroll),
-        duration: const Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 200),
         curve: Curves.easeInOut,
       );
     });
@@ -411,21 +412,21 @@ class _SearchableTextState extends State<SearchableText> {
   Widget _buildSearchBar() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.search, size: 14, color: TColors.mutedText),
-          const SizedBox(width: 6),
+          Icon(Icons.search, size: 14, color: TColors.mutedText),
+          SizedBox(width: 6),
           Expanded(
             child: TextField(
               controller: _searchController,
               focusNode: _focusNode,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.text,
                 fontFamily: 'monospace',
                 fontSize: 12,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'find...',
                 hintStyle: TextStyle(
                   color: TColors.mutedText,
@@ -442,17 +443,17 @@ class _SearchableTextState extends State<SearchableText> {
           if (_matches.isNotEmpty) ...[
             Text(
               '${_activeIndex + 1}/${_matches.length}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.mutedText,
                 fontSize: 11,
                 fontFamily: 'monospace',
               ),
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             GestureDetector(
               onTap: _activeIndex > 0 ? _prevMatch : null,
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(6),
                 child: Icon(
                   Icons.keyboard_arrow_up,
                   size: 20,
@@ -465,7 +466,7 @@ class _SearchableTextState extends State<SearchableText> {
             GestureDetector(
               onTap: _activeIndex < _matches.length - 1 ? _nextMatch : null,
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(6),
                 child: Icon(
                   Icons.keyboard_arrow_down,
                   size: 20,
@@ -481,7 +482,7 @@ class _SearchableTextState extends State<SearchableText> {
               _resetSearch();
               widget.onClose?.call();
             },
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(6),
               child: Icon(Icons.close, size: 18, color: TColors.red),
             ),

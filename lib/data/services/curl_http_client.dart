@@ -18,6 +18,7 @@ abstract class CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   });
   Future<CurlResponse> executeBinary(
     Curl curl, {
@@ -28,8 +29,116 @@ abstract class CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   });
   void setUserAgent(String value);
+}
+
+class _VerboseTraceFormatter {
+  final String effectiveProtocol;
+
+  const _VerboseTraceFormatter({required this.effectiveProtocol});
+
+  String requestTarget(Uri uri) {
+    final path = uri.path.isEmpty ? '/' : uri.path;
+    if (!uri.hasQuery) return path;
+    return '$path?${uri.query}';
+  }
+
+  void writeVerbosePreamble(
+    StringBuffer buf, {
+    required Uri uri,
+    required String? resolvedIp,
+    required bool requestedHttp3,
+    required bool requestedHttp2,
+  }) {
+    if (resolvedIp != null) {
+      buf.writeln('* Trying $resolvedIp...');
+      buf.writeln('* Connected to ${uri.host} ($resolvedIp) port ${uri.port}');
+    }
+    if (uri.scheme == 'https') {
+      buf.writeln('* SSL connection using TLS');
+    }
+    if (requestedHttp3) {
+      buf.writeln(
+        '* warning: --http3 requested but not supported, using $effectiveProtocol',
+      );
+    }
+    if (requestedHttp2) {
+      buf.writeln(
+        '* warning: --http2 requested but not supported, using $effectiveProtocol',
+      );
+    }
+  }
+
+  void writeTracePreamble(
+    StringBuffer traceBuf, {
+    required Uri uri,
+    required String? resolvedIp,
+  }) {
+    if (resolvedIp != null) {
+      traceBuf.writeln('== Info: Trying $resolvedIp...');
+      traceBuf.writeln('== Info: Connected to ${uri.host} port ${uri.port}');
+    }
+    if (uri.scheme == 'https') {
+      traceBuf.writeln('== Info: SSL connection using TLS');
+    }
+  }
+
+  void writeTraceWarnings(
+    StringBuffer traceBuf, {
+    required bool requestedHttp3,
+    required bool requestedHttp2,
+    StringBuffer? verboseBuf,
+  }) {
+    if (requestedHttp3) {
+      traceBuf.writeln(
+        '== Info: warning: --http3 requested but not supported, using $effectiveProtocol',
+      );
+      verboseBuf?.writeln(
+        '* warning: --http3 requested but not supported, using $effectiveProtocol',
+      );
+    }
+    if (requestedHttp2) {
+      traceBuf.writeln(
+        '== Info: warning: --http2 requested but not supported, using $effectiveProtocol',
+      );
+      verboseBuf?.writeln(
+        '* warning: --http2 requested but not supported, using $effectiveProtocol',
+      );
+    }
+  }
+
+  void writeVerboseRequest(
+    StringBuffer buf, {
+    required String method,
+    required Uri uri,
+    required Map<String, dynamic> headers,
+  }) {
+    buf.writeln('> $method ${requestTarget(uri)} $effectiveProtocol');
+    buf.writeln('> Host: ${uri.host}');
+    headers.forEach((key, value) {
+      buf.writeln('> $key: $value');
+    });
+    buf.writeln('>');
+    buf.writeln('');
+  }
+
+  void writeVerboseResponse(
+    StringBuffer buf, {
+    required int? statusCode,
+    required String statusMessage,
+    required Map<String, List<String>> headers,
+  }) {
+    buf.writeln('< $effectiveProtocol $statusCode $statusMessage');
+    headers.forEach((key, values) {
+      for (final v in values) {
+        buf.writeln('< $key: $v');
+      }
+    });
+    buf.writeln('<');
+    buf.writeln('');
+  }
 }
 
 class DioCurlHttpClient implements CurlHttpClient {
@@ -37,6 +146,11 @@ class DioCurlHttpClient implements CurlHttpClient {
   var _userAgent = '';
 
   DioCurlHttpClient({Dio? dio}) : _dio = dio ?? Dio();
+
+  String _effectiveProtocolLabel(String? httpVersion) {
+    if (httpVersion == '1.0') return 'HTTP/1.0';
+    return 'HTTP/1.1';
+  }
 
   void _applyInsecure(bool insecure) {
     if (!insecure) return;
@@ -64,18 +178,19 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
-  }) =>
-      _doRequest(
-        curl,
-        responseType: ResponseType.plain,
-        verbose: verbose,
-        followRedirects: followRedirects,
-        trace: trace,
-        traceAscii: traceAscii,
-        connectTimeout: connectTimeout,
-        maxTime: maxTime,
-        insecure: insecure,
-      );
+    String? httpVersion,
+  }) => _doRequest(
+    curl,
+    responseType: ResponseType.plain,
+    verbose: verbose,
+    followRedirects: followRedirects,
+    trace: trace,
+    traceAscii: traceAscii,
+    connectTimeout: connectTimeout,
+    maxTime: maxTime,
+    insecure: insecure,
+    httpVersion: httpVersion,
+  );
 
   @override
   Future<CurlResponse> executeBinary(
@@ -87,18 +202,19 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
-  }) =>
-      _doRequest(
-        curl,
-        responseType: ResponseType.bytes,
-        verbose: verbose,
-        followRedirects: followRedirects,
-        trace: trace,
-        traceAscii: traceAscii,
-        connectTimeout: connectTimeout,
-        maxTime: maxTime,
-        insecure: insecure,
-      );
+    String? httpVersion,
+  }) => _doRequest(
+    curl,
+    responseType: ResponseType.bytes,
+    verbose: verbose,
+    followRedirects: followRedirects,
+    trace: trace,
+    traceAscii: traceAscii,
+    connectTimeout: connectTimeout,
+    maxTime: maxTime,
+    insecure: insecure,
+    httpVersion: httpVersion,
+  );
 
   Future<CurlResponse> _doRequest(
     Curl curl, {
@@ -110,6 +226,7 @@ class DioCurlHttpClient implements CurlHttpClient {
     Duration? connectTimeout,
     Duration? maxTime,
     bool insecure = false,
+    String? httpVersion,
   }) async {
     final headers = <String, dynamic>{...?curl.headers};
     if (!headers.containsKey('User-Agent') && _userAgent.isNotEmpty) {
@@ -118,6 +235,13 @@ class DioCurlHttpClient implements CurlHttpClient {
 
     final uri = curl.uri;
     final needsDns = verbose || trace || traceAscii;
+    final effectiveProtocol = _effectiveProtocolLabel(httpVersion);
+    final requestedHttp3 = httpVersion == '3' || httpVersion == '3-only';
+    final requestedHttp2 =
+        httpVersion == '2' || httpVersion == '2-prior-knowledge';
+    final formatter = _VerboseTraceFormatter(
+      effectiveProtocol: effectiveProtocol,
+    );
 
     // Apply timeouts from --connect-timeout / --max-time
     _dio.options.connectTimeout = connectTimeout;
@@ -152,26 +276,23 @@ class DioCurlHttpClient implements CurlHttpClient {
     if (verbose && !hasTrace) {
       final buf = StringBuffer();
 
-      if (resolvedIp != null) {
-        buf.writeln('* Trying $resolvedIp...');
-        buf.writeln(
-          '* Connected to ${uri.host} ($resolvedIp) port ${uri.port}',
-        );
-      }
-      if (uri.scheme == 'https') {
-        buf.writeln('* SSL connection using TLS');
-      }
+      formatter.writeVerbosePreamble(
+        buf,
+        uri: uri,
+        resolvedIp: resolvedIp,
+        requestedHttp3: requestedHttp3,
+        requestedHttp2: requestedHttp2,
+      );
 
       for (var i = 0; i <= (followRedirects ? 10 : 0); i++) {
         final currentUri = Uri.parse(currentUrl);
 
-        buf.writeln('> $currentMethod ${currentUri.path} HTTP/1.1');
-        buf.writeln('> Host: ${currentUri.host}');
-        headers.forEach((key, value) {
-          buf.writeln('> $key: $value');
-        });
-        buf.writeln('>');
-        buf.writeln('');
+        formatter.writeVerboseRequest(
+          buf,
+          method: currentMethod,
+          uri: currentUri,
+          headers: headers,
+        );
 
         response = await _dio.request<dynamic>(
           currentUrl,
@@ -185,16 +306,12 @@ class DioCurlHttpClient implements CurlHttpClient {
           ),
         );
 
-        buf.writeln(
-          '< HTTP/1.1 ${response.statusCode} ${response.statusMessage ?? ''}',
+        formatter.writeVerboseResponse(
+          buf,
+          statusCode: response.statusCode,
+          statusMessage: response.statusMessage ?? '',
+          headers: response.headers.map,
         );
-        response.headers.map.forEach((key, values) {
-          for (final v in values) {
-            buf.writeln('< $key: $v');
-          }
-        });
-        buf.writeln('<');
-        buf.writeln('');
 
         if (!followRedirects) break;
 
@@ -227,43 +344,42 @@ class DioCurlHttpClient implements CurlHttpClient {
 
       // Verbose preamble
       if (verboseBuf != null) {
-        if (resolvedIp != null) {
-          verboseBuf.writeln('* Trying $resolvedIp...');
-          verboseBuf.writeln(
-            '* Connected to ${uri.host} ($resolvedIp) port ${uri.port}',
-          );
-        }
-        if (uri.scheme == 'https') {
-          verboseBuf.writeln('* SSL connection using TLS');
-        }
+        formatter.writeVerbosePreamble(
+          verboseBuf,
+          uri: uri,
+          resolvedIp: resolvedIp,
+          requestedHttp3: false,
+          requestedHttp2: false,
+        );
       }
 
       // Trace preamble
-      if (resolvedIp != null) {
-        traceBuf.writeln('== Info: Trying $resolvedIp...');
-        traceBuf.writeln(
-          '== Info: Connected to ${uri.host} port ${uri.port}',
-        );
-      }
-      if (uri.scheme == 'https') {
-        traceBuf.writeln('== Info: SSL connection using TLS');
-      }
+      formatter.writeTracePreamble(traceBuf, uri: uri, resolvedIp: resolvedIp);
+      formatter.writeTraceWarnings(
+        traceBuf,
+        requestedHttp3: requestedHttp3,
+        requestedHttp2: requestedHttp2,
+        verboseBuf: verboseBuf,
+      );
 
       for (var i = 0; i <= (followRedirects ? 10 : 0); i++) {
         final currentUri = Uri.parse(currentUrl);
 
-        // ── Verbose: log request ──
-        verboseBuf?.writeln('> $currentMethod ${currentUri.path} HTTP/1.1');
-        verboseBuf?.writeln('> Host: ${currentUri.host}');
-        headers.forEach((key, value) {
-          verboseBuf?.writeln('> $key: $value');
-        });
-        verboseBuf?.writeln('>');
-        verboseBuf?.writeln('');
+        if (verboseBuf != null) {
+          formatter.writeVerboseRequest(
+            verboseBuf,
+            method: currentMethod,
+            uri: currentUri,
+            headers: headers,
+          );
+        }
 
         // ── Trace: log request header as hex dump ──
         final reqHeaderBytes = _buildRawRequestHeaderBytes(
-          currentMethod, currentUri, headers,
+          currentMethod,
+          currentUri,
+          headers,
+          protocol: effectiveProtocol,
         );
         final reqHeaderSize = reqHeaderBytes.length;
         traceBuf.writeln(
@@ -303,19 +419,20 @@ class DioCurlHttpClient implements CurlHttpClient {
         );
 
         // ── Verbose: log response ──
-        verboseBuf?.writeln(
-          '< HTTP/1.1 ${response.statusCode} ${response.statusMessage ?? ''}',
-        );
-        response.headers.map.forEach((key, values) {
-          for (final v in values) {
-            verboseBuf?.writeln('< $key: $v');
-          }
-        });
-        verboseBuf?.writeln('<');
-        verboseBuf?.writeln('');
+        if (verboseBuf != null) {
+          formatter.writeVerboseResponse(
+            verboseBuf,
+            statusCode: response.statusCode,
+            statusMessage: response.statusMessage ?? '',
+            headers: response.headers.map,
+          );
+        }
 
         // ── Trace: log response header as hex dump ──
-        final respHeaderBytes = _buildRawResponseHeaderBytes(response);
+        final respHeaderBytes = _buildRawResponseHeaderBytes(
+          response,
+          protocol: effectiveProtocol,
+        );
         final respHeaderSize = respHeaderBytes.length;
         traceBuf.writeln(
           '<= Recv header, $respHeaderSize bytes (0x${respHeaderSize.toRadixString(16)})',
@@ -365,11 +482,11 @@ class DioCurlHttpClient implements CurlHttpClient {
           final location = response.headers.value('location');
           if (location != null && i < 10) {
             final target = currentUri.resolve(location);
-            verboseBuf?.writeln(
-              '* Follow redirect #${i + 1}: $code → $target',
-            );
+            verboseBuf?.writeln('* Follow redirect #${i + 1}: $code → $target');
             verboseBuf?.writeln('');
-            traceBuf.writeln('== Info: Follow redirect #${i + 1}: $code → $target');
+            traceBuf.writeln(
+              '== Info: Follow redirect #${i + 1}: $code → $target',
+            );
             traceBuf.writeln('');
             currentUrl = target.toString();
             if (code == 301 || code == 302 || code == 303) {
@@ -420,6 +537,7 @@ class DioCurlHttpClient implements CurlHttpClient {
       body: body,
       verboseLog: verboseLog,
       traceLog: traceLog,
+      executionTime: sw.elapsed,
     );
   }
 
@@ -442,7 +560,9 @@ class DioCurlHttpClient implements CurlHttpClient {
       final hexParts = <String>[];
       for (var j = 0; j < 16; j++) {
         if (j < chunk.length) {
-          hexParts.add(chunk[j].toRadixString(16).toUpperCase().padLeft(2, '0'));
+          hexParts.add(
+            chunk[j].toRadixString(16).toUpperCase().padLeft(2, '0'),
+          );
         } else {
           hexParts.add('  ');
         }
@@ -484,12 +604,13 @@ class DioCurlHttpClient implements CurlHttpClient {
   List<int> _buildRawRequestHeaderBytes(
     String method,
     Uri uri,
-    Map<String, dynamic> headers,
-  ) {
+    Map<String, dynamic> headers, {
+    required String protocol,
+  }) {
     final buf = StringBuffer();
     buf.write('$method ${uri.path.isEmpty ? '/' : uri.path}');
     if (uri.hasQuery) buf.write('?${uri.query}');
-    buf.write(' HTTP/1.1\r\n');
+    buf.write(' $protocol\r\n');
     buf.write('Host: ${uri.host}\r\n');
     headers.forEach((key, value) {
       buf.write('$key: $value\r\n');
@@ -498,9 +619,14 @@ class DioCurlHttpClient implements CurlHttpClient {
     return utf8.encode(buf.toString());
   }
 
-  List<int> _buildRawResponseHeaderBytes(Response response) {
+  List<int> _buildRawResponseHeaderBytes(
+    Response response, {
+    required String protocol,
+  }) {
     final buf = StringBuffer();
-    buf.write('HTTP/1.1 ${response.statusCode} ${response.statusMessage ?? ""}\r\n');
+    buf.write(
+      '$protocol ${response.statusCode} ${response.statusMessage ?? ""}\r\n',
+    );
     response.headers.map.forEach((key, values) {
       for (final v in values) {
         buf.write('$key: $v\r\n');
@@ -510,10 +636,15 @@ class DioCurlHttpClient implements CurlHttpClient {
     return utf8.encode(buf.toString());
   }
 
-  List<int> _extractResponseBytes(Response response, ResponseType responseType) {
+  List<int> _extractResponseBytes(
+    Response response,
+    ResponseType responseType,
+  ) {
     if (response.data == null) return [];
     if (response.data is Uint8List) return response.data as Uint8List;
-    if (response.data is List<int>) return List<int>.from(response.data as List);
+    if (response.data is List<int>) {
+      return List<int>.from(response.data as List);
+    }
     final text = response.data.toString();
     return utf8.encode(text);
   }

@@ -1,25 +1,39 @@
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class AboutPage extends StatefulWidget {
+class AboutPage extends ConsumerStatefulWidget {
   const AboutPage({super.key});
 
   @override
-  State<AboutPage> createState() => _AboutPageState();
+  ConsumerState<AboutPage> createState() => _AboutPageState();
 }
 
-class _AboutPageState extends State<AboutPage> {
+class _AboutPageState extends ConsumerState<AboutPage> {
   String _version = '';
+  String _fingerprint = '';
 
   @override
   void initState() {
     super.initState();
-    PackageInfo.fromPlatform().then((info) {
-      if (mounted) setState(() => _version = info.version);
-    });
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    final deviceId = await ref.read(deviceServiceProvider).getFingerprint();
+    if (mounted) {
+      setState(() {
+        _version = info.version;
+        _fingerprint = deviceId;
+      });
+    }
   }
 
   @override
@@ -33,17 +47,13 @@ class _AboutPageState extends State<AboutPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-                    Image.asset(
-                      'logo.png',
-                      width: 80,
-                      height: 80,
-                    ),
+                    Image.asset('logo.png', width: 80, height: 80),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Curel',
                       style: TextStyle(
                         color: TColors.green,
@@ -56,33 +66,45 @@ class _AboutPageState extends State<AboutPage> {
                     if (_version.isNotEmpty)
                       Text(
                         'v$_version',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TColors.mutedText,
                           fontSize: 12,
                           fontFamily: 'monospace',
                         ),
                       ),
                     const SizedBox(height: 20),
-                    const Text(
-                        'A lightweight curl client for sending HTTP requests '
-                        'and inspecting responses with syntax highlighting.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: TColors.foreground,
-                          fontSize: 13,
-                          fontFamily: 'monospace',
-                          height: 1.5,
-                        ),
+                    Text(
+                      'a git-native, local-first curl workspace.\n'
+                      'organize requests into projects, manage '
+                      'environments with layered variables, and '
+                      'collaborate via github.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        height: 1.5,
                       ),
+                    ),
                     const SizedBox(height: 32),
                     TermButton(
                       icon: Icons.code,
-                      label: 'Repository',
+                      label: 'repository',
                       onTap: () => launchUrl(
                         Uri.parse('https://github.com/cacing69/curel'),
                         mode: LaunchMode.externalApplication,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    TermButton(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'feedback',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FeedbackPage()),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    if (_fingerprint.isNotEmpty) _buildFingerprintSection(),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -94,22 +116,67 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
+  Widget _buildFingerprintSection() {
+    return Column(
+      children: [
+        Text(
+          'device fingerprint',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontSize: 10,
+            fontFamily: 'monospace',
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: _fingerprint));
+            showTerminalToast(context, 'fingerprint copied');
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: TColors.surface,
+              border: Border.all(color: TColors.border, width: 0.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _fingerprint,
+                  style: TextStyle(
+                    color: TColors.cyan,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(Icons.copy, size: 12, color: TColors.mutedText),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
               size: 18,
               color: TColors.mutedText,
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'about',
             style: TextStyle(
               color: TColors.foreground,

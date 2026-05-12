@@ -10,6 +10,7 @@ class CurlResponse {
   final dynamic body;
   final String? verboseLog;
   final String? traceLog;
+  final Duration? executionTime;
 
   const CurlResponse({
     this.statusCode,
@@ -18,6 +19,7 @@ class CurlResponse {
     this.body,
     this.verboseLog,
     this.traceLog,
+    this.executionTime,
   });
 
   String? get contentType => headers['content-type']?.firstOrNull;
@@ -36,6 +38,20 @@ class CurlResponse {
   }
 
   bool get isHtml => contentType?.toLowerCase().contains('html') ?? false;
+
+  String get bodySizeLabel {
+    final bytes = _rawBodyLength;
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String get timeLabel {
+    if (executionTime == null) return '';
+    final ms = executionTime!.inMilliseconds;
+    if (ms < 1000) return '${ms}ms';
+    return '${(ms / 1000).toStringAsFixed(2)}s';
+  }
 
   static const _prettifyLimit = 500 * 1024;
 
@@ -58,9 +74,13 @@ class CurlResponse {
 
   bool get isLargeResponse => _rawBodyLength > _prettifyLimit;
 
-  String get bodyText {
+  String get bodyText => getBodyText(true);
+
+  String getBodyText(bool prettify) {
     final raw = body?.toString() ?? '';
-    if (highlightLanguage == 'json' && raw.length <= _prettifyLimit) {
+    if (prettify &&
+        highlightLanguage == 'json' &&
+        raw.length <= _prettifyLimit) {
       try {
         final decoded = json.decode(raw);
         return const JsonEncoder.withIndent('  ').convert(decoded);
@@ -86,31 +106,51 @@ class CurlResponse {
   TextSpan formatHeadersSpan() {
     final children = <TextSpan>[];
 
-    children.add(TextSpan(
-      text: 'Status: ',
-      style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
-    ));
-    final code = statusCode ?? 0;
-    children.add(TextSpan(
-      text: '$statusCode $statusMessage',
-      style: TextStyle(
-        color: code >= 200 && code < 300 ? TColors.green : TColors.red,
-        fontFamily: 'monospace',
-        fontSize: 12,
+    children.add(
+      TextSpan(
+        text: 'Status: ',
+        style: TextStyle(
+          color: TColors.mutedText,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
       ),
-    ));
+    );
+    final code = statusCode ?? 0;
+    children.add(
+      TextSpan(
+        text: '$statusCode $statusMessage',
+        style: TextStyle(
+          color: code >= 200 && code < 300 ? TColors.green : TColors.red,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
+      ),
+    );
     children.add(const TextSpan(text: '\n\n'));
 
     if (headers.isNotEmpty) {
       headers.forEach((key, values) {
-        children.add(TextSpan(
-          text: '  $key',
-          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
-        ));
-        children.add(TextSpan(
-          text: ': ${values.join(", ")}\n',
-          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '  $key',
+            style: TextStyle(
+              color: TColors.cyan,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
+        children.add(
+          TextSpan(
+            text: ': ${values.join(", ")}\n',
+            style: TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       });
     }
 
@@ -128,25 +168,49 @@ class CurlResponse {
     final children = <TextSpan>[];
     for (final line in verboseLog!.split('\n')) {
       if (line.startsWith('> ')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.cyan,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else if (line.startsWith('< ')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.green,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else if (line.startsWith('* ')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.text,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       }
     }
     return TextSpan(children: children);
@@ -162,27 +226,51 @@ class CurlResponse {
     for (final line in traceLog!.split('\n')) {
       if (line.isEmpty) continue;
       if (line.startsWith('== Info:')) {
-        result.add([TextSpan(
-          text: line,
-          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
-        )]);
+        result.add([
+          TextSpan(
+            text: line,
+            style: TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        ]);
       } else if (line.startsWith('=> Send')) {
-        result.add([TextSpan(
-          text: line,
-          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
-        )]);
+        result.add([
+          TextSpan(
+            text: line,
+            style: TextStyle(
+              color: TColors.cyan,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        ]);
       } else if (line.startsWith('<= Recv')) {
-        result.add([TextSpan(
-          text: line,
-          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
-        )]);
+        result.add([
+          TextSpan(
+            text: line,
+            style: TextStyle(
+              color: TColors.green,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        ]);
       } else if (_isHexDumpLine(line)) {
         result.add(_formatHexDumpLineSpans(line));
       } else {
-        result.add([TextSpan(
-          text: line,
-          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
-        )]);
+        result.add([
+          TextSpan(
+            text: line,
+            style: TextStyle(
+              color: TColors.text,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        ]);
       }
     }
     return result;
@@ -195,41 +283,73 @@ class CurlResponse {
     final children = <TextSpan>[];
     for (final line in traceLog!.split('\n')) {
       if (line.startsWith('== Info:')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else if (line.startsWith('=> Send')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.cyan,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else if (line.startsWith('<= Recv')) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.green,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       } else if (_isHexDumpLine(line)) {
         children.addAll(_formatHexDumpLineSpans(line));
       } else if (line.isNotEmpty) {
-        children.add(TextSpan(
-          text: '$line\n',
-          style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12),
-        ));
+        children.add(
+          TextSpan(
+            text: '$line\n',
+            style: TextStyle(
+              color: TColors.text,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        );
       }
     }
     return TextSpan(children: children);
   }
 
   static bool _isHexDumpLine(String line) {
-    return line.length > 5 &&
-        RegExp(r'^[0-9a-fA-F]{4}:\s').hasMatch(line);
+    return line.length > 5 && RegExp(r'^[0-9a-fA-F]{4}:\s').hasMatch(line);
   }
 
   static List<TextSpan> _formatHexDumpLineSpans(String line) {
     final colonIdx = line.indexOf(': ');
     if (colonIdx < 0) {
-      return [TextSpan(text: '$line\n', style: const TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12))];
+      return [
+        TextSpan(
+          text: '$line\n',
+          style: TextStyle(
+            color: TColors.text,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+      ];
     }
 
     final offset = line.substring(0, colonIdx + 2);
@@ -243,15 +363,27 @@ class CurlResponse {
     return [
       TextSpan(
         text: offset,
-        style: const TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+        style: TextStyle(
+          color: TColors.mutedText,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
       ),
       TextSpan(
         text: hexPart,
-        style: const TextStyle(color: TColors.orange, fontFamily: 'monospace', fontSize: 12),
+        style: TextStyle(
+          color: TColors.orange,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
       ),
       TextSpan(
         text: '$asciiPart\n',
-        style: const TextStyle(color: TColors.purple, fontFamily: 'monospace', fontSize: 12),
+        style: TextStyle(
+          color: TColors.purple,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
       ),
     ];
   }

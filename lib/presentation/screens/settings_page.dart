@@ -1,28 +1,48 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:curel/data/services/filesystem_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/settings_service.dart';
+import 'package:curel/presentation/screens/env_page.dart';
+import 'package:curel/presentation/screens/git_providers_page.dart';
+import 'package:curel/presentation/widgets/import_preview_dialog.dart';
+import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class SettingsPage extends StatefulWidget {
-  final SettingsService settingsService;
+class SettingsPage extends ConsumerStatefulWidget {
   final void Function(String userAgent) onUserAgentChanged;
+  final void Function() onWorkspaceChanged;
+  final void Function()? onThemeChanged;
+  final String? projectId;
 
-  const SettingsPage({
-    required this.settingsService,
+  SettingsPage({
     required this.onUserAgentChanged,
+    required this.onWorkspaceChanged,
+    this.onThemeChanged,
+    this.projectId,
     super.key,
   });
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _uaController = TextEditingController();
   final _connectTimeoutController = TextEditingController();
   final _maxTimeController = TextEditingController();
   var _loading = true;
   String _defaultUA = '';
+  String _workspaceDisplay = '';
+  String _selectedThemeId = 'dracula';
 
   @override
   void initState() {
@@ -39,31 +59,172 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
-    final ua = await widget.settingsService.getUserAgent();
-    final defaultUA = await widget.settingsService.getDefaultUserAgent();
-    final connectTimeout = await widget.settingsService.getConnectTimeout();
-    final maxTime = await widget.settingsService.getMaxTime();
+    final ua = await ref.read(settingsProvider).getUserAgent();
+    final defaultUA = await ref.read(settingsProvider).getDefaultUserAgent();
+    final connectTimeout = await ref.read(settingsProvider).getConnectTimeout();
+    final maxTime = await ref.read(settingsProvider).getMaxTime();
+    final workspace = await ref.read(settingsProvider).getEffectiveWorkspacePath();
+    final themeId = await ref.read(settingsProvider).getTheme();
     if (mounted) {
       _defaultUA = defaultUA;
+      _selectedThemeId = themeId;
       _uaController.text = ua == defaultUA ? '' : ua;
       _connectTimeoutController.text =
           connectTimeout == defaultConnectTimeout ? '' : connectTimeout.toString();
       _maxTimeController.text =
           maxTime == defaultMaxTime ? '' : maxTime.toString();
+      _workspaceDisplay = workspace;
       setState(() => _loading = false);
     }
   }
 
   Future<void> _save() async {
-    await widget.settingsService.setUserAgent(_uaController.text.trim());
+    await ref.read(settingsProvider).setUserAgent(_uaController.text.trim());
     final ct = int.tryParse(_connectTimeoutController.text.trim());
-    await widget.settingsService.setConnectTimeout(ct);
+    await ref.read(settingsProvider).setConnectTimeout(ct);
     final mt = int.tryParse(_maxTimeController.text.trim());
-    await widget.settingsService.setMaxTime(mt);
-    final ua = await widget.settingsService.getUserAgent();
+    await ref.read(settingsProvider).setMaxTime(mt);
+    final ua = await ref.read(settingsProvider).getUserAgent();
     widget.onUserAgentChanged(ua);
     if (mounted) Navigator.of(context).pop();
   }
+
+  Future<void> _pickWorkspace() async {
+    final result = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'select workspace folder',
+    );
+    if (result == null) return;
+    try {
+      await ref.read(settingsProvider).setWorkspacePath(result);
+      await ref.read(fileSystemProvider).setWorkspaceRoot(result);
+      if (mounted) Navigator.of(context).pop();
+      widget.onWorkspaceChanged();
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'failed to set workspace: $e');
+    }
+  }
+
+  Future<void> _resetWorkspace() async {
+    await ref.read(settingsProvider).clearWorkspacePath();
+    final effective = await ref.read(settingsProvider).getEffectiveWorkspacePath();
+    await ref.read(fileSystemProvider).setWorkspaceRoot(effective);
+    if (mounted) Navigator.of(context).pop();
+    widget.onWorkspaceChanged();
+  }
+
+  Future<void> _exportWorkspace() async {
+    try {
+      final json = await ref.read(workspaceServiceProvider).exportWorkspace();
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'export workspace',
+        fileName: 'curel-workspace.json',
+        bytes: utf8.encode(json),
+      );
+      if (path != null && mounted) showTerminalToast(context, 'workspace exported');
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  Future<void> _importWorkspace() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final json = file.bytes != null
+          ? utf8.decode(file.bytes!)
+          : await File(file.path!).readAsString();
+
+      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      if (preview == null) {
+        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        return;
+      }
+
+      if (!mounted) return;
+      final confirmed = await showDialog<String>(
+        context: context,
+        builder: (_) => ImportPreviewDialog(preview: preview),
+      );
+      if (confirmed == null || !mounted) return;
+
+      final counts = await ref.read(workspaceServiceProvider).importWorkspace(json);
+      widget.onWorkspaceChanged();
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'imported ${counts.projects} projects, ${counts.requests} requests, ${counts.envs} envs',
+        );
+      }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  Future<void> _resetApp() async {
+    final confirmed = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        title: Text(
+          'reset app',
+          style: TextStyle(color: TColors.red, fontFamily: 'monospace', fontSize: 14),
+        ),
+        content: Text(
+          'this will delete all projects, environments, and settings. '
+          'the app will restart fresh. this cannot be undone.',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('cancel',
+                style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('reset'),
+            child: Text('reset',
+                style: TextStyle(color: TColors.red, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != 'reset') return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    final secure = FlutterSecureStorage();
+    await secure.deleteAll();
+    final fs = LocalFileSystemService();
+    final root = await fs.getWorkspaceRoot();
+    final dir = Directory(root);
+    if (await dir.exists()) await dir.delete(recursive: true);
+    final docsDir = await getApplicationSupportDirectory();
+    final isarFiles =
+        Directory(docsDir.path).listSync().where((f) => f.path.contains('history'));
+    for (final f in isarFiles) {
+      await f.delete(recursive: true);
+    }
+    exit(0);
+  }
+
+  Future<void> _applyTheme(String themeId) async {
+    setAppTheme(themeId);
+    await ref.read(settingsProvider).setTheme(themeId);
+    widget.onThemeChanged?.call();
+    if (mounted) setState(() => _selectedThemeId = themeId);
+  }
+
+  // ── Build ────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -76,70 +237,67 @@ class _SettingsPageState extends State<SettingsPage> {
             Container(height: 1, color: TColors.border),
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    )
+                  ? const Center(child: TerminalLoader())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 20,
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSection(
-                            label: 'User-Agent',
-                            description:
-                                'Appended to every request as the User-Agent header. '
-                                'Leave empty to use default.',
-                            hint: _defaultUA,
-                            controller: _uaController,
-                            maxLines: 3,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSection(
-                            label: 'Connect Timeout',
-                            description:
-                                'Max seconds to wait for a connection. '
-                                'Leave empty to use default ($defaultConnectTimeout).',
-                            hint: '$defaultConnectTimeout',
+                          // ── request ─────────────────────────────
+                          _sectionLabel('request'),
+                          _buildUserAgentBlock(),
+                          _itemDivider(),
+                          _buildInlineRow(
+                            label: 'connect timeout',
+                            hint: '${defaultConnectTimeout}s',
                             controller: _connectTimeoutController,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 20),
-                          _buildSection(
-                            label: 'Max Time',
-                            description:
-                                'Max seconds for the entire request. '
-                                'Leave empty for no limit.',
-                            hint: '$defaultMaxTime (no limit)',
+                          _itemDivider(),
+                          _buildInlineRow(
+                            label: 'max time',
+                            hint: '0 = no limit',
                             controller: _maxTimeController,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              TermButton(
-                                icon: Icons.check,
-                                label: 'save',
-                                onTap: _save,
-                                accent: true,
-                              ),
-                              const SizedBox(width: 8),
-                              TermButton(
-                                icon: Icons.refresh,
-                                label: 'reset',
-                                onTap: () {
-                                  _uaController.clear();
-                                  _connectTimeoutController.clear();
-                                  _maxTimeController.clear();
-                                },
-                              ),
-                            ],
+
+                          // ── appearance ──────────────────────────
+                          _sectionLabel('appearance'),
+                          _buildThemeBlock(),
+
+                          // ── workspace ───────────────────────────
+                          _sectionLabel('workspace'),
+                          _buildWorkspaceBlock(),
+
+                          // ── navigate ────────────────────────────
+                          _sectionLabel('navigate'),
+                          _buildNavRow(
+                            Icons.data_object,
+                            'env',
+                            () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => EnvPage(projectId: widget.projectId),
+                            )),
                           ),
+                          _itemDivider(),
+                          _buildNavRow(
+                            Icons.cloud,
+                            'git providers',
+                            () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => GitProvidersPage())),
+                          ),
+
+                          // ── danger zone ─────────────────────────
+                          SizedBox(height: 24),
+                          Container(height: 1, color: TColors.border.withValues(alpha: 0.4)),
+                          SizedBox(height: 12),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: TermButton(
+                              icon: Icons.delete_forever,
+                              label: 'reset app',
+                              onTap: _resetApp,
+                            ),
+                          ),
+                          SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -150,86 +308,20 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSection({
-    required String label,
-    required String description,
-    required String hint,
-    required TextEditingController controller,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: TColors.cyan,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          description,
-          style: const TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 11,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          color: TColors.surface,
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            minLines: 1,
-            cursorColor: TColors.green,
-            keyboardType: keyboardType,
-            style: const TextStyle(
-              color: TColors.foreground,
-              fontFamily: 'monospace',
-              fontSize: 13,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Layout helpers ────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
-              Icons.arrow_back,
-              size: 18,
-              color: TColors.mutedText,
-            ),
+            child: Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'settings',
             style: TextStyle(
               color: TColors.foreground,
@@ -238,7 +330,286 @@ class _SettingsPageState extends State<SettingsPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          Spacer(),
+          TermButton(icon: Icons.check, label: 'save', onTap: _save, accent: true),
         ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, 16, 12, 6),
+      child: Text(
+        '// $label',
+        style: TextStyle(
+          color: TColors.comment,
+          fontFamily: 'monospace',
+          fontSize: 10,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _itemDivider() =>
+      Container(height: 1, color: TColors.background);
+
+  // ── Section blocks ────────────────────────────────────────────────
+
+  Widget _buildUserAgentBlock() {
+    return Container(
+      color: TColors.surface,
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'user-agent',
+                style: TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+              Spacer(),
+              Text(
+                'empty = default',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6),
+          TextField(
+            controller: _uaController,
+            maxLines: 2,
+            minLines: 1,
+            cursorColor: TColors.green,
+            style: TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+            decoration: InputDecoration(
+              hintText: _defaultUA,
+              hintStyle: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineRow({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      color: TColors.surface,
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          SizedBox(
+            width: 90,
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              textAlign: TextAlign.right,
+              cursorColor: TColors.green,
+              style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeBlock() {
+    return Container(
+      color: TColors.surface,
+      padding: EdgeInsets.all(10),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: allThemes.values.map(_buildThemeTile).toList(),
+      ),
+    );
+  }
+
+  Widget _buildThemeTile(AppThemeTokens theme) {
+    final isSelected = _selectedThemeId == theme.id;
+    return GestureDetector(
+      onTap: () => _applyTheme(theme.id),
+      child: Container(
+        width: 66,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? TColors.green : TColors.border.withValues(alpha: 0.4),
+            width: isSelected ? 1.5 : 0.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 32,
+              color: theme.background,
+              padding: EdgeInsets.all(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(height: 4, color: theme.surface),
+                  Row(
+                    children: [
+                      _dot(theme.cyan),
+                      SizedBox(width: 2),
+                      _dot(theme.green),
+                      SizedBox(width: 2),
+                      _dot(theme.orange),
+                      SizedBox(width: 2),
+                      _dot(theme.pink),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              color: theme.surface,
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              child: Text(
+                theme.name.toLowerCase(),
+                style: TextStyle(
+                  color: isSelected
+                      ? TColors.green
+                      : theme.foreground.withValues(alpha: 0.6),
+                  fontFamily: 'monospace',
+                  fontSize: 8,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dot(Color color) => Container(
+        width: 5,
+        height: 5,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+
+  Widget _buildWorkspaceBlock() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          color: TColors.surface,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Text(
+            _workspaceDisplay,
+            style: TextStyle(
+              color: TColors.mutedText,
+              fontFamily: 'monospace',
+              fontSize: 10,
+              height: 1.4,
+            ),
+          ),
+        ),
+        SizedBox(height: 6),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              TermButton(
+                  icon: Icons.folder_open,
+                  label: 'change',
+                  onTap: _pickWorkspace,
+                  accent: true),
+              TermButton(icon: Icons.refresh, label: 'reset', onTap: _resetWorkspace),
+              TermButton(icon: Icons.upload_file, label: 'import', onTap: _importWorkspace),
+              TermButton(icon: Icons.download, label: 'export', onTap: _exportWorkspace),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavRow(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: TColors.surface,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 13, color: TColors.mutedText),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 14, color: TColors.mutedText),
+          ],
+        ),
       ),
     );
   }

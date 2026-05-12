@@ -1,13 +1,15 @@
 import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
-import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 // ── Models ──────────────────────────────────────────────────────
@@ -44,21 +46,21 @@ class FormDataEntry {
 
 // ── Page ────────────────────────────────────────────────────────
 
-class RequestBuilderPage extends StatefulWidget {
+class RequestBuilderPage extends ConsumerStatefulWidget {
   final String? initialCurl;
-  final CurlHttpClient httpClient;
+  final String? projectId;
 
-  const RequestBuilderPage({
+  RequestBuilderPage({
     this.initialCurl,
-    required this.httpClient,
+    this.projectId,
     super.key,
   });
 
   @override
-  State<RequestBuilderPage> createState() => _RequestBuilderPageState();
+  ConsumerState<RequestBuilderPage> createState() => _RequestBuilderPageState();
 }
 
-class _RequestBuilderPageState extends State<RequestBuilderPage> {
+class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
   late HttpMethod _method;
   late String _url;
   late List<KeyValueEntry> _headers;
@@ -80,11 +82,227 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   late final _authUserController = TextEditingController();
   late final _authPasswordController = TextEditingController();
   late final _bearerTokenController = TextEditingController();
+  List<String> _envKeys = [];
+  List<({String key, String lower})> _envKeyIndex = [];
+  final _autocompleteValues = <TextEditingController, TextEditingValue>{};
 
   @override
   void initState() {
     super.initState();
     _parseAndInit(widget.initialCurl);
+    _refreshEnvKeys();
+  }
+
+  Future<void> _refreshEnvKeys() async {
+    final keys = <String>{};
+    final global = await ref.read(envServiceProvider).getActive(null);
+    if (global != null) {
+      keys.addAll(global.variables.map((v) => v.key));
+    }
+    if (widget.projectId != null) {
+      final project = await ref.read(envServiceProvider).getActive(widget.projectId);
+      if (project != null) {
+        keys.addAll(project.variables.map((v) => v.key));
+      }
+    }
+    if (!mounted) return;
+    final sorted = keys.toList()..sort();
+    setState(() {
+      _envKeys = sorted;
+      _envKeyIndex = sorted
+          .map((k) => (key: k, lower: k.toLowerCase()))
+          .toList(growable: false);
+    });
+  }
+
+  RenderEditable? _findRenderEditable(RenderObject root) {
+    RenderEditable? result;
+    void visitor(RenderObject child) {
+      if (result != null) return;
+      if (child is RenderEditable) {
+        result = child;
+        return;
+      }
+      child.visitChildren(visitor);
+    }
+
+    if (root is RenderEditable) return root;
+    root.visitChildren(visitor);
+    return result;
+  }
+
+  Offset _caretBottomInField({
+    required GlobalKey fieldKey,
+    required int caretOffset,
+  }) {
+    final fieldContext = fieldKey.currentContext;
+    if (fieldContext == null) return Offset.zero;
+    final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+    if (fieldBox == null) return Offset.zero;
+    final root = fieldContext.findRenderObject();
+    if (root == null) return Offset.zero;
+    final renderEditable = _findRenderEditable(root);
+    if (renderEditable == null) return Offset.zero;
+    final caretRect = renderEditable.getLocalRectForCaret(
+      TextPosition(offset: caretOffset),
+    );
+    final caretGlobal = renderEditable.localToGlobal(
+      Offset(caretRect.left, caretRect.bottom),
+    );
+    return fieldBox.globalToLocal(caretGlobal);
+  }
+
+  ({int replaceStart, int replaceEnd, String query, bool hasClosing})?
+  _envQueryAtCaret(TextEditingValue value) {
+    final caret = value.selection.baseOffset;
+    if (caret < 0) return null;
+    final text = value.text;
+    if (caret > text.length) return null;
+    final before = text.substring(0, caret);
+    final start = before.lastIndexOf('<<');
+    if (start < 0) return null;
+    if (before.indexOf('>>', start) != -1) return null;
+    final query = before.substring(start + 2);
+    if (query.isNotEmpty &&
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(query)) {
+      return null;
+    }
+    final hasClosing = text.substring(caret).startsWith('>>');
+    return (
+      replaceStart: start + 2,
+      replaceEnd: caret,
+      query: query,
+      hasClosing: hasClosing,
+    );
+  }
+
+  Widget _envAutocompleteTextField({
+    required TextEditingController controller,
+    required TextStyle style,
+    required InputDecoration decoration,
+    ValueChanged<String>? onChanged,
+    int? maxLines,
+    bool obscureText = false,
+  }) {
+    if (_envKeys.isEmpty || obscureText) {
+      return TextField(
+        controller: controller,
+        maxLines: maxLines,
+        obscureText: obscureText,
+        style: style,
+        decoration: decoration,
+        onChanged: onChanged,
+      );
+    }
+
+    final fieldKey = GlobalObjectKey(controller);
+    return RawAutocomplete<String>(
+      textEditingController: controller,
+      optionsBuilder: (value) {
+        _autocompleteValues[controller] = value;
+        final q = _envQueryAtCaret(value);
+        if (q == null) return Iterable<String>.empty();
+        final query = q.query.toLowerCase();
+        return _envKeyIndex
+            .where((e) => query.isEmpty || e.lower.startsWith(query))
+            .map((e) => e.key)
+            .take(12);
+      },
+      onSelected: (option) {
+        final value = _autocompleteValues[controller] ?? controller.value;
+        final q = _envQueryAtCaret(value);
+        if (q == null) return;
+        final insert = option + (q.hasClosing ? '' : '>>');
+        final text = value.text.replaceRange(
+          q.replaceStart,
+          q.replaceEnd,
+          insert,
+        );
+        final caret = q.replaceStart + insert.length;
+        controller.value = value.copyWith(
+          text: text,
+          selection: TextSelection.collapsed(offset: caret),
+          composing: TextRange.empty,
+        );
+      },
+      fieldViewBuilder: (context, textController, focusNode, onSubmit) {
+        return TextField(
+          key: fieldKey,
+          controller: textController,
+          focusNode: focusNode,
+          maxLines: maxLines,
+          style: style,
+          decoration: decoration,
+          onChanged: onChanged,
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final list = options.toList();
+        final box = fieldKey.currentContext?.findRenderObject() as RenderBox?;
+        final size = box?.size ?? Size.zero;
+        final menuMaxWidth = 260.0;
+        final value = _autocompleteValues[controller] ?? controller.value;
+        final caret = value.selection.baseOffset;
+        final caretPoint = (caret >= 0 && caret <= value.text.length)
+            ? _caretBottomInField(fieldKey: fieldKey, caretOffset: caret)
+            : Offset.zero;
+        final caretX = caretPoint.dx;
+        final caretBottom = caretPoint.dy;
+        final maxDx = size.width <= 0 ? 0.0 : (size.width - menuMaxWidth);
+        final dx = maxDx <= 0 ? 0.0 : caretX.clamp(0.0, maxDx);
+        final dy = size.height <= 0
+            ? 0.0
+            : (caretBottom - size.height).clamp(
+                (-size.height + 4).clamp(-9999.0, 0.0),
+                0.0,
+              );
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            color: Colors.transparent,
+            child: Transform.translate(
+              offset: Offset(dx, dy),
+              child: Container(
+                margin: EdgeInsets.only(top: 4),
+                constraints: BoxConstraints(
+                  maxHeight: 180,
+                  maxWidth: 260,
+                ),
+                decoration: BoxDecoration(
+                  color: TColors.surface,
+                  border: Border.all(color: TColors.border),
+                ),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final opt = list[index];
+                    return InkWell(
+                      onTap: () => onSelected(opt),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          '<<$opt>>',
+                          style: TextStyle(
+                            color: TColors.foreground,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _parseAndInit(String? curlText) {
@@ -120,8 +338,9 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       if (curl.uri.hasQuery && curl.uri.queryParametersAll.isNotEmpty) {
         _url = curl.uri.replace(queryParameters: {}).toString();
         _queryParams = curl.uri.queryParametersAll.entries
-            .expand((e) =>
-                e.value.map((v) => KeyValueEntry(key: e.key, value: v)))
+            .expand(
+              (e) => e.value.map((v) => KeyValueEntry(key: e.key, value: v)),
+            )
             .toList();
       }
 
@@ -131,21 +350,22 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
             .toList();
       }
 
-      if (curl.form &&
-          curl.formData != null &&
-          curl.formData!.isNotEmpty) {
+      if (curl.form && curl.formData != null && curl.formData!.isNotEmpty) {
         _bodyType = BodyType.formData;
         _formDataEntries = curl.formData!
-            .map((fd) => FormDataEntry(
-                  name: fd.name,
-                  value: fd.value,
-                  isFile: fd.type.name == 'file',
-                ))
+            .map(
+              (fd) => FormDataEntry(
+                name: fd.name,
+                value: fd.value,
+                isFile: fd.type.name == 'file',
+              ),
+            )
             .toList();
       } else if (curl.data != null && curl.data!.isNotEmpty) {
         _bodyContent = curl.data!;
-        final ctHeader = _headers
-            .where((h) => h.key.toLowerCase() == 'content-type');
+        final ctHeader = _headers.where(
+          (h) => h.key.toLowerCase() == 'content-type',
+        );
         if (ctHeader.isNotEmpty) {
           final ct = ctHeader.first.value.toLowerCase();
           if (ct.contains('json')) {
@@ -170,16 +390,13 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       }
 
       if (curl.cookie != null && curl.cookie!.isNotEmpty) {
-        _cookies = curl.cookie!
-            .split('; ')
-            .map((c) {
-              final kv = c.split('=');
-              return KeyValueEntry(
-                key: kv.first,
-                value: kv.length > 1 ? kv.sublist(1).join('=') : '',
-              );
-            })
-            .toList();
+        _cookies = curl.cookie!.split('; ').map((c) {
+          final kv = c.split('=');
+          return KeyValueEntry(
+            key: kv.first,
+            value: kv.length > 1 ? kv.sublist(1).join('=') : '',
+          );
+        }).toList();
       }
     } catch (_) {
       // keep defaults
@@ -223,13 +440,16 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
     // URL + query params
     var finalUrl = _url.trim();
-    final activeParams =
-        _queryParams.where((p) => p.enabled && p.key.isNotEmpty);
+    final activeParams = _queryParams.where(
+      (p) => p.enabled && p.key.isNotEmpty,
+    );
     if (activeParams.isNotEmpty) {
       final sep = finalUrl.contains('?') ? '&' : '?';
       final qs = activeParams
-          .map((p) =>
-              '${Uri.encodeComponent(p.key)}=${Uri.encodeComponent(p.value)}')
+          .map(
+            (p) =>
+                '${Uri.encodeComponent(p.key)}=${Uri.encodeComponent(p.value)}',
+          )
           .join('&');
       finalUrl = '$finalUrl$sep$qs';
     }
@@ -253,8 +473,9 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
     // Cookies
     final activeCookies = _cookies.where((c) => c.enabled && c.key.isNotEmpty);
     if (activeCookies.isNotEmpty) {
-      final cookieStr =
-          activeCookies.map((c) => '${c.key}=${c.value}').join('; ');
+      final cookieStr = activeCookies
+          .map((c) => '${c.key}=${c.value}')
+          .join('; ');
       parts.add("-b '$cookieStr'");
     }
 
@@ -306,7 +527,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       return;
     }
 
-    final hasFiles = _bodyType == BodyType.formData &&
+    final hasFiles =
+        _bodyType == BodyType.formData &&
         _formDataEntries.any((e) => e.isFile && e.fileBytes != null);
 
     if (hasFiles) {
@@ -331,21 +553,28 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       if (_bearerToken.isNotEmpty) {
         headers['Authorization'] = 'Bearer $_bearerToken';
       }
-      final activeCookies =
-          _cookies.where((c) => c.enabled && c.key.isNotEmpty);
+      final activeCookies = _cookies.where(
+        (c) => c.enabled && c.key.isNotEmpty,
+      );
       if (activeCookies.isNotEmpty) {
-        headers['Cookie'] =
-            activeCookies.map((c) => '${c.key}=${c.value}').join('; ');
+        headers['Cookie'] = activeCookies
+            .map((c) => '${c.key}=${c.value}')
+            .join('; ');
       }
 
       final formData = FormData();
       for (final entry in _formDataEntries) {
         if (entry.name.isEmpty) continue;
         if (entry.isFile && entry.fileBytes != null) {
-          formData.files.add(MapEntry(
-            entry.name,
-            MultipartFile.fromBytes(entry.fileBytes!, filename: entry.fileName),
-          ));
+          formData.files.add(
+            MapEntry(
+              entry.name,
+              MultipartFile.fromBytes(
+                entry.fileBytes!,
+                filename: entry.fileName,
+              ),
+            ),
+          );
         } else {
           formData.fields.add(MapEntry(entry.name, entry.value));
         }
@@ -395,9 +624,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
     return Scaffold(
       backgroundColor: TColors.background,
-      body: SafeArea(
-        child: isLandscape ? _buildLandscape() : _buildPortrait(),
-      ),
+      body: SafeArea(child: isLandscape ? _buildLandscape() : _buildPortrait()),
     );
   }
 
@@ -424,8 +651,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                           color: TColors.green,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         'executing...',
                         style: TextStyle(
                           color: TColors.mutedText,
@@ -476,8 +703,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                                       color: TColors.green,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8),
+                                  Text(
                                     'executing...',
                                     style: TextStyle(
                                       color: TColors.mutedText,
@@ -495,10 +722,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
               ),
               Container(width: 1, color: TColors.border),
               // Right: curl preview
-              Expanded(
-                flex: 2,
-                child: _buildCurlPreview(),
-              ),
+              Expanded(flex: 2, child: _buildCurlPreview()),
             ],
           ),
         ),
@@ -515,10 +739,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       children: [
         Container(
           color: TColors.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'curl preview',
                 style: TextStyle(
                   color: TColors.purple,
@@ -527,13 +751,13 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               GestureDetector(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: curl));
                   showTerminalToast(context, 'curl copied to clipboard');
                 },
-                child: const Icon(
+                child: Icon(
                   Icons.copy,
                   size: 14,
                   color: TColors.mutedText,
@@ -544,10 +768,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: SelectableText(
               curl,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.text,
                 fontFamily: 'monospace',
                 fontSize: 12,
@@ -564,16 +788,19 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   Widget _buildHeader() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child:
-                const Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
+            child: Icon(
+              Icons.arrow_back,
+              size: 18,
+              color: TColors.mutedText,
+            ),
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'builder',
             style: TextStyle(
               color: TColors.foreground,
@@ -582,14 +809,13 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Spacer(),
+          Spacer(),
           GestureDetector(
             onTap: _isLoading ? null : _execute,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               color: TColors.green.withValues(alpha: 0.15),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.play_arrow, size: 14, color: TColors.green),
@@ -616,20 +842,20 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   Widget _buildMethodUrlRow() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
         children: [
           _buildMethodDropdown(),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
-            child: TextField(
+            child: _envAutocompleteTextField(
               controller: _urlController,
-              style: const TextStyle(
+              style: TextStyle(
                 color: TColors.text,
                 fontFamily: 'monospace',
                 fontSize: 13,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'https://api.example.com/endpoint',
                 hintStyle: TextStyle(
                   color: TColors.mutedText,
@@ -654,7 +880,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
     return GestureDetector(
       onTap: () => _showMethodPicker(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: TColors.background,
           border: Border.all(color: TColors.border, width: 1),
@@ -671,8 +897,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.unfold_more, size: 12, color: TColors.mutedText),
+            SizedBox(width: 4),
+            Icon(Icons.unfold_more, size: 12, color: TColors.mutedText),
           ],
         ),
       ),
@@ -682,8 +908,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   void _showMethodPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: TColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      backgroundColor: TColors.background,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -700,7 +925,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                 ),
               ),
               trailing: m == _method
-                  ? const Icon(Icons.check, size: 16, color: TColors.green)
+                  ? Icon(Icons.check, size: 16, color: TColors.green)
                   : null,
               onTap: () {
                 setState(() => _method = m);
@@ -714,41 +939,41 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   }
 
   Color _methodColor(HttpMethod method) => switch (method) {
-        HttpMethod.get => TColors.green,
-        HttpMethod.post => TColors.yellow,
-        HttpMethod.put => TColors.cyan,
-        HttpMethod.delete => TColors.red,
-        HttpMethod.head => TColors.purple,
-        HttpMethod.options => TColors.orange,
-        HttpMethod.patch => TColors.pink,
-      };
+    HttpMethod.get => TColors.green,
+    HttpMethod.post => TColors.yellow,
+    HttpMethod.put => TColors.cyan,
+    HttpMethod.delete => TColors.red,
+    HttpMethod.head => TColors.purple,
+    HttpMethod.options => TColors.orange,
+    HttpMethod.patch => TColors.pink,
+  };
 
   String _bodyTypeLabel(BodyType bt) => switch (bt) {
-        BodyType.none => 'none',
-        BodyType.json => 'JSON',
-        BodyType.formData => 'form-data',
-        BodyType.urlEncoded => 'x-www-form',
-        BodyType.raw => 'raw',
-      };
+    BodyType.none => 'none',
+    BodyType.json => 'JSON',
+    BodyType.formData => 'form-data',
+    BodyType.urlEncoded => 'x-www-form',
+    BodyType.raw => 'raw',
+  };
 
   // ── Tab Bar ───────────────────────────────────────────────────
 
   Widget _buildTabBar() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         children: BuilderTab.values.map((tab) {
           final selected = _selectedTab == tab;
           if (tab == BuilderTab.body && !_hasBody) {
-            return const SizedBox.shrink();
+            return SizedBox.shrink();
           }
           return Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(right: 12),
             child: GestureDetector(
               onTap: () => setState(() => _selectedTab = tab),
               child: Container(
-                padding: const EdgeInsets.only(bottom: 2),
+                padding: EdgeInsets.only(bottom: 2),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
@@ -774,12 +999,12 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   }
 
   Widget _buildTabContent() => switch (_selectedTab) {
-        BuilderTab.params => _buildParamsTab(),
-        BuilderTab.headers => _buildHeadersTab(),
-        BuilderTab.body => _buildBodyTab(),
-        BuilderTab.auth => _buildAuthTab(),
-        BuilderTab.cookies => _buildCookiesTab(),
-      };
+    BuilderTab.params => _buildParamsTab(),
+    BuilderTab.headers => _buildHeadersTab(),
+    BuilderTab.body => _buildBodyTab(),
+    BuilderTab.auth => _buildAuthTab(),
+    BuilderTab.cookies => _buildCookiesTab(),
+  };
 
   // ── Params Tab ────────────────────────────────────────────────
 
@@ -790,7 +1015,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       onRemove: (i) => setState(() => _queryParams.removeAt(i)),
       onKeyChanged: (i, v) => _queryParams[i].key = v,
       onValueChanged: (i, v) => _queryParams[i].value = v,
-      onToggle: (i, v) { _queryParams[i].enabled = v; setState(() {}); },
+      onToggle: (i, v) {
+        _queryParams[i].enabled = v;
+        setState(() {});
+      },
       hintKey: 'key',
       hintValue: 'value',
     );
@@ -805,7 +1033,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       onRemove: (i) => setState(() => _headers.removeAt(i)),
       onKeyChanged: (i, v) => _headers[i].key = v,
       onValueChanged: (i, v) => _headers[i].value = v,
-      onToggle: (i, v) { _headers[i].enabled = v; setState(() {}); },
+      onToggle: (i, v) {
+        _headers[i].enabled = v;
+        setState(() {});
+      },
       hintKey: 'header',
       hintValue: 'value',
     );
@@ -820,7 +1051,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       onRemove: (i) => setState(() => _cookies.removeAt(i)),
       onKeyChanged: (i, v) => _cookies[i].key = v,
       onValueChanged: (i, v) => _cookies[i].value = v,
-      onToggle: (i, v) { _cookies[i].enabled = v; setState(() {}); },
+      onToggle: (i, v) {
+        _cookies[i].enabled = v;
+        setState(() {});
+      },
       hintKey: 'name',
       hintValue: 'value',
     );
@@ -840,12 +1074,12 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             itemCount: entries.length,
             itemBuilder: (_, i) {
               final entry = entries[i];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
                     SizedBox(
@@ -859,7 +1093,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 2,
                       child: _field(
@@ -868,7 +1102,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                         onChanged: (v) => onKeyChanged(i, v),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 3,
                       child: _field(
@@ -877,11 +1111,11 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                         onChanged: (v) => onValueChanged(i, v),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     GestureDetector(
                       onTap: entries.length > 1 ? () => onRemove(i) : null,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.close,
                           size: 14,
@@ -898,11 +1132,9 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
           child: Row(
-            children: [
-              TermButton(icon: Icons.add, label: 'add', onTap: onAdd),
-            ],
+            children: [TermButton(icon: Icons.add, label: 'add', onTap: onAdd)],
           ),
         ),
       ],
@@ -924,19 +1156,21 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   Widget _buildBodyTypeSelector() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: BodyType.values.map((bt) {
             final selected = _bodyType == bt;
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: 8),
               child: GestureDetector(
                 onTap: () => setState(() => _bodyType = bt),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: selected
                         ? TColors.green.withValues(alpha: 0.15)
@@ -964,32 +1198,32 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   }
 
   Widget _buildBodyContent() => switch (_bodyType) {
-        BodyType.none => Center(
-            child: Text(
-              'no body',
-              style: TextStyle(
-                color: TColors.mutedText.withValues(alpha: 0.5),
-                fontFamily: 'monospace',
-                fontSize: 12,
-              ),
-            ),
-          ),
-        BodyType.json => _buildBodyEditor(hint: '{\n  "key": "value"\n}'),
-        BodyType.raw => _buildBodyEditor(hint: 'raw body content...'),
-        BodyType.urlEncoded => _buildUrlEncodedList(),
-        BodyType.formData => _buildFormDataList(
-            entries: _formDataEntries,
-            isFormData: true,
-          ),
-      };
+    BodyType.none => Center(
+      child: Text(
+        'no body',
+        style: TextStyle(
+          color: TColors.mutedText.withValues(alpha: 0.5),
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
+      ),
+    ),
+    BodyType.json => _buildBodyEditor(hint: '{\n  "key": "value"\n}'),
+    BodyType.raw => _buildBodyEditor(hint: 'raw body content...'),
+    BodyType.urlEncoded => _buildUrlEncodedList(),
+    BodyType.formData => _buildFormDataList(
+      entries: _formDataEntries,
+      isFormData: true,
+    ),
+  };
 
   Widget _buildBodyEditor({required String hint}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: TextField(
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: _envAutocompleteTextField(
         controller: _bodyController,
         maxLines: null,
-        style: const TextStyle(
+        style: TextStyle(
           color: TColors.text,
           fontFamily: 'monospace',
           fontSize: 12,
@@ -1019,10 +1253,12 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       for (final pair in _bodyContent.split('&')) {
         if (pair.isEmpty) continue;
         final kv = pair.split('=');
-        entries.add(FormDataEntry(
-          name: Uri.decodeComponent(kv.first),
-          value: kv.length > 1 ? Uri.decodeComponent(kv[1]) : '',
-        ));
+        entries.add(
+          FormDataEntry(
+            name: Uri.decodeComponent(kv.first),
+            value: kv.length > 1 ? Uri.decodeComponent(kv[1]) : '',
+          ),
+        );
       }
     }
     if (entries.isEmpty) entries.add(FormDataEntry());
@@ -1030,8 +1266,10 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
     void rebuild(List<FormDataEntry> updated) {
       _bodyContent = updated
           .where((e) => e.name.isNotEmpty)
-          .map((e) =>
-              '${Uri.encodeComponent(e.name)}=${Uri.encodeComponent(e.value)}')
+          .map(
+            (e) =>
+                '${Uri.encodeComponent(e.name)}=${Uri.encodeComponent(e.value)}',
+          )
           .join('&');
       _bodyController.text = _bodyContent;
     }
@@ -1052,12 +1290,12 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             itemCount: entries.length,
             itemBuilder: (_, i) {
               final entry = entries[i];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
                     Expanded(
@@ -1071,7 +1309,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       flex: 3,
                       child: entry.isFile && isFormData
@@ -1091,7 +1329,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                             ),
                     ),
                     if (isFormData) ...[
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -1103,7 +1341,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                           });
                         },
                         child: Padding(
-                          padding: const EdgeInsets.all(4),
+                          padding: EdgeInsets.all(4),
                           child: Icon(
                             Icons.insert_drive_file,
                             size: 16,
@@ -1114,20 +1352,20 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     GestureDetector(
                       onTap: entries.length > 1
                           ? () => setState(() {
-                                if (isFormData) {
-                                  _formDataEntries.removeAt(i);
-                                } else {
-                                  entries.removeAt(i);
-                                  onRebuild?.call(entries);
-                                }
-                              })
+                              if (isFormData) {
+                                _formDataEntries.removeAt(i);
+                              } else {
+                                entries.removeAt(i);
+                                onRebuild?.call(entries);
+                              }
+                            })
                           : null,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.close,
                           size: 14,
@@ -1144,7 +1382,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
           child: Row(
             children: [
               TermButton(
@@ -1170,11 +1408,11 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
   Widget _buildAuthTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'basic auth',
             style: TextStyle(
               color: TColors.purple,
@@ -1183,23 +1421,23 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          TextField(
+          SizedBox(height: 8),
+          _envAutocompleteTextField(
             controller: _authUserController,
             style: _fieldStyle,
             decoration: _fieldDecoration('username'),
             onChanged: (v) => _authUser = v,
           ),
-          const SizedBox(height: 6),
-          TextField(
+          SizedBox(height: 6),
+          _envAutocompleteTextField(
             controller: _authPasswordController,
             obscureText: true,
             style: _fieldStyle,
             decoration: _fieldDecoration('password'),
             onChanged: (v) => _authPassword = v,
           ),
-          const SizedBox(height: 20),
-          const Text(
+          SizedBox(height: 20),
+          Text(
             'bearer token',
             style: TextStyle(
               color: TColors.purple,
@@ -1208,8 +1446,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          TextField(
+          SizedBox(height: 8),
+          _envAutocompleteTextField(
             controller: _bearerTokenController,
             style: _fieldStyle,
             decoration: _fieldDecoration('token'),
@@ -1225,7 +1463,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
   Widget _buildFooter() {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      padding: EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Row(
         children: [
           TermButton(
@@ -1236,7 +1474,7 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
               showTerminalToast(context, 'curl copied to clipboard');
             },
           ),
-          const Spacer(),
+          Spacer(),
           TermButton(
             icon: Icons.play_arrow,
             label: 'execute',
@@ -1250,35 +1488,34 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
 
   // ── Reusable field builder ────────────────────────────────────
 
-  static const _fieldStyle = TextStyle(
+  static final _fieldStyle = TextStyle(
     color: TColors.text,
     fontFamily: 'monospace',
     fontSize: 12,
   );
 
   static InputDecoration _fieldDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(
-          color: TColors.mutedText,
-          fontFamily: 'monospace',
-          fontSize: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.border, width: 1),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.border, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.green, width: 1),
-        ),
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      );
+    hintText: hint,
+    hintStyle: TextStyle(
+      color: TColors.mutedText,
+      fontFamily: 'monospace',
+      fontSize: 12,
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.zero,
+      borderSide: BorderSide(color: TColors.border, width: 1),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.zero,
+      borderSide: BorderSide(color: TColors.border, width: 1),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.zero,
+      borderSide: BorderSide(color: TColors.green, width: 1),
+    ),
+    isDense: true,
+    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+  );
 
   Widget _field({
     required String initialText,
@@ -1293,6 +1530,8 @@ class _RequestBuilderPageState extends State<RequestBuilderPage> {
       onChanged: onChanged,
       readOnly: readOnly,
       onTap: onTap,
+      envKeyIndex: _envKeyIndex,
+      envQueryAtCaret: _envQueryAtCaret,
     );
   }
 }
@@ -1306,13 +1545,19 @@ class _FieldWrapper extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final bool readOnly;
   final GestureTapCallback? onTap;
+  final List<({String key, String lower})> envKeyIndex;
+  final ({int replaceStart, int replaceEnd, String query, bool hasClosing})?
+  Function(TextEditingValue value)
+  envQueryAtCaret;
 
-  const _FieldWrapper({
+  _FieldWrapper({
     required this.initialText,
     required this.hint,
     this.onChanged,
     this.readOnly = false,
     this.onTap,
+    required this.envKeyIndex,
+    required this.envQueryAtCaret,
   });
 
   @override
@@ -1321,6 +1566,8 @@ class _FieldWrapper extends StatefulWidget {
 
 class _FieldWrapperState extends State<_FieldWrapper> {
   late final _controller = TextEditingController(text: widget.initialText);
+  final _fieldKey = GlobalKey();
+  TextEditingValue _lastAutocompleteValue = TextEditingValue();
 
   @override
   void didUpdateWidget(covariant _FieldWrapper old) {
@@ -1339,39 +1586,175 @@ class _FieldWrapperState extends State<_FieldWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      readOnly: widget.readOnly,
-      onTap: widget.onTap,
-      style: TextStyle(
-        color: widget.readOnly ? TColors.mutedText : TColors.text,
-        fontFamily: 'monospace',
-        fontSize: 12,
-      ),
-      decoration: InputDecoration(
-        hintText: widget.hint,
-        hintStyle: const TextStyle(
-          color: TColors.mutedText,
+    Widget buildField(TextEditingController controller, FocusNode? focusNode) {
+      return TextField(
+        key: _fieldKey,
+        controller: controller,
+        focusNode: focusNode,
+        readOnly: widget.readOnly,
+        onTap: widget.onTap,
+        style: TextStyle(
+          color: widget.readOnly ? TColors.mutedText : TColors.text,
           fontFamily: 'monospace',
           fontSize: 12,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.border, width: 1),
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          hintStyle: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: TColors.border, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: TColors.border, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: TColors.green, width: 1),
+          ),
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 6,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.border, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: const BorderSide(color: TColors.green, width: 1),
-        ),
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      ),
-      onChanged: widget.onChanged,
+        onChanged: widget.onChanged,
+      );
+    }
+
+    if (widget.readOnly || widget.envKeyIndex.isEmpty) {
+      return buildField(_controller, null);
+    }
+
+    RenderEditable? findRenderEditable(RenderObject root) {
+      RenderEditable? result;
+      void visitor(RenderObject child) {
+        if (result != null) return;
+        if (child is RenderEditable) {
+          result = child;
+          return;
+        }
+        child.visitChildren(visitor);
+      }
+
+      if (root is RenderEditable) return root;
+      root.visitChildren(visitor);
+      return result;
+    }
+
+    Offset caretBottomInField({required int caretOffset}) {
+      final fieldContext = _fieldKey.currentContext;
+      if (fieldContext == null) return Offset.zero;
+      final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+      if (fieldBox == null) return Offset.zero;
+      final root = fieldContext.findRenderObject();
+      if (root == null) return Offset.zero;
+      final renderEditable = findRenderEditable(root);
+      if (renderEditable == null) return Offset.zero;
+      final caretRect = renderEditable.getLocalRectForCaret(
+        TextPosition(offset: caretOffset),
+      );
+      final caretGlobal = renderEditable.localToGlobal(
+        Offset(caretRect.left, caretRect.bottom),
+      );
+      return fieldBox.globalToLocal(caretGlobal);
+    }
+
+    return RawAutocomplete<String>(
+      textEditingController: _controller,
+      optionsBuilder: (value) {
+        _lastAutocompleteValue = value;
+        final q = widget.envQueryAtCaret(value);
+        if (q == null) return Iterable<String>.empty();
+        final query = q.query.toLowerCase();
+        return widget.envKeyIndex
+            .where((e) => query.isEmpty || e.lower.startsWith(query))
+            .map((e) => e.key)
+            .take(12);
+      },
+      onSelected: (option) {
+        final value = _lastAutocompleteValue;
+        final q = widget.envQueryAtCaret(value);
+        if (q == null) return;
+        final insert = option + (q.hasClosing ? '' : '>>');
+        final text = value.text.replaceRange(
+          q.replaceStart,
+          q.replaceEnd,
+          insert,
+        );
+        final caret = q.replaceStart + insert.length;
+        _controller.value = value.copyWith(
+          text: text,
+          selection: TextSelection.collapsed(offset: caret),
+          composing: TextRange.empty,
+        );
+      },
+      fieldViewBuilder: (context, c, f, onSubmit) {
+        return buildField(c, f);
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final list = options.toList();
+        final box = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
+        final size = box?.size ?? Size.zero;
+        final menuMaxWidth = 240.0;
+        final caret = _lastAutocompleteValue.selection.baseOffset;
+        final caretPoint =
+            (caret >= 0 && caret <= _lastAutocompleteValue.text.length)
+            ? caretBottomInField(caretOffset: caret)
+            : Offset.zero;
+        final maxDx = size.width <= 0 ? 0.0 : (size.width - menuMaxWidth);
+        final dx = maxDx <= 0 ? 0.0 : caretPoint.dx.clamp(0.0, maxDx);
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            color: Colors.transparent,
+            child: Transform.translate(
+              offset: Offset(dx, 0),
+              child: Container(
+                margin: EdgeInsets.only(top: 6),
+                constraints: BoxConstraints(
+                  maxHeight: 180,
+                  maxWidth: 240,
+                ),
+                decoration: BoxDecoration(
+                  color: TColors.surface,
+                  border: Border.all(color: TColors.border),
+                ),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final opt = list[index];
+                    return InkWell(
+                      onTap: () => onSelected(opt),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          '<<$opt>>',
+                          style: TextStyle(
+                            color: TColors.foreground,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

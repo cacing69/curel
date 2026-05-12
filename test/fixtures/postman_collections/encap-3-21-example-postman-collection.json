@@ -1,0 +1,1464 @@
+{
+  "info": {
+    "_postman_id": "f72a0814-954f-442e-87c0-a722ece45ac2",
+    "name": "EncapExample 3.21",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "17618078",
+    "_collection_link": "https://signicats.postman.co/workspace/MobileID~7368d88f-841f-4293-9f52-5fda4c7a310e/collection/17618078-f72a0814-954f-442e-87c0-a722ece45ac2?action=share&source=collection_link&creator=17618078"
+  },
+  "item": [
+    {
+      "name": "Smart Device",
+      "item": [
+        {
+          "name": "Enrollment",
+          "item": [
+            {
+              "name": "Start enrollment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "postman.setEnvironmentVariable(\"old_device_id\", postman.getEnvironmentVariable(\"device_id\"));",
+                      "",
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"session_id\", jsonData.id);",
+                      "postman.setEnvironmentVariable(\"device_id\", jsonData.device_id);",
+                      "",
+                      "let qrcTemplate = '<img width=\"250\" height=\"250\" src=\"https://qrcode.tec-it.com/API/QRCode?data=' + encodeURIComponent(jsonData.activation_code) + '\">';",
+                      "pm.visualizer.set(qrcTemplate, {});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"application_id\": \"{{application_id}}\",\n\t\"session_expiry_time\": 300000,\n\t\"authentication_level\": \"TWO_FACTOR\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/enrollments",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "enrollments"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get enrollment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [""],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/enrollments/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "enrollments", "{{session_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel enrollment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [""],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/enrollments/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "enrollments", "{{session_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Start Re-enrollment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"session_id\", jsonData.id);",
+                      "postman.setEnvironmentVariable(\"device_id\", jsonData.device_id);",
+                      "",
+                      "let qrcTemplate = '<img width=\"250\" height=\"250\" src=\"https://qrcode.tec-it.com/API/QRCode?data=' + encodeURIComponent(jsonData.activation_code) + '\">';",
+                      "pm.visualizer.set(qrcTemplate, {});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"application_id\": \"{{application_id}}\",\n\t\"session_expiry_time\": 300000,\n\t\"authentication_level\": \"TWO_FACTOR\",\n    \"device_id\": \"{{device_id}}\"\n}\n"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/enrollments",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "enrollments"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Authentication",
+          "item": [
+            {
+              "name": "Start authentication",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"session_id\", jsonData.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"device_id\":\"{{device_id}}\",\n    \"session_expiry_time\": 300000,\n    \"authentication_level\": \"TWO_FACTOR\",\n\t\"pre_operation_context\": {\n        \"context_content_b64\": \"VkdobElHTnZiWEJoYm5rZ2QyRnVkSE1nZVc5MWNpQmhjSEJ5YjNaaGJBPT0=\",\n        \"context_mime\": \"text/plain\"\n    }\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/authentications",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "authentications"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get authentication",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [""],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/authentications/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "authentications", "{{session_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel authentication",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/authentications/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "authentications", "{{session_id}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Manage device",
+          "item": [
+            {
+              "name": "Lock authentication method",
+              "item": [
+                {
+                  "name": "Lock authentication method",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/authmethods/{{authMethod}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "authmethods",
+                        "{{authMethod}}",
+                        "lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get lock status for authentication method",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/authmethods/{{authMethod}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "authmethods",
+                        "{{authMethod}}",
+                        "lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Delete lock for authentication method",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/authmethods/{{authMethod}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "authmethods",
+                        "{{authMethod}}",
+                        "lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Lock device",
+              "item": [
+                {
+                  "name": "Get lock status for device",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": ["api", "smart-device", "v1", "devices", "{{device_id}}", "lock"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Lock device",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n\t\"device_id\":\"{{device_id}}\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": ["api", "smart-device", "v1", "devices", "{{device_id}}", "lock"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Unlock device",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [],
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": []
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/lock",
+                      "host": ["{{service_url}}"],
+                      "path": ["api", "smart-device", "v1", "devices", "{{device_id}}", "lock"]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Lock recovery",
+              "item": [
+                {
+                  "name": "Get recovery lock status",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/recovery-lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "recovery-lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Lock recovery",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n\t\"recovery_lock\":\"true\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/recovery-lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "recovery-lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Unlock recovery",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n\t\"recovery_lock\":\"false\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/recovery-lock",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "recovery-lock"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Geofencing",
+              "item": [
+                {
+                  "name": "Get geofencing",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/geofencing",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "geofencing"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update geofencing",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"mode\": \"REQUIRED\",\n    \"allowed_continents\": \"EU\",\n    \"allowed_countries\": \"CT,XX\",\n    \"denied_countries\": \"RU\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/geofencing",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "geofencing"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Delete geofencing",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": ""
+                    },
+                    "url": {
+                      "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/geofencing",
+                      "host": ["{{service_url}}"],
+                      "path": [
+                        "api",
+                        "smart-device",
+                        "v1",
+                        "devices",
+                        "{{device_id}}",
+                        "geofencing"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Get device",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "devices", "{{device_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Deactivate device",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "devices", "{{device_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get sessions for device",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/devices/{{device_id}}/sessions?limit=10",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "devices", "{{device_id}}", "sessions"],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Perform recovery",
+          "item": [
+            {
+              "name": "Get perform recovery details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/perform-recoveries/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "perform-recoveries", "{{session_id}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Offline authentication",
+          "item": [
+            {
+              "name": "Start offline authentication",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"session_id\", jsonData.id);",
+                      "",
+                      "let qrcTemplate = '<img width=\"250\" height=\"250\" src=\"https://qrcode.tec-it.com/API/QRCode?data=' + encodeURIComponent(jsonData.verification_data) + '\">';",
+                      "pm.visualizer.set(qrcTemplate, {});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"device_id\":\"{{device_id}}\",\n    \"session_expiry_time\": 300000,\n    \"authentication_method\": \"OFFLINE_PIN\",\n\t\"context\": \"Some context\"\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/offline-authentications",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "offline-authentications"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Verify offline authentication",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"otp\":\"{otp}\"\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/offline-authentications/{{session_id}}/verifications",
+                  "host": ["{{service_url}}"],
+                  "path": [
+                    "api",
+                    "smart-device",
+                    "v1",
+                    "offline-authentications",
+                    "{{session_id}}",
+                    "verifications"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get offline authentication",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/offline-authentications/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "offline-authentications", "{{session_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel offline authentication",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/offline-authentications/{{session_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "offline-authentications", "{{session_id}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Sessions",
+          "item": [
+            {
+              "name": "Get sessions for devices",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [""],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{service_url}}/api/smart-device/v1/sessions?deviceId={{device_id}}&deviceId={{old_device_id}}&limit=1",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "smart-device", "v1", "sessions"],
+                  "query": [
+                    {
+                      "key": "deviceId",
+                      "value": "{{device_id}}"
+                    },
+                    {
+                      "key": "deviceId",
+                      "value": "{{old_device_id}}"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Application Configuration",
+          "item": [
+            {
+              "name": "Create AppConfig",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"app_id\", jsonData.app_id);",
+                      "postman.setEnvironmentVariable(\"app_uuid\", jsonData.uuid);",
+                      ""
+                    ],
+                    "type": "text/javascript",
+                    "packages": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"app_id\": \"NewAppWithApns-{{apns_uuid}}\",\n    \"apns_uuid\" : \"{{apns_uuid}}\",\n    \"configuration\": {\n        \"NATIVE_PUSH_ENABLED\": \"true\",\n        \"FIREBASE_TIME_TO_LIVE\": \"0\",\n        \"FIREBASE_SERVICE_ACCOUNT\": \"{{firebase_service_account}}\",\n        \"CLIENT_ONLY_ALLOWED\": \"true\",\n        \"AMOUNT_FAILURES_ALLOWED\": \"3\",\n        \"PIN_CODE_LENGTH\": \"4\",\n        \"ACTIVATION_CODE_LENGTH\": \"8\",\n        \"APN_CONFIG\": \"PRODUCTION\",\n    \t\"ALLOWED_AUTH_METHODS\":\"DEVICE,DEVICE:PIN,DEVICE:TOUCH_ID,DEVICE:STRONG_TOUCH_ID,DEVICE:IOS_FACE_ID,DEVICE:ANDROID_FINGERPRINT\",\n        \"PIN_CODE_TYPE\": \"NUMERIC\",\n        \"ACTIVATION_CODE_TYPE\": \"NUMERIC\",\n        \"SESSION_EXPIRY\": \"300000\",\n        \"ENABLED_RISK_DATA\" : \"ALL\",\n        \"CLIENT_DEBUG_DATA_ENABLED_OS_TYPES\": \"Android\"\n       \n    }\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/appconfig",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "appconfig"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get AppConfig",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/appconfig/{{app_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "appconfig", "{{app_uuid}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all AppConfigs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/appconfig",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "appconfig"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update AppConfig",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/merge-patch+json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"status\": \"DISABLED\",\n    \"configuration\": {\n        \"CLIENT_ONLY_ALLOWED\": \"false\"\n    }\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/appconfig/{{app_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "appconfig", "{{app_uuid}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete AppConfig",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/appconfig/{{app_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "appconfig", "{{app_uuid}}"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            }
+          ]
+        },
+        {
+          "name": "APNs Certificate",
+          "item": [
+            {
+              "name": "Create APNs certificate",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"apns_uuid\", jsonData.id);",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\" : \"NewApnsName\",\n  \"description\" : \"This is a test APNs\",\n  \"apns_certificate_b64\" : \"b64 encoded apns cert\",\n  \"password\" : \"encap\"\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apns",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apns"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get APNs certificate",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apns/{{apns_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apns", "{{apns_uuid}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all APNs certificates",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apns",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apns"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete APNs certificate",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apns/{{apns_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apns", "{{apns_uuid}}"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            }
+          ]
+        },
+        {
+          "name": "APNs Token",
+          "item": [
+            {
+              "name": "Create APNs token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);\r",
+                      "postman.setEnvironmentVariable(\"apns_token_uuid\", jsonData.id);\r",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\" : \"{APNs token name}\",\n  \"description\" : \"This is a test token\",\n  \"private_key_b64\" : \"{b64 encoded private key}\",\n  \"key_id\" : \"{test key id}\",\n  \"team_id\" : \"{test team id}\"\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apnstokens",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apnstokens"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get APNs token",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apnstokens/{{apns_token_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apnstokens", "{{apns_token_uuid}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all APNs tokens",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apnstokens",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apnstokens"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete APNs token",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/apnstokens/{{apns_token_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "apnstokens", "{{apns_token_uuid}}"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API Keys",
+          "item": [
+            {
+              "name": "Create API key",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"api_key_id\", jsonData.api_key_id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\" : \"This is a description\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/api-keys",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "api-keys"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get API key",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/api-keys/{{api_key_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "api-keys", "{{api_key_id}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all API keys",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/api-keys",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "api-keys"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete API key",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/api-keys/{{api_key_id}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "api-keys", "{{api_key_id}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "End-to-End Keys",
+          "item": [
+            {
+              "name": "Create End-to-End Key",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\" : \"test-e2e-key-name\",\n  \"description\" : \"test-e2e-key-description\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get End-to-End Key",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys/{{e2eKeyId}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys", "{{e2eKeyId}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get all End-to-End Keys",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys"],
+                  "query": [
+                    {
+                      "key": "organizationId",
+                      "value": "6d7a730f-dc33-4848-82d5-e45833439929",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Deactivate End-to-End Key",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"status\": \"DISABLED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys/{{e2eKeyId}}/status",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys", "{{e2eKeyId}}", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Re-activate End-to-End Key",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"status\": \"ENABLED\" \n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys/{{e2eKeyId}}/status",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys", "{{e2eKeyId}}", "status"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete End-to-End Key",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{service_url}}/api/admin/v1/e2e-keys/{{e2eKeyId}}",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "admin", "v1", "e2e-keys", "{{e2eKeyId}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Get Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{service_url}}/api/admin/v1/status",
+              "host": ["{{service_url}}"],
+              "path": ["api", "admin", "v1", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get event-callback status for authorized app-configs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{service_url}}/api/admin/v1/status/callback",
+              "host": ["{{service_url}}"],
+              "path": ["api", "admin", "v1", "status", "callback"]
+            }
+          },
+          "response": []
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "EncapClientVersions",
+          "item": [
+            {
+              "name": "Request statistics",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = JSON.parse(responseBody);",
+                      "postman.setEnvironmentVariable(\"statistics_uuid\", jsonData.uuid);",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"last_used\": \"32\",\n    \"app_config_uuid\": \"{{app_uuid}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/statistics/v1/encap-client-versions",
+                  "host": ["{{service_url}}"],
+                  "path": ["api", "statistics", "v1", "encap-client-versions"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get statistics record",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{service_url}}/api/statistics/v1/encap-client-versions/{{statistics_uuid}}",
+                  "host": ["{{service_url}}"],
+                  "path": [
+                    "api",
+                    "statistics",
+                    "v1",
+                    "encap-client-versions",
+                    "{{statistics_uuid}}"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [""]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "password",
+        "value": "{{key_secret}}",
+        "type": "string"
+      },
+      {
+        "key": "username",
+        "value": "{{key_id}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ]
+}

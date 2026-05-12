@@ -1,169 +1,383 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/data/models/curl_response.dart';
-import 'package:dio/dio.dart';
+import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/providers/app_state.dart';
+import 'package:curel/presentation/widgets/import_preview_dialog.dart';
+import 'package:curel/presentation/screens/project_list_page.dart';
+import 'package:curel/presentation/widgets/action_toolbar.dart';
+import 'package:curel/presentation/widgets/curl_highlight_controller.dart';
+import 'package:curel/presentation/widgets/curl_input_field.dart';
+import 'package:curel/presentation/widgets/editor_dashboard.dart';
+import 'package:curel/presentation/widgets/env_bar.dart';
+import 'package:curel/presentation/widgets/folder_chip.dart';
+import 'package:curel/presentation/widgets/request_drawer.dart';
+import 'package:curel/presentation/widgets/resolved_preview_dialog.dart';
+import 'package:curel/presentation/widgets/response_section.dart';
+import 'package:curel/presentation/widgets/window_controls.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
+import 'package:curel/presentation/screens/feedback_page.dart';
+import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
-import 'package:curel/data/services/curl_http_client.dart';
-import 'package:curel/domain/services/clipboard_service.dart';
-import 'package:curel/domain/services/curl_parser_service.dart';
+import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
-import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
-import 'package:curel/domain/services/settings_service.dart';
+import 'package:curel/presentation/screens/home/logic/home_actions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomePage extends StatefulWidget {
-  final CurlHttpClient httpClient;
-  final ClipboardService clipboardService;
-  final SettingsService settingsService;
+class HomePage extends ConsumerStatefulWidget {
   final void Function(String userAgent) onUserAgentChanged;
+  final void Function() onWorkspaceChanged;
+  final void Function()? onThemeChanged;
 
-  const HomePage({
-    required this.httpClient,
-    required this.clipboardService,
-    required this.settingsService,
+  HomePage({
     required this.onUserAgentChanged,
+    required this.onWorkspaceChanged,
+    this.onThemeChanged,
     super.key,
   });
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final _curlController = _CurlHighlightController();
-  final _focusNode = FocusNode();
+class _HomePageState extends ConsumerState<HomePage>
+    with WidgetsBindingObserver, HomeActions {
+  @override
+  TextEditingController get curlController => _curlController;
+  @override
+  FocusNode get editorFocusNode => _editorFocusNode;
+
+  final _curlController = CurlHighlightController();
+  final _editorFocusNode = FocusNode();
   final _textFieldKey = GlobalKey();
-  CurlResponse? _response;
-  bool _isLoading = false;
-  String? _error;
-  var _selectedTab = ResponseTab.body;
-  bool _showHtmlPreview = false;
-  bool _searchActive = false;
-  bool _isFullscreenInput = false;
+  OverlayEntry? _envOverlayEntry;
+  List<String> _envOverlayOptions = [];
+  Offset _envOverlayOffset = Offset.zero;
+  List<({String key, String lower})> _envKeyIndex = [];
+
+  String get _requestDisplayName {
+    final path = ref.read(selectedRequestPathProvider);
+    if (path == null) return '';
+    final posix = path.replaceAll('\\', '/');
+    return posix.replaceAll('.curl', '');
+  }
+
+  Future<void> _loadActiveProject() async {
+    var project = await ref.read(projectServiceProvider).getActiveProject();
+    project ??= await ref.read(projectServiceProvider).ensureDefaultProject();
+    if (mounted) ref.read(activeProjectProvider.notifier).set(project);
+    _refreshEnvKeys();
+  }
+
+  Future<void> _refreshEnvKeys() async {
+    final keys = <String>{};
+    final global = await ref.read(envServiceProvider).getActive(null);
+    if (global != null) {
+      keys.addAll(global.variables.map((v) => v.key));
+    }
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId != null) {
+      final project = await ref.read(envServiceProvider).getActive(projectId);
+      if (project != null) {
+        keys.addAll(project.variables.map((v) => v.key));
+      }
+    }
+    if (!mounted) return;
+    final sorted = keys.toList()..sort();
+    setState(() {
+      _envKeyIndex = sorted
+          .map((k) => (key: k, lower: k.toLowerCase()))
+          .toList(growable: false);
+    });
+  }
+
+  RenderEditable? _findRenderEditable(RenderObject root) {
+    RenderEditable? result;
+    void visitor(RenderObject child) {
+      if (result != null) return;
+      if (child is RenderEditable) {
+        result = child;
+        return;
+      }
+      child.visitChildren(visitor);
+    }
+
+    if (root is RenderEditable) return root;
+    root.visitChildren(visitor);
+    return result;
+  }
+
+  Offset _caretBottomInField({
+    required GlobalKey fieldKey,
+    required int caretOffset,
+  }) {
+    final fieldContext = fieldKey.currentContext;
+    if (fieldContext == null) return Offset.zero;
+    final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+    if (fieldBox == null) return Offset.zero;
+    final root = fieldContext.findRenderObject();
+    if (root == null) return Offset.zero;
+    final renderEditable = _findRenderEditable(root);
+    if (renderEditable == null) return Offset.zero;
+    final caretRect = renderEditable.getLocalRectForCaret(
+      TextPosition(offset: caretOffset),
+    );
+    final caretGlobal = renderEditable.localToGlobal(
+      Offset(caretRect.left, caretRect.bottom),
+    );
+    return fieldBox.globalToLocal(caretGlobal);
+  }
+
+  ({int replaceStart, int replaceEnd, String query, bool hasClosing})?
+  _envQueryAtCaret(TextEditingValue value) {
+    final caret = value.selection.baseOffset;
+    if (caret < 0) return null;
+    final text = value.text;
+    if (caret > text.length) return null;
+    final before = text.substring(0, caret);
+    final start = before.lastIndexOf('<<');
+    if (start < 0) return null;
+    if (before.indexOf('>>', start) != -1) return null;
+    final query = before.substring(start + 2);
+    if (query.isNotEmpty &&
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(query)) {
+      return null;
+    }
+    final hasClosing = text.substring(caret).startsWith('>>');
+    return (
+      replaceStart: start + 2,
+      replaceEnd: caret,
+      query: query,
+      hasClosing: hasClosing,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      if (_focusNode.hasFocus && !_isFullscreenInput) {
-        _enterFullscreen();
-      }
-    });
+    WidgetsBinding.instance.addObserver(this);
+    _editorFocusNode.addListener(_onEditorFocusChanged);
+    _curlController.addListener(_onCurlValueChanged);
+    _loadActiveProject();
+    _checkClipboard();
+    _refreshEnvKeys();
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    _hideEnvOverlay();
+    WidgetsBinding.instance.removeObserver(this);
+    _curlController.removeListener(_onCurlValueChanged);
+    _editorFocusNode.removeListener(_onEditorFocusChanged);
+    _editorFocusNode.dispose();
     _curlController.dispose();
     super.dispose();
   }
 
-  void _exitFullscreen() {
-    _focusNode.unfocus();
-    setState(() => _isFullscreenInput = false);
+  void _onEditorFocusChanged() {
+    if (!_editorFocusNode.hasFocus) {
+      _hideEnvOverlay();
+      return;
+    }
+    final es = ref.read(editorStateProvider);
+    if (!es.isFullscreen) _enterFullscreen();
+    _updateEnvOverlay();
+  }
+
+  void _onCurlValueChanged() {
+    if (!_editorFocusNode.hasFocus) return;
+    _updateEnvOverlay();
+  }
+
+  void _hideEnvOverlay() {
+    _envOverlayEntry?.remove();
+    _envOverlayEntry = null;
+  }
+
+  void _updateEnvOverlay() {
+    if (!mounted) return;
+    if (_envKeyIndex.isEmpty) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final value = _curlController.value;
+    final q = _envQueryAtCaret(value);
+    if (q == null) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final query = q.query.toLowerCase();
+    final matches = _envKeyIndex
+        .where((e) => query.isEmpty || e.lower.startsWith(query))
+        .map((e) => e.key)
+        .take(12)
+        .toList(growable: false);
+    if (matches.isEmpty) {
+      _hideEnvOverlay();
+      return;
+    }
+
+    final fieldContext = _textFieldKey.currentContext;
+    if (fieldContext == null) return;
+    final fieldBox = fieldContext.findRenderObject() as RenderBox?;
+    if (fieldBox == null || !fieldBox.hasSize) return;
+
+    final caret = value.selection.baseOffset;
+    if (caret < 0 || caret > value.text.length) return;
+    final caretLocal = _caretBottomInField(
+      fieldKey: _textFieldKey,
+      caretOffset: caret,
+    );
+
+    final menuMaxWidth = 220.0;
+    final menuMaxHeight = 180.0;
+    final fieldSize = fieldBox.size;
+
+    final maxDx = (fieldSize.width - menuMaxWidth);
+    final dx = (maxDx <= 0 ? 0.0 : caretLocal.dx.clamp(0.0, maxDx));
+
+    var dy = caretLocal.dy + 4;
+    if (dy + menuMaxHeight > fieldSize.height) {
+      dy = (caretLocal.dy - menuMaxHeight - 4).clamp(0.0, fieldSize.height);
+    }
+
+    final overlay = Overlay.of(context);
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (overlayBox == null) return;
+    final globalTopLeft = fieldBox.localToGlobal(Offset(dx, dy));
+    final overlayOffset = overlayBox.globalToLocal(globalTopLeft);
+
+    _envOverlayOptions = matches;
+    _envOverlayOffset = overlayOffset;
+
+    if (_envOverlayEntry == null) {
+      _envOverlayEntry = OverlayEntry(
+        builder: (context) {
+          final list = _envOverlayOptions;
+          return Positioned(
+            left: _envOverlayOffset.dx,
+            top: _envOverlayOffset.dy,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: menuMaxHeight,
+                  maxWidth: menuMaxWidth,
+                ),
+                decoration: BoxDecoration(
+                  color: TColors.surface,
+                  border: Border.all(color: TColors.border),
+                ),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final opt = list[index];
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        final current = _curlController.value;
+                        final currentQ = _envQueryAtCaret(current);
+                        if (currentQ == null) return;
+                        final insert = opt + (currentQ.hasClosing ? '' : '>>');
+                        final nextText = current.text.replaceRange(
+                          currentQ.replaceStart,
+                          currentQ.replaceEnd,
+                          insert,
+                        );
+                        final nextCaret = currentQ.replaceStart + insert.length;
+                        _curlController.value = current.copyWith(
+                          text: nextText,
+                          selection: TextSelection.collapsed(offset: nextCaret),
+                          composing: TextRange.empty,
+                        );
+                        _hideEnvOverlay();
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          '<<$opt>>',
+                          style: TextStyle(
+                            color: TColors.foreground,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      );
+      overlay.insert(_envOverlayEntry!);
+    } else {
+      _envOverlayEntry!.markNeedsBuild();
+    }
+  }
+
+  void _exitFullscreen({bool unfocus = true}) {
+    if (unfocus) {
+      _editorFocusNode.unfocus();
+    }
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(isFullscreen: false));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
+  }
+
+  Future<void> _checkClipboard() async {
+    final text = await ref.read(clipboardServiceProvider).paste();
+    if (text != null && text.trim().startsWith('curl') && mounted) {
+      if (_curlController.text.trim() != text.trim()) {
+        _showClipboardDetection(text.trim());
+      }
+    }
+  }
+
+  void _showClipboardDetection(String curl) {
+    showTerminalToast(
+      context,
+      'curl detected in clipboard',
+      actionLabel: 'import',
+      onAction: () {
+        setState(() => _curlController.text = curl);
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(clearResponse: true, clearError: true));
+        showTerminalToast(context, 'imported');
+      },
+    );
   }
 
   // ── Actions ─────────────────────────────────────────────────────
 
-  Future<void> _executeCurl() async {
-    final text = _curlController.text.trim();
-    if (text.isEmpty || !text.startsWith('curl')) {
-      setState(() {
-        _error = 'error: command must start with "curl"';
-        _response = null;
-        _showHtmlPreview = false;
-      });
-      _exitFullscreen();
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-    });
-    _exitFullscreen();
-
-    final sw = Stopwatch()..start();
-    try {
-      final parsed = parseCurl(text);
-      final hasOutput = parsed.outputFileName != null;
-      final traceEnabled = parsed.traceEnabled;
-      final effectiveConnectTimeout = parsed.connectTimeout ??
-          Duration(seconds: await widget.settingsService.getConnectTimeout());
-      final effectiveMaxTime = parsed.maxTime ??
-          ((await widget.settingsService.getMaxTime()) > 0
-              ? Duration(seconds: await widget.settingsService.getMaxTime())
-              : null);
-      final result = hasOutput
-          ? await widget.httpClient.executeBinary(
-              parsed.curl,
-              verbose: parsed.verbose,
-              followRedirects: parsed.followRedirects,
-              trace: traceEnabled,
-              traceAscii: parsed.traceAscii,
-              connectTimeout: effectiveConnectTimeout,
-              maxTime: effectiveMaxTime,
-              insecure: parsed.insecure,
-            )
-          : await widget.httpClient.execute(
-              parsed.curl,
-              verbose: parsed.verbose,
-              followRedirects: parsed.followRedirects,
-              trace: traceEnabled,
-              traceAscii: parsed.traceAscii,
-              connectTimeout: effectiveConnectTimeout,
-              maxTime: effectiveMaxTime,
-              insecure: parsed.insecure,
-            );
-      final elapsed = sw.elapsedMilliseconds;
-      if (elapsed < 500) {
-        await Future.delayed(Duration(milliseconds: 500 - elapsed));
-      }
-      if (hasOutput) {
-        if ((parsed.verbose || traceEnabled) && mounted) {
-          setState(() {
-            _response = result;
-            _selectedTab = traceEnabled && result.traceLog != null
-                ? ResponseTab.trace
-                : ResponseTab.body;
-          });
-        }
-        await _downloadFile(result, parsed.outputFileName!);
-      } else if (mounted) {
-        setState(() {
-          _response = result;
-          _selectedTab = traceEnabled && result.traceLog != null
-              ? ResponseTab.trace
-              : ResponseTab.body;
-        });
-      }
-      if (parsed.traceFileName != null &&
-          result.traceLog != null &&
-          result.traceLog!.isNotEmpty &&
-          mounted) {
-        await _saveTraceFile(result.traceLog!, parsed.traceFileName!);
-      }
-    } catch (e) {
-      final elapsed = sw.elapsedMilliseconds;
-      if (elapsed < 500) {
-        await Future.delayed(Duration(milliseconds: 500 - elapsed));
-      }
-      if (mounted) setState(() => _error = _formatError(e));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  // Logika _executeCurl dipindahkan ke HomeActions mixin
 
   Future<void> _paste() async {
-    final text = await widget.clipboardService.paste();
+    final text = await ref.read(clipboardServiceProvider).paste();
     if (text != null && text.trim().isNotEmpty) {
       setState(() => _curlController.text = text);
       if (mounted) {
@@ -172,14 +386,68 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _importCollection() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final json = file.bytes != null
+          ? utf8.decode(file.bytes!)
+          : await File(file.path!).readAsString();
+
+      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      if (preview == null) {
+        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        return;
+      }
+
+      if (!mounted) return;
+      final confirmed = await showDialog<String>(
+        context: context,
+        builder: (_) => ImportPreviewDialog(preview: preview),
+      );
+      if (confirmed == null || !mounted) return;
+
+      final counts = confirmed.isEmpty
+          ? await ref.read(workspaceServiceProvider).importProject(json)
+          : await ref.read(workspaceServiceProvider).importIntoProject(json, confirmed);
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'imported ${counts.requests} requests, ${counts.envs} envs',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showTerminalToast(
+          context,
+          'error: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
+      }
+    }
+  }
+
+  void _newCurl() {
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (selectedPath == null && _curlController.text.isEmpty) return;
+    _closeRequest();
+  }
+
   void _clear() {
     _curlController.clear();
-    setState(() {
-      _response = null;
-      _error = null;
-      _showHtmlPreview = false;
-      _searchActive = false;
-    });
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true, clearLog: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
   }
 
   Future<void> _openBuilder() async {
@@ -187,7 +455,7 @@ class _HomePageState extends State<HomePage> {
     final result = await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(
         builder: (_) => RequestBuilderPage(
-          httpClient: widget.httpClient,
+          projectId: ref.read(activeProjectProvider)?.id,
           initialCurl: _curlController.text.trim().isEmpty
               ? null
               : _curlController.text.trim(),
@@ -196,93 +464,107 @@ class _HomePageState extends State<HomePage> {
     );
     if (result != null && mounted) {
       if (result is String) {
-        setState(() {
-          _curlController.text = result;
-          _response = null;
-          _error = null;
-          _showHtmlPreview = false;
-          _searchActive = false;
-        });
-        _executeCurl();
+        setState(() => _curlController.text = result);
+        ref
+            .read(responseStateProvider.notifier)
+            .update(
+              (s) => s.copyWith(
+                clearResponse: true,
+                clearError: true, clearLog: true,
+                showHtmlPreview: false,
+                searchActive: false,
+              ),
+            );
+        executeCurl();
       } else if (result is CurlResponse) {
-        setState(() {
-          _response = result;
-          _error = null;
-          _showHtmlPreview = false;
-          _searchActive = false;
-        });
+        ref
+            .read(responseStateProvider.notifier)
+            .update(
+              (s) => s.copyWith(
+                response: result,
+                clearError: true, clearLog: true,
+                showHtmlPreview: false,
+                searchActive: false,
+              ),
+            );
       }
     }
   }
 
-  // ── Error formatting ─────────────────────────────────────────────
+  @override
+  void exitFullscreen({bool unfocus = true}) =>
+      _exitFullscreen(unfocus: unfocus);
 
-  String _formatError(Object e) {
-    if (e is DioException) {
-      switch (e.type) {
-        case DioExceptionType.connectionError:
-          return 'error: connection failed — host unreachable';
-        case DioExceptionType.connectionTimeout:
-          return 'error: connection timed out';
-        case DioExceptionType.receiveTimeout:
-          return 'error: response timed out';
-        case DioExceptionType.unknown:
-          return 'error: ${e.error}';
-        default:
-          return 'error: request failed (${e.type.name})';
-      }
-    }
-    return 'error: $e';
-  }
+  @override
+  Future<void> loadRequest(String relativePath) => _loadRequest(relativePath);
 
-  // ── Download file (-o flag) ────────────────────────────────────────
+  // File download and trace logic moved to HomeActions mixin
 
-  Future<void> _downloadFile(CurlResponse response, String fileName) async {
-    try {
-      final bytes = response.body is List<int>
-          ? response.body as List<int>
-          : utf8.encode(response.body?.toString() ?? '');
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save file',
-        fileName: fileName,
-        bytes: Uint8List.fromList(bytes),
-      );
-      if (path != null && mounted) {
-        showTerminalToast(context, 'saved to $fileName');
-      } else if (mounted) {
-        showTerminalToast(context, 'download cancelled');
-      }
-    } catch (e) {
-      if (mounted) showTerminalToast(context, 'error: $e');
-    }
-  }
-
-  // ── Save trace file (--trace flag) ───────────────────────────────
-
-  Future<void> _saveTraceFile(String traceContent, String fileName) async {
-    try {
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save trace log',
-        fileName: fileName,
-        bytes: Uint8List.fromList(utf8.encode(traceContent)),
-      );
-      if (path != null && mounted) {
-        showTerminalToast(context, 'trace saved to $fileName');
-      }
-    } catch (e) {
-      if (mounted) showTerminalToast(context, 'error saving trace: $e');
-    }
-  }
 
   // ── Save response ────────────────────────────────────────────────
 
+  ResponseTab get _activePreviewTab {
+    final rs = ref.read(responseStateProvider);
+    return rs.showHtmlPreview ? ResponseTab.body : rs.selectedTab;
+  }
+
+  String get _activePreviewTabLabel => switch (_activePreviewTab) {
+    ResponseTab.headers => 'headers',
+    ResponseTab.body => 'body',
+    ResponseTab.verbose => 'verbose',
+    ResponseTab.trace => 'trace',
+  };
+
+  String? _activePreviewText() {
+    final rs = ref.read(responseStateProvider);
+    final res = rs.response;
+    if (res == null) return null;
+    switch (_activePreviewTab) {
+      case ResponseTab.headers:
+        return res.formatHeaders();
+      case ResponseTab.body:
+        return res.getBodyText(rs.prettify);
+      case ResponseTab.verbose:
+        return res.formatVerboseLog();
+      case ResponseTab.trace:
+        return res.formatTraceLog();
+    }
+  }
+
+  void _copyActivePreview() {
+    final text = _activePreviewText()?.trim() ?? '';
+    if (text.isEmpty) {
+      showTerminalToast(context, '$_activePreviewTabLabel empty');
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: text));
+    showTerminalToast(context, '$_activePreviewTabLabel copied');
+  }
+
   Future<void> _saveResponse() async {
-    if (_response == null) return;
-    final rawExt = _response!.contentTypeLabel.toLowerCase();
-    final ext = switch (rawExt) {
-      'html' || 'json' || 'xml' || 'txt' || 'csv' => rawExt,
-      _ => 'txt',
+    final rs = ref.read(responseStateProvider);
+    if (rs.response == null) return;
+    final tab = _activePreviewTab;
+    final text = _activePreviewText() ?? '';
+    if (text.trim().isEmpty) {
+      showTerminalToast(context, '$_activePreviewTabLabel empty');
+      return;
+    }
+
+    final (dialogTitle, fileStem, ext) = switch (tab) {
+      ResponseTab.headers => ('Save headers', 'headers', 'txt'),
+      ResponseTab.body => () {
+        final rawExt = rs.response!.contentTypeLabel.toLowerCase();
+        final bodyExt = switch (rawExt) {
+          'html' || 'json' || 'xml' || 'txt' || 'csv' => rawExt,
+          _ => 'txt',
+        };
+        return ('Save response', 'res', bodyExt);
+      }(),
+      ResponseTab.verbose => ('Save verbose log', 'verbose', 'txt'),
+      ResponseTab.trace => ('Save trace log', 'trace', 'txt'),
     };
+
     final now = DateTime.now();
     final ts =
         '${now.year}'
@@ -293,15 +575,16 @@ class _HomePageState extends State<HomePage> {
         '${now.minute.toString().padLeft(2, '0')}'
         '${now.second.toString().padLeft(2, '0')}';
     try {
+      final fileName = '$fileStem-$ts.$ext';
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save response',
-        fileName: 'res-$ts.$ext',
+        dialogTitle: dialogTitle,
+        fileName: fileName,
         type: FileType.custom,
         allowedExtensions: [ext],
-        bytes: utf8.encode(_response!.bodyText),
+        bytes: utf8.encode(text),
       );
       if (path != null && mounted) {
-        showTerminalToast(context, 'saved');
+        showTerminalToast(context, '$_activePreviewTabLabel saved');
       }
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
@@ -318,388 +601,686 @@ class _HomePageState extends State<HomePage> {
       builder: (_) => HelpSheet(
         onUse: (command) {
           Navigator.of(context).pop();
-          setState(() {
-            _curlController.text = command;
-            _response = null;
-            _error = null;
-          });
-          _focusNode.requestFocus();
+          setState(() => _curlController.text = command);
+          ref
+              .read(responseStateProvider.notifier)
+              .update((s) => s.copyWith(clearResponse: true, clearError: true));
+          _editorFocusNode.requestFocus();
         },
+      ),
+    );
+  }
+
+  Future<void> _saveRequest() async {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (projectId == null) {
+      showTerminalToast(context, 'select a project first');
+      return;
+    }
+    if (selectedPath == null) {
+      _saveRequestAs();
+      return;
+    }
+    final text = _curlController.text.trim();
+    if (text.isEmpty) {
+      showTerminalToast(context, 'nothing to save');
+      return;
+    }
+
+    await ref
+        .read(requestServiceProvider)
+        .writeCurl(projectId, selectedPath, text);
+    final rs = ref.read(responseStateProvider);
+    if (rs.response != null) {
+      await ref
+          .read(requestServiceProvider)
+          .updateMeta(
+            projectId,
+            selectedPath,
+            RequestMeta(
+              lastStatusCode: rs.response!.statusCode,
+              lastRunAt: DateTime.now(),
+            ),
+          );
+    }
+    if (!mounted) return;
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: _curlController.text));
+    showTerminalToast(context, 'request saved');
+  }
+
+  Future<void> _saveRequestAs() async {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId == null) {
+      showTerminalToast(context, 'select a project first');
+      return;
+    }
+    final text = _curlController.text.trim();
+    if (text.isEmpty) {
+      showTerminalToast(context, 'nothing to save');
+      return;
+    }
+
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    final name = await _showSaveDialog(
+      initialName: selectedPath?.replaceAll('.curl', ''),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final exists = await ref
+        .read(requestServiceProvider)
+        .requestExists(projectId, name.trim());
+    if (exists && mounted) {
+      final overwrite = await _showConfirmDialog(
+        'overwrite?',
+        '${name.trim()} already exists. overwrite?',
+      );
+      if (!mounted) return;
+      if (overwrite != true) return;
+      final relativePath = ref
+          .read(requestServiceProvider)
+          .resolvePath(name.trim());
+      await ref
+          .read(requestServiceProvider)
+          .writeCurl(projectId, relativePath, text);
+      final rs = ref.read(responseStateProvider);
+      if (rs.response != null) {
+        await ref
+            .read(requestServiceProvider)
+            .updateMeta(
+              projectId,
+              relativePath,
+              RequestMeta(
+                lastStatusCode: rs.response!.statusCode,
+                lastRunAt: DateTime.now(),
+              ),
+            );
+      }
+      if (!mounted) return;
+      ref.read(selectedRequestPathProvider.notifier).state = relativePath;
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: _curlController.text));
+      showTerminalToast(context, 'request saved');
+    } else {
+      final path = await ref
+          .read(requestServiceProvider)
+          .createRequest(projectId, name.trim(), text);
+      final posix = name.trim().replaceAll('\\', '/');
+      final slash = posix.lastIndexOf('/');
+      final displayName = slash >= 0 ? posix.substring(slash + 1) : posix;
+      await ref
+          .read(requestServiceProvider)
+          .updateMeta(projectId, path, RequestMeta(displayName: displayName));
+      if (!mounted) return;
+      ref.read(selectedRequestPathProvider.notifier).state = path;
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: _curlController.text));
+      showTerminalToast(context, 'request saved');
+    }
+  }
+
+  void _newRequest() {
+    Navigator.of(context).maybePop();
+    setState(() => _curlController.clear());
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true, clearLog: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
+    ref.read(selectedRequestPathProvider.notifier).state = null;
+    _editorFocusNode.requestFocus();
+  }
+
+  Future<void> _loadRequest(String relativePath) async {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    final content = await ref
+        .read(requestServiceProvider)
+        .readCurl(projectId!, relativePath);
+    if (content != null && mounted) {
+      setState(() => _curlController.text = content);
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: content));
+      ref
+          .read(responseStateProvider.notifier)
+          .update(
+            (s) => s.copyWith(
+              clearResponse: true,
+              clearError: true, clearLog: true,
+              showHtmlPreview: false,
+              searchActive: false,
+            ),
+          );
+      ref.read(selectedRequestPathProvider.notifier).state = relativePath;
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  bool get _hasUnsavedChanges {
+    final es = ref.read(editorStateProvider);
+    return _curlController.text != es.baselineCurlText;
+  }
+
+  Future<int?> _confirmClose({required bool closingProject}) {
+    final title = closingProject ? 'close project?' : 'close request?';
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Text(
+          'you have unsaved changes. save before closing?',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(0),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(1),
+            child: Text(
+              'discard',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(2),
+            child: Text(
+              'save',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _closeRequest() async {
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (_curlController.text.isEmpty && selectedPath == null) return;
+
+    if (_hasUnsavedChanges) {
+      final choice = await _confirmClose(closingProject: false);
+      if (!mounted) return;
+      if (choice == 0 || choice == null) return;
+      if (choice == 2) {
+        final es = ref.read(editorStateProvider);
+        final before = es.baselineCurlText;
+        if (selectedPath != null) {
+          await _saveRequest();
+        } else {
+          await _saveRequestAs();
+        }
+        if (!mounted) return;
+        final es2 = ref.read(editorStateProvider);
+        if (es2.baselineCurlText == before) return;
+      }
+    }
+
+    setState(() => _curlController.clear());
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true, clearLog: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
+    ref.read(selectedRequestPathProvider.notifier).state = null;
+  }
+
+  Future<void> _closeProject() async {
+    final activeProject = ref.read(activeProjectProvider);
+    if (activeProject == null) return;
+
+    if (_curlController.text.isNotEmpty && _hasUnsavedChanges) {
+      final choice = await _confirmClose(closingProject: true);
+      if (!mounted) return;
+      if (choice == 0 || choice == null) return;
+      if (choice == 2) {
+        final es = ref.read(editorStateProvider);
+        final before = es.baselineCurlText;
+        final selectedPath = ref.read(selectedRequestPathProvider);
+        if (selectedPath != null) {
+          await _saveRequest();
+        } else {
+          await _saveRequestAs();
+        }
+        if (!mounted) return;
+        final es2 = ref.read(editorStateProvider);
+        if (es2.baselineCurlText == before) return;
+      }
+    }
+
+    await ref.read(projectServiceProvider).setActiveProject(null);
+    if (!mounted) return;
+    ref.read(activeProjectProvider.notifier).set(null);
+    setState(() => _curlController.clear());
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(baselineCurlText: ''));
+    ref
+        .read(responseStateProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            clearResponse: true,
+            clearError: true, clearLog: true,
+            showHtmlPreview: false,
+            searchActive: false,
+          ),
+        );
+    ref.read(selectedRequestPathProvider.notifier).state = null;
+    _refreshEnvKeys();
+  }
+
+  Future<void> _openProjects() async {
+    final projectId = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => ProjectListPage()));
+    if (!mounted) return;
+    if (projectId != null) {
+      await _loadActiveProject();
+      if (!mounted) return;
+      setState(() => _curlController.clear());
+      ref
+          .read(editorStateProvider.notifier)
+          .update((s) => s.copyWith(baselineCurlText: ''));
+      ref
+          .read(responseStateProvider.notifier)
+          .update(
+            (s) => s.copyWith(
+              clearResponse: true,
+              clearError: true, clearLog: true,
+              showHtmlPreview: false,
+              searchActive: false,
+            ),
+          );
+      ref.read(selectedRequestPathProvider.notifier).state = null;
+    }
+  }
+
+  void _openRequestDrawer() {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (projectId == null) {
+      showTerminalToast(context, 'select a project first');
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TColors.background,
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.7,
+        child: RequestDrawer(
+          projectId: projectId,
+          selectedPath: ref.read(selectedRequestPathProvider),
+          onRequestSelected: _loadRequest,
+          onNewRequest: _newRequest,
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showConfirmDialog(String title, String message) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'overwrite',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showSaveDialog({String? initialName}) async {
+    final projectId = ref.read(activeProjectProvider)?.id;
+    List<String> folders = [];
+    if (projectId != null) {
+      final items = await ref
+          .read(requestServiceProvider)
+          .listRequests(projectId);
+      final folderSet = <String>{};
+      for (final item in items) {
+        final posix = item.relativePath.replaceAll('\\', '/');
+        final slash = posix.lastIndexOf('/');
+        if (slash >= 0) folderSet.add(posix.substring(0, slash));
+      }
+      folders = folderSet.toList()..sort();
+    }
+    if (!mounted) return null;
+
+    final controller = TextEditingController(text: initialName ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text(
+          'save request',
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: TColors.surface,
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                cursorColor: TColors.green,
+                style: TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'folder/name (e.g. user/login)',
+                  hintStyle: TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+            if (folders.isNotEmpty) ...[
+              SizedBox(height: 10),
+              Text(
+                'folders:',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
+              SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  FolderChip(
+                    label: '/ (root)',
+                    onTap: () => controller.text = controller.text.contains('/')
+                        ? controller.text
+                        : controller.text,
+                  ),
+                  ...folders.map(
+                    (f) => FolderChip(
+                      label: f,
+                      onTap: () {
+                        final name = controller.text.split('/').last;
+                        controller.text = '$f/${name.isEmpty ? '' : name}';
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(
+              'save',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ── Shared Builders ─────────────────────────────────────────────
 
-  Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
-    final unlimited = maxLines == null;
-    final content = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '❯ ',
-          style: TextStyle(
-            color: TColors.green,
-            fontFamily: 'monospace',
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Expanded(
-          child: TextField(
-            key: _textFieldKey,
-            focusNode: _focusNode,
-            controller: _curlController,
-            maxLines: unlimited ? null : maxLines,
-            minLines: unlimited ? null : minLines,
-            expands: unlimited,
-            cursorColor: TColors.green,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              height: 1.4,
-              color: TColors.text,
-            ),
-            decoration: const InputDecoration(
-              hintText: 'paste or type a curl command...',
-              hintStyle: TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
-                fontSize: 13,
-                height: 1.4,
-              ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ),
-      ],
-    );
-    return Stack(
-      children: [
-        if (unlimited) SizedBox.expand(child: content) else content,
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ListenableBuilder(
-            listenable: _curlController,
-            builder: (context, _) {
-              if (_curlController.text.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return GestureDetector(
-                onTap: _clear,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: TColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.close, size: 12, color: TColors.red),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+  void _openResolvedPreview() {
+    final text = _curlController.text.trim();
+    if (text.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => ResolvedPreviewDialog(
+        future: ref
+            .read(envServiceProvider)
+            .resolve(text, projectId: ref.read(activeProjectProvider)?.id),
+      ),
     );
   }
 
-  Widget _buildActionButtons({bool fullscreen = false}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Row(
-        children: [
-          TermButton(icon: Icons.science, onTap: _openBuilder),
-          const SizedBox(width: 6),
-          TermButton(
-            icon: Icons.copy,
-            onTap: () {
-              final text = _curlController.text.trim();
-              if (text.isNotEmpty) {
-                Clipboard.setData(ClipboardData(text: text));
-                showTerminalToast(context, 'copied to clipboard');
-              }
+  Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
+    return CurlInputField(
+      controller: _curlController,
+      focusNode: _editorFocusNode,
+      textFieldKey: _textFieldKey,
+      onClear: _clear,
+      maxLines: maxLines,
+      minLines: minLines,
+    );
+  }
+
+  Widget _buildEnvBar() {
+    return EnvBar(
+      requestDisplayName: _requestDisplayName,
+      hasCurlText: _curlController.text.isNotEmpty,
+      onOpenProjects: _openProjects,
+      onOpenRequestDrawer: _openRequestDrawer,
+      onCloseRequest: _closeRequest,
+      onCloseProject: _closeProject,
+      onSaveRequest: _saveRequest,
+      onSaveRequestAs: _saveRequestAs,
+      onEnvChanged: _refreshEnvKeys,
+    );
+  }
+
+  Widget _buildActionToolbar() {
+    final activeProject = ref.read(activeProjectProvider);
+    return ActionToolbar(
+      curlText: _curlController.text.trim(),
+      onBuilder: _openBuilder,
+      onPaste: _paste,
+      onResolvedPreview: _openResolvedPreview,
+      onExecute: executeCurl,
+      onNewCurl: _newCurl,
+      onImportCollection: _importCollection,
+      onHistorySelect: (curl) {
+        setState(() => curlController.text = curl);
+        ref
+            .read(responseStateProvider.notifier)
+            .update((s) => s.copyWith(clearResponse: true, clearError: true));
+        executeCurl();
+      },
+      onHelp: () => _showHelp(context),
+      onNavigateAbout: (ctx) => Navigator.of(
+        ctx,
+      ).push(MaterialPageRoute(builder: (_) => AboutPage())),
+      onNavigateFeedback: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => FeedbackPage(
+            projectId: ref.read(activeProjectProvider)?.id,
+            projectName: activeProject?.name,
+            requestPath: ref.read(selectedRequestPathProvider),
+          ),
+        ),
+      ),
+      onNavigateSettings: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => SettingsPage(
+            onUserAgentChanged: widget.onUserAgentChanged,
+            onWorkspaceChanged: widget.onWorkspaceChanged,
+            onThemeChanged: widget.onThemeChanged,
+            projectId: ref.read(activeProjectProvider)?.id,
+          ),
+        ),
+      ),
+      onNavigateHistory: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(
+          builder: (_) => HistoryPage(
+            currentProjectId: ref.read(activeProjectProvider)?.id,
+            currentProjectName: activeProject?.name,
+            onSelect: (curl) {
+              setState(() => _curlController.text = curl);
+              ref
+                  .read(responseStateProvider.notifier)
+                  .update(
+                    (s) => s.copyWith(clearResponse: true, clearError: true),
+                  );
             },
           ),
-          const SizedBox(width: 6),
-          TermButton(icon: Icons.content_paste, label: 'paste', onTap: _paste),
-          const Spacer(),
-          TermButton(
-            icon: Icons.play_arrow,
-            label: 'exec',
-            onTap: _isLoading ? null : _executeCurl,
-            accent: true,
-          ),
-          if (!fullscreen) ...[
-            const SizedBox(width: 6),
-            _MoreMenu(
-              onAbout: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AboutPage())),
-              onHelp: () => _showHelp(context),
-              onSettings: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SettingsPage(
-                    settingsService: widget.settingsService,
-                    onUserAgentChanged: widget.onUserAgentChanged,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildResponseSection({required bool isHorizontal}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_response != null || _error != null) ...[
-          Container(
-            height: isHorizontal ? null : 1,
-            width: isHorizontal ? 1 : null,
-            color: TColors.border,
-          ),
-          if (_response != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          const Text(
-                            'res',
-                            style: TextStyle(
-                              color: TColors.purple,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_response!.statusCode ?? '-'}',
-                            style: TextStyle(
-                              color:
-                                  (_response!.statusCode ?? 0) >= 200 &&
-                                      (_response!.statusCode ?? 0) < 300
-                                  ? TColors.green
-                                  : TColors.red,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _response!.contentTypeLabel,
-                            style: const TextStyle(
-                              color: TColors.cyan,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-                          FlatTab(
-                            label: 'headers',
-                            selected: _selectedTab == ResponseTab.headers,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.headers;
-                              _showHtmlPreview = false;
-                            }),
-                          ),
-                          const SizedBox(width: 8),
-                          FlatTab(
-                            label: 'body',
-                            selected:
-                                _selectedTab == ResponseTab.body &&
-                                !_showHtmlPreview,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.body;
-                              _showHtmlPreview = false;
-                            }),
-                          ),
-                          if (_response!.verboseLog != null &&
-                              _response!.verboseLog!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            FlatTab(
-                              label: 'verbose',
-                              selected: _selectedTab == ResponseTab.verbose,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.verbose;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
-                          if (_response!.traceLog != null &&
-                              _response!.traceLog!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            FlatTab(
-                              label: 'trace',
-                              selected: _selectedTab == ResponseTab.trace,
-                              onTap: () => setState(() {
-                                _selectedTab = ResponseTab.trace;
-                                _showHtmlPreview = false;
-                              }),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_response!.isHtml) ...[
-                    GestureDetector(
-                      onTap: () => setState(() {
-                        _selectedTab = ResponseTab.body;
-                        _showHtmlPreview = true;
-                        _searchActive = false;
-                      }),
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.visibility,
-                          size: 16,
-                          color: TColors.mutedText,
-                        ),
-                      ),
-                    ),
-                  ],
-                  GestureDetector(
-                    onTap: () {
-                      final text = _response!.bodyText.trim();
-                      if (text.isNotEmpty) {
-                        Clipboard.setData(ClipboardData(text: text));
-                        showTerminalToast(context, 'copied to clipboard');
-                      }
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(
-                        Icons.copy,
-                        size: 16,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _saveResponse,
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.save,
-                        size: 16,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _searchActive = !_searchActive),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        _searchActive ? Icons.search_off : Icons.search,
-                        size: 16,
-                        color: _searchActive
-                            ? TColors.green
-                            : TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => openFullscreenResponse(context, _response!),
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.fullscreen,
-                        size: 16,
-                        color: TColors.mutedText,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          Container(
-            height: isHorizontal ? null : 1,
-            width: isHorizontal ? 1 : null,
-            color: TColors.border,
-          ),
-        ],
-        Expanded(
-          child: ResponseViewer(
-            isLoading: _isLoading,
-            response: _response,
-            error: _error,
-            selectedTab: _selectedTab,
-            showHtmlPreview: _showHtmlPreview,
-            searchActive: _searchActive,
-            onCloseSearch: () => setState(() => _searchActive = false),
-          ),
-        ),
-      ],
+    final rs = ref.read(responseStateProvider);
+    return ResponseSection(
+      isHorizontal: isHorizontal,
+      onCopyActivePreview: _copyActivePreview,
+      onSaveResponse: _saveResponse,
+      onOpenFullscreen: () => openFullscreenResponse(context, rs.response!),
     );
   }
 
   // ── Layout Modes ────────────────────────────────────────────────
 
   Widget _buildPortraitLayout() {
+    final es = ref.watch(editorStateProvider);
+    final selectedPath = ref.watch(selectedRequestPathProvider);
     return Scaffold(
       backgroundColor: TColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Fullscreen header
-            if (_isFullscreenInput) ...[
+            if (es.isFullscreen) ...[
               Container(
                 color: TColors.surface,
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 5,
                 ),
                 child: Row(
                   children: [
-                    _WindowDot(
+                    WindowDot(
                       color: TColors.red,
                       icon: Icons.close,
                       onTap: _exitFullscreen,
                     ),
-                    const SizedBox(width: 4),
-                    const _WindowDot(color: TColors.yellow),
-                    const SizedBox(width: 4),
-                    const _WindowDot(color: TColors.green),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'curl editor',
+                    SizedBox(width: 4),
+                    WindowDot(color: TColors.yellow),
+                    SizedBox(width: 4),
+                    WindowDot(color: TColors.green),
+                    SizedBox(width: 10),
+                    Text(
+                      selectedPath != null
+                          ? _requestDisplayName
+                          : 'curl editor',
                       style: TextStyle(
                         color: TColors.mutedText,
                         fontFamily: 'monospace',
                         fontSize: 13,
                       ),
                     ),
-                    const Spacer(),
-                    _HelpButton(onTap: () => _showHelp(context)),
+                    Spacer(),
+                    HelpButton(onTap: () => _showHelp(context)),
                   ],
                 ),
               ),
               Container(height: 1, color: TColors.border),
             ],
 
-            // Input area
-            if (_isFullscreenInput)
+            if (es.isFullscreen)
               Expanded(
                 child: Container(
                   color: TColors.surface,
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
@@ -712,7 +1293,7 @@ class _HomePageState extends State<HomePage> {
                 onTap: _enterFullscreen,
                 child: Container(
                   color: TColors.surface,
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
@@ -720,16 +1301,12 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-            // Actions
-            _isFullscreenInput
-                ? Container(
-                    color: TColors.background,
-                    child: _buildActionButtons(fullscreen: true),
-                  )
-                : _buildActionButtons(),
+            EditorDashboard(
+              envBar: _buildEnvBar(),
+              actionBar: _buildActionToolbar(),
+            ),
 
-            // Response section (compact only)
-            if (!_isFullscreenInput)
+            if (!es.isFullscreen)
               Expanded(child: _buildResponseSection(isHorizontal: false)),
           ],
         ),
@@ -738,9 +1315,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _enterFullscreen() {
-    setState(() => _isFullscreenInput = true);
+    final es = ref.read(editorStateProvider);
+    if (es.isFullscreen) return;
+    ref
+        .read(editorStateProvider.notifier)
+        .update((s) => s.copyWith(isFullscreen: true));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) _editorFocusNode.requestFocus();
     });
   }
 
@@ -751,7 +1332,6 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left: Input panel
             Expanded(
               flex: 2,
               child: Column(
@@ -759,24 +1339,28 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => _focusNode.requestFocus(),
+                    onTap: () => _editorFocusNode.requestFocus(),
                     child: Container(
                       color: TColors.surface,
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
-                      child: _buildInputField(maxLines: 12, minLines: 5),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [_buildInputField(maxLines: 12, minLines: 5)],
+                      ),
                     ),
                   ),
-                  _buildActionButtons(),
-                  const Spacer(),
+                  EditorDashboard(
+                    envBar: _buildEnvBar(),
+                    actionBar: _buildActionToolbar(),
+                  ),
+                  Spacer(),
                 ],
               ),
             ),
-            // Divider
             Container(width: 1, color: TColors.border),
-            // Right: Output panel
             Expanded(flex: 3, child: _buildResponseSection(isHorizontal: true)),
           ],
         ),
@@ -793,260 +1377,5 @@ class _HomePageState extends State<HomePage> {
     if (isLandscape) return _buildHorizontalLayout();
 
     return _buildPortraitLayout();
-  }
-}
-
-// ── Curl Syntax Highlighter ───────────────────────────────────────
-
-class _CurlHighlightController extends TextEditingController {
-  static const _methods = {
-    'GET',
-    'POST',
-    'PUT',
-    'DELETE',
-    'PATCH',
-    'HEAD',
-    'OPTIONS',
-  };
-
-  static final _tokenRegex = RegExp(
-    r'''(curl)\b'''
-    r'|(-(-?[A-Za-z][\w-]*))'
-    r"""|('[^']*')"""
-    r'''|("[^"]*")'''
-    r'''|(https?://[^\s'"]+)'''
-    r'|(\S+)'
-    r'|(\s+)',
-  );
-
-  @override
-  TextSpan buildTextSpan({
-    required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
-  }) {
-    if (text.isEmpty) {
-      return TextSpan(style: style, text: '');
-    }
-
-    final spans = <TextSpan>[];
-
-    for (final m in _tokenRegex.allMatches(text)) {
-      if (m.group(1) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(1),
-            style: const TextStyle(
-              color: TColors.cyan,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-      } else if (m.group(2) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(2),
-            style: const TextStyle(color: TColors.orange),
-          ),
-        );
-      } else if (m.group(4) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(4),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(5) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(5),
-            style: const TextStyle(color: TColors.yellow),
-          ),
-        );
-      } else if (m.group(6) != null) {
-        spans.add(
-          TextSpan(
-            text: m.group(6),
-            style: const TextStyle(color: TColors.green),
-          ),
-        );
-      } else if (m.group(7) != null) {
-        final word = m.group(7)!;
-        if (_methods.contains(word.toUpperCase())) {
-          spans.add(
-            TextSpan(
-              text: word,
-              style: const TextStyle(
-                color: TColors.purple,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        } else {
-          spans.add(TextSpan(text: word));
-        }
-      } else if (m.group(8) != null) {
-        spans.add(TextSpan(text: m.group(8)));
-      }
-    }
-
-    return TextSpan(style: style, children: spans);
-  }
-}
-
-class _HelpButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _HelpButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: TColors.mutedText, width: 1),
-        ),
-        child: const Center(
-          child: Text(
-            '?',
-            style: TextStyle(
-              color: TColors.mutedText,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WindowDot extends StatelessWidget {
-  final Color color;
-  final IconData? icon;
-  final VoidCallback? onTap;
-
-  const _WindowDot({required this.color, this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: icon != null
-            ? Icon(icon, size: 8, color: TColors.background)
-            : null,
-      ),
-    );
-  }
-}
-
-class _MoreMenu extends StatelessWidget {
-  final VoidCallback onAbout;
-  final VoidCallback onHelp;
-  final VoidCallback onSettings;
-
-  const _MoreMenu({
-    required this.onAbout,
-    required this.onHelp,
-    required this.onSettings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (details) {
-        final renderBox = context.findRenderObject() as RenderBox;
-        final offset = renderBox.localToGlobal(Offset.zero);
-        showMenu<int>(
-          context: context,
-          position: RelativeRect.fromLTRB(
-            offset.dx,
-            offset.dy + renderBox.size.height,
-            offset.dx + renderBox.size.width,
-            0,
-          ),
-          color: TColors.surface,
-          items: [
-            PopupMenuItem<int>(
-              value: 0,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.settings_outlined,
-                    size: 14,
-                    color: TColors.mutedText,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'settings',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 1,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  Text(
-                    'about',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem<int>(
-              value: 2,
-              height: 36,
-              child: Row(
-                children: [
-                  Icon(Icons.help_outline, size: 14, color: TColors.mutedText),
-                  const SizedBox(width: 8),
-                  Text(
-                    'help',
-                    style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ).then((value) {
-          if (value == 0) onSettings();
-          if (value == 1) onAbout();
-          if (value == 2) onHelp();
-        });
-      },
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        color: TColors.surface,
-        child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
-      ),
-    );
   }
 }

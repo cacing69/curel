@@ -23,7 +23,7 @@ class TermButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.symmetric(horizontal: 14),
         color: accent
             ? (enabled
                   ? TColors.green.withValues(alpha: 0.15)
@@ -74,7 +74,7 @@ class FlatTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.only(bottom: 2),
+        padding: EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(

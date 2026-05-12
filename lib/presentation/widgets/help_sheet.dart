@@ -1,5 +1,6 @@
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpSheet extends StatelessWidget {
   final void Function(String command) onUse;
@@ -21,10 +22,10 @@ class HelpSheet extends StatelessWidget {
               // header bar
               Container(
                 color: TColors.surface,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'curl cheat sheet',
                       style: TextStyle(
                         color: TColors.purple,
@@ -46,6 +47,52 @@ class HelpSheet extends StatelessWidget {
                 ),
               ),
               Container(height: 1, color: TColors.border),
+              
+              // Intro section with link
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12),
+                color: TColors.surface.withValues(alpha: 0.5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'for full documentation, visit:',
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => launchUrl(Uri.parse('https://curl.se/')),
+                      child: Text(
+                        'https://curl.se/',
+                        style: TextStyle(
+                          color: TColors.cyan,
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '# common samples:',
+                      style: TextStyle(
+                        color: TColors.comment,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(height: 1, color: TColors.border),
+
               Expanded(
                 child: ListView.separated(
                   controller: scrollController,
@@ -136,7 +183,7 @@ class _HelpEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: TColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -144,7 +191,7 @@ class _HelpEntry extends StatelessWidget {
             children: [
               Text(
                 entry.title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: TColors.cyan,
                   fontFamily: 'monospace',
                   fontSize: 12,
@@ -155,9 +202,9 @@ class _HelpEntry extends StatelessWidget {
               GestureDetector(
                 onTap: () => onUse(entry.command),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   color: TColors.green.withValues(alpha: 0.15),
-                  child: const Text(
+                  child: Text(
                     'try',
                     style: TextStyle(
                       color: TColors.green,
@@ -173,7 +220,7 @@ class _HelpEntry extends StatelessWidget {
           const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(8),
             color: TColors.background,
             child: SelectableText.rich(_highlightCurl(entry.command)),
           ),
@@ -194,7 +241,8 @@ const _methods = {
 };
 
 final _tokenRegex = RegExp(
-  r'''(curl)\b'''
+  r'(<<[A-Za-z_][A-Za-z0-9_]*>>)'
+  r'''|(curl)\b'''
   r'|(-(-?[A-Za-z][\w-]*))'
   r"""|('[^']*')"""
   r'''|("[^"]*")'''
@@ -209,46 +257,51 @@ TextSpan _highlightCurl(String text) {
     if (m.group(1) != null) {
       spans.add(TextSpan(
         text: m.group(1),
-        style: const TextStyle(
-            color: TColors.cyan, fontWeight: FontWeight.bold),
+        style: TextStyle(color: TColors.purple),
       ));
     } else if (m.group(2) != null) {
       spans.add(TextSpan(
         text: m.group(2),
-        style: const TextStyle(color: TColors.orange),
+        style: TextStyle(
+            color: TColors.cyan, fontWeight: FontWeight.bold),
       ));
-    } else if (m.group(4) != null) {
+    } else if (m.group(3) != null) {
       spans.add(TextSpan(
-        text: m.group(4),
-        style: const TextStyle(color: TColors.yellow),
+        text: m.group(3),
+        style: TextStyle(color: TColors.orange),
       ));
     } else if (m.group(5) != null) {
       spans.add(TextSpan(
         text: m.group(5),
-        style: const TextStyle(color: TColors.yellow),
+        style: TextStyle(color: TColors.yellow),
       ));
     } else if (m.group(6) != null) {
       spans.add(TextSpan(
         text: m.group(6),
-        style: const TextStyle(color: TColors.green),
+        style: TextStyle(color: TColors.yellow),
       ));
     } else if (m.group(7) != null) {
-      final word = m.group(7)!;
+      spans.add(TextSpan(
+        text: m.group(7),
+        style: TextStyle(color: TColors.green),
+      ));
+    } else if (m.group(8) != null) {
+      final word = m.group(8)!;
       if (_methods.contains(word.toUpperCase())) {
         spans.add(TextSpan(
           text: word,
-          style: const TextStyle(
+          style: TextStyle(
               color: TColors.purple, fontWeight: FontWeight.bold),
         ));
       } else {
         spans.add(TextSpan(text: word));
       }
-    } else if (m.group(8) != null) {
-      spans.add(TextSpan(text: m.group(8)));
+    } else if (m.group(9) != null) {
+      spans.add(TextSpan(text: m.group(9)));
     }
   }
   return TextSpan(
-    style: const TextStyle(
+    style: TextStyle(
       color: TColors.text,
       fontFamily: 'monospace',
       fontSize: 11,

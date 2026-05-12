@@ -1,0 +1,21 @@
+- add workspace location setting: user can choose custom folder for storing projects and requests
+- add workspace path methods to settings service (get/set/clear/getEffective)
+- update filesystem service to support custom workspace root via setWorkspaceRoot()
+- add workspace section UI in settings page with folder picker (file_picker) and reset to default
+- wire workspace path through main.dart → home_page → settings_page
+- add request name indicator in env bar when a saved request is loaded (_RequestIndicator widget)
+- show request name in fullscreen header title bar instead of static "curl editor"
+- split save into save (overwrite existing) and save as (always new dialog), separate action buttons
+- show full relative path in request indicator (e.g. user/index instead of just index)
+- add folder suggestions in save dialog — lists existing folders as clickable chips to auto-fill path
+- fix share_plus build error on Android by adjusting Kotlin version to 2.1.0 in settings.gradle.kts
+- update share_plus to ^10.1.4 and package_info_plus to match compatible versions
+- re-enable share feature in request drawer context menu
+- add Response Meta Info (execution time and body size) to ResponseViewer
+- add JSON Prettify and Line Numbers toggles to ResponseViewer
+- improve Error Handling visuals to look like a terminal output
+- add Clipboard Auto-Detection for curl commands with import prompt
+- add Variable Preview (<<VAR>>) to see resolved command before execution
+- implement Local History using isar_community v3.3.2
+- migrate all Environment storage from SharedPreferences to Filesystem (.global/ folder)
+- relayout Home toolbar: move History and MoreMenu to Env Bar, simplify utility buttons (icon-only)
