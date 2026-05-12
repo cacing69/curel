@@ -48,12 +48,7 @@ class ResolvedPreviewDialog extends StatelessWidget {
                 future: future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: TColors.green,
-                        strokeWidth: 2,
-                      ),
-                    );
+                    return const Center(child: TerminalLoader());
                   }
                   final text = snapshot.data ?? '';
                   final lines = _splitToHighlightLines(text);

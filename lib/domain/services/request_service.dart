@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/models/request_item_model.dart';
@@ -7,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 abstract class RequestService {
   Future<List<RequestItem>> listRequests(String projectId);
+  Future<List<RequestItem>> listRequestsFast(String projectId);
   Future<String?> readCurl(String projectId, String relativePath);
   Future<void> writeCurl(String projectId, String relativePath, String content);
   Future<String> createRequest(
@@ -33,36 +35,55 @@ class FilesystemRequestService implements RequestService {
 
   @override
   Future<List<RequestItem>> listRequests(String projectId) async {
+    return listRequestsFast(projectId);
+  }
+
+  @override
+  Future<List<RequestItem>> listRequestsFast(String projectId) async {
     final requestsDir = await _fs.getRequestsDir(projectId);
     final dir = Directory(requestsDir);
     if (!await dir.exists()) return [];
 
+    return Isolate.run(() => _scanFastSync(dir.path));
+  }
+
+  static List<RequestItem> _scanFastSync(String rootPath) {
+    final rootDir = Directory(rootPath);
+    if (!rootDir.existsSync()) return [];
     final items = <RequestItem>[];
-    await _scanDir(dir, requestsDir, items);
+    _scanDirFastSync(rootDir, rootPath, items);
     return items;
   }
 
-  Future<void> _scanDir(
+  static void _scanDirFastSync(
     Directory dir,
     String rootDir,
     List<RequestItem> items,
-  ) async {
-    await for (final entity in dir.list()) {
+  ) {
+    for (final entity in dir.listSync()) {
       if (entity is File && entity.path.endsWith('.curl')) {
         final relativePath = p.relative(entity.path, from: rootDir);
         final name = p.basenameWithoutExtension(entity.path);
-        final projectId = p.basename(p.dirname(p.dirname(entity.path)));
-
-        RequestMeta meta = const RequestMeta();
+        String method = 'GET';
         try {
-          meta = await readMeta(projectId, relativePath);
+          final bytes = File(entity.path).readAsBytesSync();
+          final head = String.fromCharCodes(bytes.take(80));
+          final m = RegExp(r'curl\s+(?:\\\s+)?(?:-X\s+)?(\w+)')
+              .firstMatch(head);
+          if (m != null) {
+            final candidate = m.group(1)!.toUpperCase();
+            if (!const ['H', 'D', 'F', 'A', 'CURLOPT'].contains(candidate)) {
+              method = candidate;
+            }
+          }
         } catch (_) {}
-
-        items.add(
-          RequestItem(name: name, relativePath: relativePath, meta: meta),
-        );
+        items.add(RequestItem(
+          name: name,
+          relativePath: relativePath,
+          method: method,
+        ));
       } else if (entity is Directory) {
-        await _scanDir(entity, rootDir, items);
+        _scanDirFastSync(entity, rootDir, items);
       }
     }
   }

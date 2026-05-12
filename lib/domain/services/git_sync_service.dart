@@ -124,8 +124,8 @@ class GitSyncService {
         );
       }
 
-      if (project.remoteOriginId != null && 
-          remoteOriginId != null && 
+      if (project.remoteOriginId != null &&
+          remoteOriginId != null &&
           project.remoteOriginId != remoteOriginId) {
         return GitSyncResult(
           success: false,
@@ -155,14 +155,16 @@ class GitSyncService {
       final projectDir = await _fs.getProjectDir(project.id);
       int written = 0;
       int deleted = 0;
+      final List<String> affectedFiles = [];
 
       for (final change in changes) {
         final fullPath = p.join(projectDir, change.path);
-        
+
         if (change.type == ChangeType.deleted) {
           final file = File(fullPath);
           if (await file.exists()) await file.delete();
           deleted++;
+          if (change.path != '.gitignore') affectedFiles.add('- ${change.path}');
           continue;
         }
 
@@ -186,6 +188,7 @@ class GitSyncService {
         if (!await dir.exists()) await dir.create(recursive: true);
         await File(fullPath).writeAsString(content);
         written++;
+        if (change.path != '.gitignore') affectedFiles.add('+ ${change.path}');
       }
 
       return GitSyncResult(
@@ -194,6 +197,7 @@ class GitSyncService {
         filesCount: written + deleted,
         newSyncSha: remoteSha,
         data: remoteOriginId,
+        affectedFiles: affectedFiles,
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));
@@ -263,14 +267,14 @@ class GitSyncService {
 
       // 3. Gather local files and compute changes
       final localFiles = await _getLocalFiles(project.id);
-      
+
       // Inject .gitignore manually if not present
       if (!localFiles.containsKey('.gitignore')) {
         localFiles['.gitignore'] = '# Curel ignore file\nenvironments/\n.env\n*.local\n';
       }
 
       final changes = _diff.computeChanges(remoteFiles, localFiles); // old=remote, new=local
-      
+
       // Partial Sync Filter
       var filteredChanges = changes;
       if (selectedPaths != null) {
@@ -290,7 +294,7 @@ class GitSyncService {
       final List<GitFile> filesToPush = [];
       for (final change in filteredChanges) {
         var content = change.newContent ?? '';
-        
+
         // Inject remote_origin_id into curel.json before pushing
         if (change.path == 'curel.json') {
           try {
@@ -301,8 +305,8 @@ class GitSyncService {
         }
 
         filesToPush.add(GitFile(
-          path: change.path, 
-          content: content, 
+          path: change.path,
+          content: content,
           deletion: change.type == ChangeType.deleted,
         ));
       }
@@ -327,11 +331,17 @@ class GitSyncService {
         commitMessage,
       );
 
+      final pushedFiles = filesToPush
+          .where((f) => f.path != '.gitignore')
+          .map((f) => '${f.deletion ? '-' : '\u2191'} ${f.path}')
+          .toList();
+
       return GitSyncResult(
         success: true,
         message: 'pushed ${filesToPush.length} changes successfully',
         filesCount: filesToPush.length,
         newSyncSha: newSha,
+        affectedFiles: pushedFiles,
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));
@@ -391,6 +401,7 @@ class GitSyncService {
         filesCount: pushRes.filesCount,
         newSyncSha: pushRes.newSyncSha,
         data: pullRes.data,
+        affectedFiles: [...pullRes.affectedFiles, ...pushRes.affectedFiles],
       );
     } catch (e) {
       return GitSyncResult(success: false, message: _cleanError(e));
@@ -411,7 +422,7 @@ class GitSyncService {
       if (token == null) return [];
 
       final client = GitClient.create(provider.type, baseUrl: provider.baseUrl);
-      
+
       // Fetch remote state
       final remoteFilesList = await client.fetchFiles(
         project.remoteUrl!,
@@ -423,7 +434,28 @@ class GitSyncService {
       // Fetch local state
       final localFiles = await _getLocalFiles(project.id);
 
-      return _diff.computeChanges(localFiles, remoteFiles);
+      // Push perspective: old=remote, new=local.
+      // A file only in local = ChangeType.added (+, green) ✓
+      // A file only in remote = ChangeType.deleted (-, red) ✓
+      final rawChanges = _diff.computeChanges(remoteFiles, localFiles);
+
+      // computeChanges internally generates diffs as compare(secondParam, firstParam).
+      // After swapping args that becomes compare(localContent, remoteContent) which is
+      // inverted for the push display. Fix modified-file diffs to compare(remote, local):
+      //   DIFF_INSERT = in local but not remote → "+" (being added to remote) ✓
+      //   DIFF_DELETE = in remote but not local → "-" (being removed from remote) ✓
+      return rawChanges.map((c) {
+        if (c.type != ChangeType.modified ||
+            c.oldContent == null ||
+            c.newContent == null) return c;
+        return FileChange(
+          path: c.path,
+          type: c.type,
+          oldContent: c.oldContent,  // = remote content
+          newContent: c.newContent,  // = local content
+          diffs: _diff.compare(c.oldContent!, c.newContent!),
+        );
+      }).toList();
     } catch (_) {
       return [];
     }

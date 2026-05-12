@@ -1,0 +1,14 @@
+- add import preview dialog: shows detected format, collection name, request list, env list before saving
+- add previewImport method to WorkspaceService: parse without persist
+- update project_list_page, settings_page, home_page import flows to show preview before import
+- add response comparison & diff feature to Phase 5a plan: compare responses across URLs with mobile-friendly inline diff (card-based, color-coded), JSON diff engine + text diff engine (Myers), compare sources (URL, saved request, history, cross-env)
+- update product roadmap, SYNC guide, and MEMORY.md index with new response_compare.md
+- expand response_compare.md with: baseline snapshot (.baseline.json sidecar), field ignore/masking (auto-detect volatile fields + manual ignore), persist comparison pair in .meta.json, auto-compare on env switch, non-JSON response handling (image toggle, HTML text diff, binary metadata-only)
+- sync PLAN.md repo file with memory — add Phase 5a Response Comparison & Diff section, add .baseline.json to workspace structure
+- fix PLAN.md ↔ memory alignment: Phase 3 status updated from "(next)" to "(Ongoing)" with checkbox list (11/12 done), workspace structure synced, Phase 5a duplicate label merged into single section "Response Query, Transformation & Comparison"
+- create feedback_sync.md: mandatory dual-edit rule — PLAN.md and memory/*.md must be edited in same batch, no drift allowed
+- strengthen SYNC.md with MANDATORY dual-edit table and verification checklist
+- fix Android import: read from file path when bytes null (file_picker content URI)
+- add project selector to import dialog: import to new project or existing project
+- fix env naming: "postman vars" → collection name
+- add importIntoProject to WorkspaceService for importing into existing project

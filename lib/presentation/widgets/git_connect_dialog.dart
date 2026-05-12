@@ -56,11 +56,9 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
         ),
       ),
       content: _loading
-          ? SizedBox(
+          ? const SizedBox(
               height: 100,
-              child: Center(
-                  child: CircularProgressIndicator(
-                      color: TColors.green, strokeWidth: 2)))
+              child: Center(child: TerminalLoader()))
           : SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

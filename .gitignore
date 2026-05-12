@@ -49,3 +49,7 @@ memory/
 PLAN.md
 SECRET.md
 TEMP.md
+
+# Fixtures
+
+/test/fixtures/hoppscotch/hopp-sample.json

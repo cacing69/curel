@@ -7,12 +7,20 @@ import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/services/request_service.dart';
 
+class PreviewResult {
+  final String adapterName;
+  final ImportedCollection collection;
+  PreviewResult({required this.adapterName, required this.collection});
+}
+
 abstract class WorkspaceService {
   Future<String> exportWorkspace();
   Future<({int projects, int requests, int envs})> importWorkspace(String json);
   Future<String> exportProject(String projectId);
   Future<String> exportProjectAs(String projectId, String adapterId);
-  Future<({int requests, int envs})> importProject(String json);
+  Future<({int requests, int envs})> importProject(String json, {String? customName});
+  Future<({int requests, int envs})> importIntoProject(String json, String projectId);
+  Future<PreviewResult?> previewImport(String json);
 }
 
 class WorkspaceServiceImpl implements WorkspaceService {
@@ -188,35 +196,53 @@ class WorkspaceServiceImpl implements WorkspaceService {
   }
 
   @override
-  Future<({int requests, int envs})> importProject(String json) async {
-    return _importProjectData(json);
+  Future<({int requests, int envs})> importProject(String json, {String? customName}) async {
+    return _importProjectData(json, customName: customName);
   }
 
-  Future<({int requests, int envs})> _importProjectData(String json) async {
-    // 1. Detect adapter
+  @override
+  Future<PreviewResult?> previewImport(String json) async {
+    final adapter = _adapterRegistry.findAdapter(json);
+    if (adapter == null) return null;
+    final collection = await adapter.convert(json);
+    return PreviewResult(adapterName: adapter.name, collection: collection);
+  }
+
+  Future<({int requests, int envs})> _importProjectData(String json, {String? customName}) async {
     final adapter = _adapterRegistry.findAdapter(json);
     if (adapter == null) {
       throw Exception('unsupported file format or corrupted data');
     }
-
-    // 2. Convert to ImportedCollection
     final collection = await adapter.convert(json);
+    return _saveImportedCollection(collection, projectId: null, customName: customName);
+  }
 
-    // 3. Save to Filesystem
-    return _saveImportedCollection(collection);
+  @override
+  Future<({int requests, int envs})> importIntoProject(
+    String json,
+    String projectId,
+  ) async {
+    final adapter = _adapterRegistry.findAdapter(json);
+    if (adapter == null) {
+      throw Exception('unsupported file format or corrupted data');
+    }
+    final collection = await adapter.convert(json);
+    return _saveImportedCollection(collection, projectId: projectId);
   }
 
   Future<({int requests, int envs})> _saveImportedCollection(
-    ImportedCollection collection,
-  ) async {
+    ImportedCollection collection, {
+    String? projectId,
+    String? customName,
+  }) async {
     var totalEnvs = 0;
     var totalRequests = 0;
 
-    // Create project
-    final newProject = await _projectService.create(
-      collection.name,
-      description: collection.description,
-    );
+    final targetId = projectId ??
+        (await _projectService.create(
+          customName ?? collection.name,
+          description: collection.description,
+        )).id;
 
     // Import environments
     if (collection.environments.isNotEmpty) {
@@ -236,7 +262,7 @@ class WorkspaceServiceImpl implements WorkspaceService {
       }
 
       await _envService.importFromJson(
-        newProject.id,
+        targetId,
         jsonEncode({
           'active': activeEnvId ?? envModels.first.id,
           'environments': envModels.map((e) => e.toJson()).toList(),
@@ -248,14 +274,14 @@ class WorkspaceServiceImpl implements WorkspaceService {
     for (final req in collection.requests) {
       final sanitizedPath = req.path.replaceAll('.curl', '');
       final relativePath = await _requestService.createRequest(
-        newProject.id,
+        targetId,
         sanitizedPath,
         req.curlContent,
       );
       totalRequests++;
 
       if (req.meta != null) {
-        await _requestService.updateMeta(newProject.id, relativePath, req.meta!);
+        await _requestService.updateMeta(targetId, relativePath, req.meta!);
       }
     }
 

@@ -54,6 +54,9 @@ class GitSyncResult {
   final bool hasConflict;
   final String? newSyncSha;
   final dynamic data;
+  /// File paths affected by this operation, prefixed with operation symbol:
+  /// `+ path` = added/updated, `- path` = deleted, `↑ path` = pushed
+  final List<String> affectedFiles;
 
   GitSyncResult({
     required this.success,
@@ -62,5 +65,6 @@ class GitSyncResult {
     this.hasConflict = false,
     this.newSyncSha,
     this.data,
+    this.affectedFiles = const [],
   });
 }

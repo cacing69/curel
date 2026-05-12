@@ -31,22 +31,59 @@ class InsomniaAdapter implements CollectionAdapter {
   Future<ImportedCollection> convert(String content) async {
     final data = jsonDecode(content) as Map<String, dynamic>;
     final List<dynamic> resources = data['resources'] as List<dynamic>? ?? [];
+
+    // Build id → resource map
+    final byId = <String, Map<String, dynamic>>{};
+    for (final r in resources) {
+      if (r is! Map<String, dynamic>) continue;
+      final id = r['_id'] as String?;
+      if (id != null) byId[id] = r;
+    }
+
+    // Resolve parentId chains for folder paths
+    final folderPaths = <String, String>{};
+    String resolveFolderPath(String id) {
+      if (folderPaths.containsKey(id)) return folderPaths[id]!;
+      final res = byId[id];
+      if (res == null || res['_type'] != 'request_group') return '';
+      final name = _sanitize(res['name'] as String? ?? 'unnamed');
+      final parentId = res['parentId'] as String?;
+      if (parentId == null || !byId.containsKey(parentId) || byId[parentId]!['_type'] == 'workspace') {
+        folderPaths[id] = name;
+      } else {
+        final parentPath = resolveFolderPath(parentId);
+        folderPaths[id] = parentPath.isEmpty ? name : '$parentPath/$name';
+      }
+      return folderPaths[id]!;
+    }
+    for (final entry in byId.entries) {
+      if (entry.value['_type'] == 'request_group') {
+        resolveFolderPath(entry.key);
+      }
+    }
+
+    // Build requests with resolved paths
     final List<ImportedRequest> requests = [];
     for (final r in resources) {
       if (r is! Map<String, dynamic>) continue;
-      final type = r['_type'];
-      if (type != 'request') continue;
+      if (r['_type'] != 'request') continue;
       final name = r['name'] as String? ?? 'unnamed';
       final method = (r['method'] as String?)?.toUpperCase() ?? 'GET';
       final url = r['url'] as String? ?? '';
       final curl = _buildCurl(method, url, r['headers'] as List<dynamic>?, r['body']);
-      final path = name.replaceAll(' ', '_');
+      final parentId = r['parentId'] as String?;
+      final folderPath = parentId != null ? folderPaths[parentId] : null;
+      final sanitized = _sanitize(name);
+      final path = folderPath != null && folderPath.isNotEmpty
+          ? '$folderPath/$sanitized'
+          : sanitized;
       requests.add(ImportedRequest(
         path: path,
         curlContent: curl,
         meta: RequestMeta(displayName: name),
       ));
     }
+
     final List<ImportedEnv> envs = [];
     for (final r in resources) {
       if (r is! Map<String, dynamic>) continue;
@@ -207,4 +244,12 @@ class InsomniaAdapter implements CollectionAdapter {
   }
 
   String _esc(String input) => input.replaceAll("'", "'\\\\''");
+
+  String _sanitize(String name) {
+    return name
+        .trim()
+        .replaceAll(RegExp(r'[^\w\-.]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
 }

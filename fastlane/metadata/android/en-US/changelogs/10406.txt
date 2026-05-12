@@ -1,0 +1,13 @@
+- add github dark and catppuccin mocha theme presets to app_tokens.dart
+- reorder allThemes map: featured top 4 (github dark, one dark, dracula, one light), rest collapsible
+- rewrite theme preview in settings page to full-width cards with mini color bar visualization
+- add collapsible "more themes" section with expand/collapse toggle
+- remove unused _dot widget
+- move oauth device flow from phase 3 to phase 6 (deferred)
+- rewrite hoppscotch adapter for v12 format: recursive folders structure, auth inheritance (bearer/api-key/inherit/none), body types (json/multipart/text/binary), query params, env variable extraction
+- tested with hopp-sample.json (522 requests, 83 folders) — all imported successfully
+- add project rename during import: editable name field in ImportPreviewDialog, ImportResult return type, customName support in workspace service
+- refactor import preview dialog: lazy scroll pagination, method badges, detected env variables, method distribution summary
+- add listRequestsFast() to request service — reads only first 80 bytes of curl for method extraction, skips meta read
+- add collapsible folders to request drawer with persisted expand state (SharedPreferences)
+- add method field to RequestItem, colored method labels (GET/POST/PUT/DELETE/PATCH) in request drawer rows

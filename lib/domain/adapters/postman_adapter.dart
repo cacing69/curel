@@ -51,7 +51,7 @@ class PostmanAdapter implements CollectionAdapter {
     final envs = <ImportedEnv>[];
     if (variables.isNotEmpty) {
       envs.add(ImportedEnv(
-        name: 'postman vars',
+        name: name,
         variables: variables,
         isActive: true,
       ));

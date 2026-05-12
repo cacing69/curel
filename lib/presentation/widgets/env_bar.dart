@@ -196,14 +196,14 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     try {
       // 1. Check for pending changes
       final changes = await ref.read(gitSyncServiceProvider).computePendingChanges(project);
-      
+
       List<String>? selectedPaths;
       if (mounted && changes.isNotEmpty) {
         selectedPaths = await showDialog<List<String>>(
           context: context,
           builder: (context) => DiffViewerDialog(changes: changes),
         );
-        
+
         if (selectedPaths == null || selectedPaths.isEmpty) {
           setState(() => _isSyncing = false);
           return;
@@ -220,7 +220,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
           );
 
           await ref.read(syncControllerProvider).syncAndRefresh();
-          _showLog('git sync\n${result.message}');
+          _showLog('git sync\n${result.message}', result.affectedFiles);
         } else if (result.hasConflict) {
           if (mounted) {
             final changes = await ref.read(gitSyncServiceProvider).computePendingChanges(project);
@@ -257,7 +257,10 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
                 originId: project.remoteOriginId ?? project.id,
               );
               await ref.read(syncControllerProvider).syncAndRefresh();
-              _showLog('conflict resolved\n${pushRes.message}');
+              _showLog('conflict resolved\n${pushRes.message}', [
+                ...pullRes.affectedFiles,
+                ...pushRes.affectedFiles,
+              ]);
             } else if (mounted) {
               _showLog('conflict resolution\nerror: ${pushRes.message}');
             }
@@ -284,9 +287,12 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     }
   }
 
-  void _showLog(String message) {
+  void _showLog(String message, [List<String> files = const []]) {
+    final fullMessage = files.isEmpty
+        ? message
+        : '$message\n${files.map((f) => '  $f').join('\n')}';
     ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
-      clearResponse: true, log: message,
+      clearResponse: true, log: fullMessage,
     ));
     showTerminalToast(context, message.split('\n').last);
   }
@@ -300,14 +306,7 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
     final isGit = widget.activeProject!.mode == 'git';
 
     if (_isSyncing) {
-      return SizedBox(
-        width: 10,
-        height: 10,
-        child: CircularProgressIndicator(
-          color: TColors.green,
-          strokeWidth: 1.2,
-        ),
-      );
+      return const TerminalLoader(compact: true);
     }
 
     return Row(

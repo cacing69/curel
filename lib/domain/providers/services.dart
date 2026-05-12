@@ -15,6 +15,7 @@ import 'package:curel/domain/services/git_provider_service.dart';
 import 'package:curel/domain/services/git_sync_service.dart';
 import 'package:curel/domain/services/device_service.dart';
 import 'package:curel/domain/services/diff_service.dart';
+import 'package:curel/domain/services/crash_log_service.dart';
 import 'package:curel/domain/adapters/adapter_registry.dart';
 
 final fileSystemProvider = Provider<FileSystemService>(
@@ -86,5 +87,9 @@ final deviceServiceProvider = Provider<DeviceService>(
 
 final diffServiceProvider = Provider<DiffService>(
   (ref) => DiffService(),
+);
+
+final crashLogServiceProvider = Provider<CrashLogService>(
+  (ref) => CrashLogService(),
 );
 

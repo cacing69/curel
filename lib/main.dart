@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:curel/domain/models/crash_log_model.dart';
 import 'package:curel/domain/providers/services.dart';
+import 'package:curel/domain/services/crash_log_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/app_theme.dart';
 import 'package:curel/presentation/theme/app_tokens.dart';
@@ -6,7 +10,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const ProviderScope(child: App()));
+  runZonedGuarded(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    final crashLog = CrashLogService();
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      crashLog.log(
+        Severity.critical,
+        'flutter',
+        details.exceptionAsString(),
+        stackTrace: details.stack?.toString(),
+      );
+    };
+    runApp(ProviderScope(
+      overrides: [crashLogServiceProvider.overrideWithValue(crashLog)],
+      child: const App(),
+    ));
+  }, (error, stack) {
+    debugPrint('unhandled: $error');
+  });
 }
 
 class App extends ConsumerStatefulWidget {
