@@ -253,6 +253,32 @@ class GiteaClient implements GitClient {
     }
   }
 
+  @override
+  Future<List<GitRepo>> listUserRepos(String token, {String? baseUrl}) async {
+    final apiUrl = baseUrl != null && baseUrl.isNotEmpty
+        ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1'
+        : 'https://codeberg.org/api/v1';
+    final url = '$apiUrl/user/repos?limit=100';
+    final res = await _client.get(Uri.parse(url), headers: _h(token));
+
+    if (res.statusCode != 200) {
+      _checkResponse(res);
+      throw Exception('failed to list repos: ${res.statusCode}');
+    }
+
+    final List data = jsonDecode(res.body);
+    return data.map((r) {
+      return GitRepo(
+        name: r['name'] ?? '',
+        owner: r['owner']?['login'] ?? '',
+        fullName: r['full_name'] ?? '',
+        cloneUrl: r['clone_url'] ?? '',
+        defaultBranch: r['default_branch'],
+        isPrivate: r['private'] ?? false,
+      );
+    }).toList();
+  }
+
   // ── Private helpers ──────────────────────────────────────────────
 
   /// Resolves a branch name to its root tree SHA:

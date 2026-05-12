@@ -1,0 +1,15 @@
+- [Always update NOTES.txt](feedback_notes.md) — Record every code change into NOTES.txt as plain text list after each prompt
+- [Plan-memory sync](feedback_sync.md) — **MANDATORY** — PLAN.md and memory/*.md must be edited together, no drift allowed
+- [SYNC guide](SYNC.md) — **READ FIRST** — Plan ↔ Memory alignment, current state, agent checklist, sync rules
+- [Project rules](project_rules.md) — App identity, UI design system, theme rules, code quality, dependencies, memory structure
+- [User profile](user_profile.md) — Developer preferences, working style, communication language
+- [Product roadmap](product_roadmap.md) — Phase 3 near complete. Phase 5a: jq response query + .query.json sidecar + response diff. Phase 5b: scripting
+- [Lowercase text rule](text_style_rules.md) — All UI text lowercase, except technical conventions (HTTP headers, methods, abbreviations)
+- [HTTP execution architecture](http_architecture.md) — Dio-based execution, HTTP/3 limitation, curl parser quirks, error formatting
+- [Riverpod architecture](riverpod_architecture.md) — State management migration, provider structure, no code gen due to isar conflict
+- [Secrets and security](feedback_secrets.md) — Webhook URL obfuscation, reset app behavior, client-side secret handling
+- [Dialog UI pattern](dialog_ui_pattern.md) — AlertDialog bg=TColors.background, text field container wrapping, label styling
+- [Git sync maturity](git_sync_maturity.md) — Phase 2 finalized: multi-provider (GitHub/GitLab/Gitea), GitClient.create() factory, 3-layer safety, optimized sync flow
+- [Response query & transformation](response_query.md) — Phase 5a: jq-like query engine, .query.json sidecar files, env binding, response viewer integration
+- [Response comparison & diff](response_compare.md) — Phase 5a: compare responses across URLs, mobile-friendly inline diff, JSON/text diff engines
+- [Phase 3 expansion](phase3_expansion.md) — New Phase 3 items: Bruno adapter, code snippets, cookie jar, HAR, SSL/TLS, VS Code REST Client

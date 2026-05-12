@@ -1,0 +1,14 @@
+- implement local crash reporter: CrashLog Isar model with severity levels (critical/error/warning/info)
+- CrashLogService: log/getAll/clear/prune with auto-cleanup (>7 days, max 1000)
+- error capture in main.dart: runZonedGuarded + FlutterError.onError → auto-log critical errors
+- crash log viewer page: filter chips by severity, expandable rows with stack trace, clear button
+- add crash log entry in settings navigate section
+- fix Insomnia adapter: resolve parentId chains to build nested folder paths
+- refactor request drawer to nested tree view with recursive rendering and indent per depth
+- add workspace explorer page with directory navigation and file browsing
+- add 'explore' to more menu for one-tap access from home screen
+- add breadcrumb tap navigation in workspace explorer to jump to parent dirs
+- fix workspace explorer: empty path guard, null-safe file sizing, remove unused imports
+- add file preview page with syntax highlighting (json, bash, yaml, xml, sql, env) using ChunkedTextViewer
+- file tap in workspace explorer opens preview with line numbers
+- add share/open-external button in file preview header via share_plus

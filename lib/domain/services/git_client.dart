@@ -24,6 +24,9 @@ abstract class GitClient {
   /// Create a new branch from an existing branch
   Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token);
 
+  /// List user's repositories. Returns list of repos the authenticated user has access to.
+  Future<List<GitRepo>> listUserRepos(String token, {String? baseUrl});
+
   /// Single factory — add new providers here only
   static GitClient create(String type, {String? baseUrl}) {
     switch (type) {
@@ -66,5 +69,23 @@ class GitSyncResult {
     this.newSyncSha,
     this.data,
     this.affectedFiles = const [],
+  });
+}
+
+class GitRepo {
+  final String name;
+  final String owner;
+  final String fullName;
+  final String cloneUrl;
+  final String? defaultBranch;
+  final bool isPrivate;
+
+  GitRepo({
+    required this.name,
+    required this.owner,
+    required this.fullName,
+    required this.cloneUrl,
+    this.defaultBranch,
+    this.isPrivate = false,
   });
 }

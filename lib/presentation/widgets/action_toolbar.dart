@@ -21,6 +21,7 @@ class ActionToolbar extends ConsumerWidget {
   final void Function(BuildContext) onNavigateFeedback;
   final void Function(BuildContext) onNavigateSettings;
   final void Function(BuildContext) onNavigateHistory;
+  final VoidCallback onNavigateExplore;
 
   const ActionToolbar({
     required this.curlText,
@@ -36,6 +37,7 @@ class ActionToolbar extends ConsumerWidget {
     required this.onNavigateFeedback,
     required this.onNavigateSettings,
     required this.onNavigateHistory,
+    required this.onNavigateExplore,
     super.key,
   });
 
@@ -68,6 +70,7 @@ class ActionToolbar extends ConsumerWidget {
             onHelp: () => onHelp(),
             onSettings: () => onNavigateSettings(context),
             onHistory: () => onNavigateHistory(context),
+            onExplore: onNavigateExplore,
             onImportCollection: onImportCollection,
           ),
 

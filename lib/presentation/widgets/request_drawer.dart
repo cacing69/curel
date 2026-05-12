@@ -30,6 +30,8 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   bool _loading = true;
   String _searchQuery = '';
   Set<String> _expandedFolders = {};
+  bool _selectionMode = false;
+  Set<String> _selectedPaths = {};
 
   String get _prefsKey => 'drawer_expanded_${widget.projectId}';
 
@@ -74,6 +76,13 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     }).toList();
   }
 
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedPaths.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -83,8 +92,8 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         children: [
           _buildHeader(),
           Container(height: 1, color: TColors.border),
-          _buildSearch(),
-          Container(height: 1, color: TColors.border),
+          if (!_selectionMode) _buildSearch(),
+          if (!_selectionMode) Container(height: 1, color: TColors.border),
           Expanded(child: _loading ? _buildLoading() : _buildList()),
           Container(height: 1, color: TColors.border),
           _buildFooter(),
@@ -94,6 +103,37 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   }
 
   Widget _buildHeader() {
+    if (_selectionMode) {
+      return Container(
+        color: TColors.surface,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _exitSelectionMode,
+              child: Icon(Icons.close, size: 14, color: TColors.mutedText),
+            ),
+            SizedBox(width: 8),
+            Text(
+              '${_selectedPaths.length} selected',
+              style: TextStyle(
+                color: TColors.orange,
+                fontSize: 11,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Spacer(),
+            TermButton(
+              icon: Icons.delete,
+              label: 'delete',
+              onTap: _selectedPaths.isNotEmpty ? _batchDelete : null,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       color: TColors.surface,
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -183,7 +223,6 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     return ListView(children: _renderTree(tree, 0));
   }
 
-  /// Build a tree: Map<folderName, {children: Map, requests: List}>
   Map<String, _FolderNode> _buildTree(List<RequestItem> items) {
     final root = <String, _FolderNode>{};
     for (final item in items) {
@@ -191,7 +230,6 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       final slash = posix.lastIndexOf('/');
       final folderPath = slash >= 0 ? posix.substring(0, slash) : '';
       if (folderPath.isEmpty) {
-        // root-level request — no folder
         root.putIfAbsent('', () => _FolderNode(name: '', fullPath: ''));
         root['']!.requests.add(item);
       } else {
@@ -227,7 +265,6 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
   List<Widget> _renderTree(Map<String, _FolderNode> nodes, int depth) {
     final widgets = <Widget>[];
 
-    // Root-level requests first
     final rootNode = nodes[''];
     if (rootNode != null) {
       for (final item in rootNode.requests) {
@@ -235,7 +272,6 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       }
     }
 
-    // Then folders, sorted
     final folderKeys = nodes.keys.where((k) => k.isNotEmpty).toList()..sort();
     for (final key in folderKeys) {
       final node = nodes[key]!;
@@ -246,11 +282,9 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       widgets.add(_buildFolderHeader(node, count, expanded, depth));
 
       if (expanded) {
-        // Sub-folders first (recursive)
         if (node.children.isNotEmpty) {
           widgets.addAll(_renderTree(node.children, depth + 1));
         }
-        // Requests at this level
         for (final item in node.requests) {
           widgets.add(_buildItem(item, indent: depth + 1));
         }
@@ -326,15 +360,52 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
 
   Widget _buildItem(RequestItem item, {int indent = 0}) {
     final selected = item.relativePath == widget.selectedPath;
+    final isSelected = _selectedPaths.contains(item.relativePath);
     final leftPad = 12.0 + (indent * 12);
 
     return GestureDetector(
-      onTap: () => widget.onRequestSelected(item.relativePath),
+      onTap: () {
+        if (_selectionMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedPaths.remove(item.relativePath);
+              if (_selectedPaths.isEmpty) _selectionMode = false;
+            } else {
+              _selectedPaths.add(item.relativePath);
+            }
+          });
+          return;
+        }
+        widget.onRequestSelected(item.relativePath);
+      },
+      onLongPress: () {
+        if (!_selectionMode) {
+          setState(() {
+            _selectionMode = true;
+            _selectedPaths.add(item.relativePath);
+          });
+        }
+      },
       child: Container(
-        color: selected ? TColors.surface : Colors.transparent,
+        color: isSelected
+            ? TColors.orange.withValues(alpha: 0.1)
+            : selected
+                ? TColors.surface
+                : Colors.transparent,
         padding: EdgeInsets.fromLTRB(leftPad, 7, 12, 7),
         child: Row(
           children: [
+            if (_selectionMode)
+              Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(
+                  isSelected
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
+                  size: 14,
+                  color: isSelected ? TColors.orange : TColors.mutedText,
+                ),
+              ),
             _methodLabel(item.method),
             SizedBox(width: 8),
             Expanded(
@@ -348,11 +419,15 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(width: 4),
-            GestureDetector(
-              onTapDown: (details) => _showContextMenu(context, item, details),
-              child: Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
-            ),
+            if (!_selectionMode) ...[
+              SizedBox(width: 4),
+              GestureDetector(
+                onTapDown: (details) =>
+                    _showContextMenu(context, item, details),
+                child:
+                    Icon(Icons.more_vert, size: 14, color: TColors.mutedText),
+              ),
+            ],
           ],
         ),
       ),
@@ -390,7 +465,8 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
 
   // ── Context menu ────────────────────────────────────────────────────
 
-  void _showContextMenu(BuildContext context, RequestItem item, TapDownDetails details) {
+  void _showContextMenu(
+      BuildContext context, RequestItem item, TapDownDetails details) {
     final renderBox = context.findRenderObject() as RenderBox;
     final offset = renderBox.localToGlobal(Offset.zero);
     showMenu<String>(
@@ -404,16 +480,38 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       ),
       color: TColors.surface,
       items: [
-        PopupMenuItem(value: 'share', height: 36, child: _menuItem(Icons.share, 'share')),
-        PopupMenuItem(value: 'rename', height: 36, child: _menuItem(Icons.edit, 'rename')),
-        PopupMenuItem(value: 'delete', height: 36, child: _menuItem(Icons.delete, 'delete')),
+        PopupMenuItem(
+            value: 'duplicate',
+            height: 36,
+            child: _menuItem(Icons.content_copy, 'duplicate')),
+        PopupMenuItem(
+            value: 'share', height: 36, child: _menuItem(Icons.share, 'share')),
+        PopupMenuItem(
+            value: 'rename', height: 36, child: _menuItem(Icons.edit, 'rename')),
+        PopupMenuItem(
+            value: 'delete', height: 36, child: _menuItem(Icons.delete, 'delete')),
       ],
     ).then((value) async {
-      if (value == 'share') {
+      if (value == 'duplicate') {
+        final posix = item.relativePath.replaceAll('\\', '/');
+        final slash = posix.lastIndexOf('/');
+        final baseName = slash >= 0 ? posix.substring(slash + 1) : posix;
+        final nameWithoutExt = baseName.replaceAll('.curl', '');
+        final suggested = '${nameWithoutExt}_copy';
+        final newName = await _showNameDialog(suggested, title: 'duplicate as');
+        if (newName != null && newName.trim().isNotEmpty && newName.trim() != suggested) {
+          await ref.read(requestServiceProvider).duplicateRequest(
+            widget.projectId,
+            item.relativePath,
+            newName: newName.trim(),
+          );
+          _load();
+        }
+      } else if (value == 'share') {
         final content = await ref.read(requestServiceProvider).readCurl(
-          widget.projectId,
-          item.relativePath,
-        );
+              widget.projectId,
+              item.relativePath,
+            );
         if (content != null && mounted) {
           Share.share(content);
         }
@@ -454,13 +552,17 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     );
   }
 
-  Future<String?> _showNameDialog(String initial) {
+  Future<String?> _showNameDialog(String initial, {String title = 'rename'}) {
     final controller = TextEditingController(text: initial);
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.background,
-        title: Text('rename', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14)),
+        title: Text(title,
+            style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 14)),
         content: Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           color: TColors.surface,
@@ -468,10 +570,16 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
             controller: controller,
             autofocus: true,
             cursorColor: TColors.green,
-            style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+            style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 13),
             decoration: InputDecoration(
               hintText: 'name',
-              hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 13),
+              hintStyle: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 13),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -483,15 +591,67 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text('cancel',
+                style: TextStyle(
+                    color: TColors.mutedText, fontFamily: 'monospace')),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text('ok', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+            child: Text('ok',
+                style:
+                    TextStyle(color: TColors.green, fontFamily: 'monospace')),
           ),
         ],
       ),
     );
+  }
+
+  // ── Batch delete ────────────────────────────────────────────────────
+
+  Future<void> _batchDelete() async {
+    final count = _selectedPaths.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text('delete $count requests?',
+            style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 14)),
+        content: Text('this cannot be undone.',
+            style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 12)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('cancel',
+                style: TextStyle(
+                    color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('delete',
+                style:
+                    TextStyle(color: TColors.red, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    for (final path in _selectedPaths.toList()) {
+      await ref.read(requestServiceProvider).deleteRequest(
+        widget.projectId,
+        path,
+      );
+    }
+    if (mounted) {
+      _exitSelectionMode();
+      _load();
+    }
   }
 
   Widget _buildFooter() {

@@ -434,6 +434,8 @@ class _SearchableTextState extends State<SearchableText> {
                   fontSize: 12,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),

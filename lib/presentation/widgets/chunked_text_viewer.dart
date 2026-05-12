@@ -2,17 +2,19 @@ import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:highlight/highlight.dart' show highlight;
 
-class ChunkedTextViewer extends StatelessWidget {
+class ChunkedTextViewer extends StatefulWidget {
   final String text;
   final String? language;
   final TextStyle style;
   final bool showLineNumbers;
+  final VoidCallback? onRefresh;
 
   ChunkedTextViewer({
     required this.text,
     this.language,
     TextStyle? style,
     this.showLineNumbers = false,
+    this.onRefresh,
     super.key,
   }) : style = style ?? TextStyle(
          fontFamily: 'monospace',
@@ -21,16 +23,52 @@ class ChunkedTextViewer extends StatelessWidget {
        );
 
   @override
+  State<ChunkedTextViewer> createState() => _ChunkedTextViewerState();
+}
+
+class _ChunkedTextViewerState extends State<ChunkedTextViewer> {
+  List<List<TextSpan>> _lines = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _lines = _parseLines();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChunkedTextViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.text != oldWidget.text || widget.language != oldWidget.language) {
+      _lines = _parseLines();
+    }
+  }
+
+  List<List<TextSpan>> _parseLines() {
+    if (widget.language != null) {
+      try {
+        final result = highlight.parse(widget.text, language: widget.language!);
+        final flatSpans = _buildFlatSpans(result.nodes);
+        return _splitSpansByNewlines(flatSpans);
+      } catch (_) {
+        // fall through to plain
+      }
+    }
+    return widget.text.split('\n').map((line) => [TextSpan(text: line)]).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final lines = _splitLines();
-    return ListView.builder(
+    final list = ListView.builder(
+      physics: widget.onRefresh != null
+          ? AlwaysScrollableScrollPhysics()
+          : null,
       padding: EdgeInsets.all(8),
-      itemCount: lines.length,
+      itemCount: _lines.length,
       itemBuilder: (context, index) {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showLineNumbers) ...[
+            if (widget.showLineNumbers) ...[
               SizedBox(
                 width: 32,
                 child: Text(
@@ -47,26 +85,22 @@ class ChunkedTextViewer extends StatelessWidget {
             ],
             Expanded(
               child: Text.rich(
-                TextSpan(style: style, children: lines[index]),
+                TextSpan(style: widget.style, children: _lines[index]),
               ),
             ),
           ],
         );
       },
     );
-  }
 
-  List<List<TextSpan>> _splitLines() {
-    if (language != null) {
-      try {
-        final result = highlight.parse(text, language: language!);
-        final flatSpans = _buildFlatSpans(result.nodes);
-        return _splitSpansByNewlines(flatSpans);
-      } catch (_) {
-        // fall through to plain
-      }
-    }
-    return text.split('\n').map((line) => [TextSpan(text: line)]).toList();
+    if (widget.onRefresh == null) return list;
+
+    return RefreshIndicator(
+      onRefresh: () async => widget.onRefresh!(),
+      backgroundColor: TColors.surface,
+      color: TColors.green,
+      child: list,
+    );
   }
 
   List<TextSpan> _buildFlatSpans(List<dynamic>? nodes) {

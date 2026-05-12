@@ -29,11 +29,15 @@ class FeedbackPage extends StatefulWidget {
   final String? projectId;
   final String? projectName;
   final String? requestPath;
+  final String? initialTitle;
+  final String? initialMessage;
 
   const FeedbackPage({
     this.projectId,
     this.projectName,
     this.requestPath,
+    this.initialTitle,
+    this.initialMessage,
     super.key,
   });
 
@@ -68,6 +72,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialTitle != null) {
+      _titleController.text = widget.initialTitle!;
+    }
+    if (widget.initialMessage != null) {
+      _messageController.text = widget.initialMessage!;
+    }
     PackageInfo.fromPlatform().then((info) {
       if (!mounted) return;
       setState(() {

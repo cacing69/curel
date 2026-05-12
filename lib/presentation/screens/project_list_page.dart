@@ -464,7 +464,7 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           Spacer(),
           TermButton(icon: Icons.upload_file, label: 'import', onTap: _importProject),
           SizedBox(width: 6),
-          TermButton(icon: Icons.sync, label: 'sync', onTap: _load),
+          TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
         ],
       ),
     );

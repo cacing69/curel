@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:curel/domain/adapters/collection_adapter.dart';
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/models/sample_model.dart';
 
 class CurelNativeAdapter implements CollectionAdapter {
   @override
@@ -59,11 +60,24 @@ class CurelNativeAdapter implements CollectionAdapter {
       ));
     }
 
+    final samples = <ImportedSample>[];
+    final sampleList = data['samples'] as List? ?? [];
+    for (final s in sampleList) {
+      final sMap = s as Map<String, dynamic>;
+      samples.add(ImportedSample(
+        requestPath: sMap['request_path'] as String,
+        name: sMap['name'] as String,
+        body: sMap['body'] as String,
+        meta: SampleMeta.fromJson(sMap['meta'] as Map<String, dynamic>),
+      ));
+    }
+
     return ImportedCollection(
       name: projMeta['name'] as String,
       description: projMeta['description'] as String?,
       environments: envs,
       requests: requests,
+      samples: samples,
     );
   }
 
@@ -92,6 +106,15 @@ class CurelNativeAdapter implements CollectionAdapter {
       };
     }).toList();
 
+    final sampleExports = project.samples.map((s) {
+      return {
+        'request_path': s.requestFolderPath,
+        'name': s.name,
+        'body': s.body,
+        'meta': s.meta.toJson(),
+      };
+    }).toList();
+
     return const JsonEncoder.withIndent('  ').convert({
       'type': 'project',
       'version': 1,
@@ -106,6 +129,7 @@ class CurelNativeAdapter implements CollectionAdapter {
       },
       'environments': envExports,
       'requests': requestExports,
+      if (sampleExports.isNotEmpty) 'samples': sampleExports,
     });
   }
 

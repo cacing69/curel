@@ -6,6 +6,7 @@ import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/services/env_service.dart';
 import 'package:curel/domain/services/project_service.dart';
 import 'package:curel/domain/services/request_service.dart';
+import 'package:curel/domain/services/sample_service.dart';
 
 class PreviewResult {
   final String adapterName;
@@ -27,16 +28,19 @@ class WorkspaceServiceImpl implements WorkspaceService {
   final EnvService _envService;
   final ProjectService _projectService;
   final RequestService _requestService;
+  final SampleService _sampleService;
   final AdapterRegistry _adapterRegistry;
 
   WorkspaceServiceImpl({
     required EnvService envService,
     required ProjectService projectService,
     required RequestService requestService,
+    required SampleService sampleService,
     required AdapterRegistry adapterRegistry,
   })  : _envService = envService,
         _projectService = projectService,
         _requestService = requestService,
+        _sampleService = sampleService,
         _adapterRegistry = adapterRegistry;
 
   @override
@@ -83,13 +87,36 @@ class WorkspaceServiceImpl implements WorkspaceService {
 
     final envs = await _buildExportedEnvs(projectId);
     final requests = await _buildExportedRequests(projectId);
+    final samples = await _buildExportedSamples(projectId);
 
     return adapter.export(ExportedProject(
       name: project.name,
       description: project.description,
       environments: envs,
       requests: requests,
+      samples: samples,
     ));
+  }
+
+  Future<List<ExportedSample>> _buildExportedSamples(String projectId) async {
+    final requestItems = await _requestService.listRequests(projectId);
+    final samples = <ExportedSample>[];
+    for (final item in requestItems) {
+      final sampleItems = await _sampleService.listSamples(projectId, item.relativePath);
+      for (final s in sampleItems) {
+        final body = await _sampleService.readBody(
+          projectId, item.relativePath, s.name, s.meta.statusCodeGroup,
+        );
+        if (body == null) continue;
+        samples.add(ExportedSample(
+          requestFolderPath: item.relativePath.replaceAll('.curl', ''),
+          name: s.name,
+          body: body,
+          meta: s.meta,
+        ));
+      }
+    }
+    return samples;
   }
 
   Future<List<ExportedEnv>> _buildExportedEnvs(String projectId) async {
@@ -146,11 +173,19 @@ class WorkspaceServiceImpl implements WorkspaceService {
       });
     }
 
+    final sampleItems = await _buildExportedSamples(projectId);
+
     return {
       'project': project!.toJson(),
       'active_env': activeEnv?.id,
       'environments': jsonDecode(envExport)['environments'],
       'requests': requestExports,
+      if (sampleItems.isNotEmpty) 'samples': sampleItems.map((s) => {
+        'request_path': s.requestFolderPath,
+        'name': s.name,
+        'body': s.body,
+        'meta': s.meta.toJson(),
+      }).toList(),
     };
   }
 
@@ -283,6 +318,24 @@ class WorkspaceServiceImpl implements WorkspaceService {
       if (req.meta != null) {
         await _requestService.updateMeta(targetId, relativePath, req.meta!);
       }
+    }
+
+    // Import samples
+    for (final s in collection.samples) {
+      final requestPath = s.requestPath.endsWith('.curl')
+          ? s.requestPath
+          : '${s.requestPath}.curl';
+      try {
+        await _sampleService.save(
+          targetId,
+          requestPath,
+          s.name,
+          s.body,
+          s.meta.statusCode,
+          s.meta.headers,
+          s.meta.contentType,
+        );
+      } catch (_) {}
     }
 
     return (requests: totalRequests, envs: totalEnvs);

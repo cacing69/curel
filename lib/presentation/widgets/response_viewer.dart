@@ -4,6 +4,7 @@ import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
 import 'package:curel/presentation/widgets/html_preview.dart';
 import 'package:curel/presentation/widgets/searchable_text.dart';
+import 'package:curel/presentation/widgets/diff_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -245,150 +246,171 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
           children: [
             Container(
               color: TColors.surface,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(
-                      Icons.arrow_back,
-                      size: 18,
-                      color: TColors.mutedText,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  FlatTab(
-                    label: 'headers',
-                    selected: _selectedTab == ResponseTab.headers,
-                    onTap: () => setState(() {
-                      _selectedTab = ResponseTab.headers;
-                      _showHtmlPreview = false;
-                    }),
-                  ),
-                  SizedBox(width: 4),
-                  FlatTab(
-                    label: 'body',
-                    selected:
-                        _selectedTab == ResponseTab.body && !_showHtmlPreview,
-                    onTap: () => setState(() {
-                      _selectedTab = ResponseTab.body;
-                      _showHtmlPreview = false;
-                    }),
-                  ),
-                  if (widget.response.isHtml) ...[
-                    SizedBox(width: 4),
-                    FlatTab(
-                      label: 'preview',
-                      selected: _showHtmlPreview,
-                      onTap: () => setState(() {
-                        _selectedTab = ResponseTab.body;
-                        _showHtmlPreview = true;
-                        _searchActive = false;
-                      }),
-                    ),
-                  ],
-                  if (widget.response.traceLog != null &&
-                      widget.response.traceLog!.isNotEmpty) ...[
-                    SizedBox(width: 4),
-                    FlatTab(
-                      label: 'trace',
-                      selected: _selectedTab == ResponseTab.trace,
-                      onTap: () => setState(() {
-                        _selectedTab = ResponseTab.trace;
-                        _showHtmlPreview = false;
-                        _searchActive = false;
-                      }),
-                    ),
-                  ],
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      Clipboard.setData(
-                        ClipboardData(text: widget.response.bodyText),
-                      );
-                      showTerminalToast(context, 'copied to clipboard');
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.only(right: 8),
-                      child: Icon(
-                        Icons.copy,
-                        size: 16,
-                        color: TColors.mutedText,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Icon(
+                          Icons.arrow_back,
+                          size: 18,
+                          color: TColors.mutedText,
+                        ),
                       ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _searchActive = !_searchActive;
-                      if (_searchActive) _showHtmlPreview = false;
-                    }),
-                    child: Icon(
-                      _searchActive ? Icons.search_off : Icons.search,
-                      size: 16,
-                      color: _searchActive ? TColors.green : TColors.mutedText,
-                    ),
-                  ),
-                  if (widget.response.highlightLanguage == 'json') ...[
-                    SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => setState(() => _prettify = !_prettify),
-                      child: Icon(
-                        _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
-                        size: 16,
-                        color: _prettify ? TColors.green : TColors.mutedText,
+                      SizedBox(width: 8),
+                      FlatTab(
+                        label: 'headers',
+                        selected: _selectedTab == ResponseTab.headers,
+                        onTap: () => setState(() {
+                          _selectedTab = ResponseTab.headers;
+                          _showHtmlPreview = false;
+                        }),
                       ),
-                    ),
-                  ],
-                  SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _showLineNumbers = !_showLineNumbers),
-                    child: Icon(
-                      Icons.format_list_numbered,
-                      size: 16,
-                      color: _showLineNumbers
-                          ? TColors.green
-                          : TColors.mutedText,
-                    ),
+                      SizedBox(width: 4),
+                      FlatTab(
+                        label: 'body',
+                        selected: _selectedTab == ResponseTab.body && !_showHtmlPreview,
+                        onTap: () => setState(() {
+                          _selectedTab = ResponseTab.body;
+                          _showHtmlPreview = false;
+                        }),
+                      ),
+                      if (widget.response.isHtml) ...[
+                        SizedBox(width: 4),
+                        FlatTab(
+                          label: 'preview',
+                          selected: _showHtmlPreview,
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.body;
+                            _showHtmlPreview = true;
+                            _searchActive = false;
+                          }),
+                        ),
+                      ],
+                      if (widget.response.traceLog != null &&
+                          widget.response.traceLog!.isNotEmpty) ...[
+                        SizedBox(width: 4),
+                        FlatTab(
+                          label: 'trace',
+                          selected: _selectedTab == ResponseTab.trace,
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.trace;
+                            _showHtmlPreview = false;
+                            _searchActive = false;
+                          }),
+                        ),
+                      ],
+                    ],
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    widget.response.contentTypeLabel,
-                    style: TextStyle(
-                      color: TColors.cyan,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    widget.response.timeLabel,
-                    style: TextStyle(
-                      color: TColors.mutedText,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    widget.response.bodySizeLabel,
-                    style: TextStyle(
-                      color: TColors.mutedText,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                      color:
-                          (widget.response.statusCode ?? 0) >= 200 &&
-                              (widget.response.statusCode ?? 0) < 300
-                          ? TColors.green
-                          : TColors.red,
+                  SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(
+                              ClipboardData(text: widget.response.bodyText),
+                            );
+                            showTerminalToast(context, 'copied to clipboard');
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Icon(
+                              Icons.copy,
+                              size: 16,
+                              color: TColors.mutedText,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _searchActive = !_searchActive;
+                            if (_searchActive) _showHtmlPreview = false;
+                          }),
+                          child: Icon(
+                            _searchActive ? Icons.search_off : Icons.search,
+                            size: 16,
+                            color: _searchActive ? TColors.green : TColors.mutedText,
+                          ),
+                        ),
+                        if (widget.response.highlightLanguage == 'json') ...[
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() => _prettify = !_prettify),
+                            child: Icon(
+                              _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                              size: 16,
+                              color: _prettify ? TColors.green : TColors.mutedText,
+                            ),
+                          ),
+                        ],
+                        SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _openCompareDialog(context),
+                          child: Icon(
+                            Icons.compare_arrows,
+                            size: 16,
+                            color: TColors.mutedText,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _showLineNumbers = !_showLineNumbers),
+                          child: Icon(
+                            Icons.format_list_numbered,
+                            size: 16,
+                            color: _showLineNumbers
+                                ? TColors.green
+                                : TColors.mutedText,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          widget.response.contentTypeLabel,
+                          style: TextStyle(
+                            color: TColors.cyan,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          widget.response.timeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          widget.response.bodySizeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color:
+                                (widget.response.statusCode ?? 0) >= 200 &&
+                                    (widget.response.statusCode ?? 0) < 300
+                                ? TColors.green
+                                : TColors.red,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -409,6 +431,13 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
           ],
         ),
       ),
+    );
+  }
+
+  void _openCompareDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => CompareSourceDialog(currentResponse: widget.response),
     );
   }
 }

@@ -7,6 +7,7 @@ class MoreMenu extends StatelessWidget {
   final VoidCallback onHelp;
   final VoidCallback onSettings;
   final VoidCallback onHistory;
+  final VoidCallback onExplore;
   final VoidCallback? onImportCollection;
 
   const MoreMenu({
@@ -15,6 +16,7 @@ class MoreMenu extends StatelessWidget {
     required this.onHelp,
     required this.onSettings,
     required this.onHistory,
+    required this.onExplore,
     this.onImportCollection,
     super.key,
   });
@@ -28,13 +30,14 @@ class MoreMenu extends StatelessWidget {
         showMenu<int>(
           context: context,
           elevation: 0,
+          constraints: const BoxConstraints(maxWidth: 180),
           position: RelativeRect.fromLTRB(
             offset.dx,
             offset.dy + renderBox.size.height,
             offset.dx + renderBox.size.width,
             0,
           ),
-          color: TColors.surface,
+          color: TColors.background,
           items: [
             if (onImportCollection != null)
               PopupMenuItem<int>(
@@ -55,6 +58,24 @@ class MoreMenu extends StatelessWidget {
                   ],
                 ),
               ),
+            PopupMenuItem<int>(
+              value: 6,
+              height: 36,
+              child: Row(
+                children: [
+                  Icon(Icons.folder_open, size: 14, color: TColors.mutedText),
+                  const SizedBox(width: 8),
+                  Text(
+                    'explore',
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             PopupMenuItem<int>(
               value: 3,
               height: 36,
@@ -161,6 +182,7 @@ class MoreMenu extends StatelessWidget {
           if (value == 3) onHistory();
           if (value == 4) onFeedback();
           if (value == 5 && onImportCollection != null) onImportCollection!();
+          if (value == 6) onExplore();
         });
       },
       child: Container(

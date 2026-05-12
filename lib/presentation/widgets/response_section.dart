@@ -10,12 +10,18 @@ class ResponseSection extends ConsumerWidget {
   final VoidCallback onCopyActivePreview;
   final VoidCallback onSaveResponse;
   final VoidCallback onOpenFullscreen;
+  final VoidCallback? onViewSnippet;
+  final VoidCallback? onSaveSample;
+  final VoidCallback? onCompare;
 
   const ResponseSection({
     required this.isHorizontal,
     required this.onCopyActivePreview,
     required this.onSaveResponse,
     required this.onOpenFullscreen,
+    this.onViewSnippet,
+    this.onSaveSample,
+    this.onCompare,
     super.key,
   });
 
@@ -36,135 +42,161 @@ class ResponseSection extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'res',
-                        style: TextStyle(
-                          color: TColors.purple,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          'res',
+                          style: TextStyle(
+                            color: TColors.purple,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        '${rs.response!.statusCode ?? '-'}',
-                        style: TextStyle(
-                          color: (rs.response!.statusCode ?? 0) >= 200 &&
-                                  (rs.response!.statusCode ?? 0) < 300
-                              ? TColors.green
-                              : TColors.red,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                        SizedBox(width: 8),
+                        Text(
+                          '${rs.response!.statusCode ?? '-'}',
+                          style: TextStyle(
+                            color: (rs.response!.statusCode ?? 0) >= 200 &&
+                                    (rs.response!.statusCode ?? 0) < 300
+                                ? TColors.green
+                                : TColors.red,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        rs.response!.timeLabel,
-                        style: TextStyle(
-                          color: TColors.mutedText,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                        SizedBox(width: 8),
+                        Text(
+                          rs.response!.timeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        rs.response!.bodySizeLabel,
-                        style: TextStyle(
-                          color: TColors.mutedText,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                        SizedBox(width: 8),
+                        Text(
+                          rs.response!.bodySizeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        rs.response!.contentTypeLabel,
-                        style: TextStyle(
-                          color: TColors.cyan,
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                        SizedBox(width: 8),
+                        Text(
+                          rs.response!.contentTypeLabel,
+                          style: TextStyle(
+                            color: TColors.cyan,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      if (rs.response!.isHtml) ...[
+                        if (rs.response!.isHtml) ...[
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(
+                                      selectedTab: ResponseTab.body,
+                                      showHtmlPreview: true,
+                                      searchActive: false,
+                                    )),
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.visibility, size: 16, color: TColors.mutedText),
+                            ),
+                          ),
+                        ],
                         GestureDetector(
-                          onTap: () => ref
-                              .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(
-                                    selectedTab: ResponseTab.body,
-                                    showHtmlPreview: true,
-                                    searchActive: false,
-                                  )),
+                          onTap: onCopyActivePreview,
                           child: Padding(
                             padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.visibility, size: 16, color: TColors.mutedText),
+                            child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
                           ),
                         ),
-                      ],
-                      GestureDetector(
-                        onTap: onCopyActivePreview,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onSaveResponse,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(Icons.save, size: 16, color: TColors.mutedText),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => ref
-                            .read(responseStateProvider.notifier)
-                            .update((s) => s.copyWith(searchActive: !s.searchActive)),
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            rs.searchActive ? Icons.search_off : Icons.search,
-                            size: 16,
-                            color: rs.searchActive ? TColors.green : TColors.mutedText,
+                        GestureDetector(
+                          onTap: onSaveResponse,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.save, size: 16, color: TColors.mutedText),
                           ),
                         ),
-                      ),
-                      if (rs.response?.highlightLanguage == 'json') ...[
+                        if (onViewSnippet != null)
+                          GestureDetector(
+                            onTap: onViewSnippet,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.code, size: 16, color: TColors.mutedText),
+                            ),
+                          ),
+                        if (onSaveSample != null)
+                          GestureDetector(
+                            onTap: onSaveSample,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.archive, size: 16, color: TColors.mutedText),
+                            ),
+                          ),
                         GestureDetector(
                           onTap: () => ref
                               .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(prettify: !s.prettify)),
+                              .update((s) => s.copyWith(searchActive: !s.searchActive)),
                           child: Padding(
                             padding: EdgeInsets.only(left: 4),
                             child: Icon(
-                              rs.prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                              rs.searchActive ? Icons.search_off : Icons.search,
                               size: 16,
-                              color: rs.prettify ? TColors.green : TColors.mutedText,
+                              color: rs.searchActive ? TColors.green : TColors.mutedText,
                             ),
                           ),
                         ),
-                      ],
-                      GestureDetector(
-                        onTap: () => ref
-                            .read(responseStateProvider.notifier)
-                            .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.format_list_numbered,
-                            size: 16,
-                            color: rs.showLineNumbers ? TColors.green : TColors.mutedText,
+                        if (rs.response?.highlightLanguage == 'json') ...[
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(prettify: !s.prettify)),
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                rs.prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                                size: 16,
+                                color: rs.prettify ? TColors.green : TColors.mutedText,
+                              ),
+                            ),
+                          ),
+                        ],
+                        GestureDetector(
+                          onTap: () => ref
+                              .read(responseStateProvider.notifier)
+                              .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.format_list_numbered,
+                              size: 16,
+                              color: rs.showLineNumbers ? TColors.green : TColors.mutedText,
+                            ),
                           ),
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: onOpenFullscreen,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(Icons.fullscreen, size: 16, color: TColors.mutedText),
+                        if (onCompare != null)
+                          GestureDetector(
+                            onTap: onCompare,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.compare_arrows, size: 16, color: TColors.mutedText),
+                            ),
+                          ),
+                        GestureDetector(
+                          onTap: onOpenFullscreen,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.fullscreen, size: 16, color: TColors.mutedText),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   SizedBox(height: 4),
                   Row(

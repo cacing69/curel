@@ -124,7 +124,7 @@ class PreferencesSettingsService implements SettingsService {
   @override
   Future<String> getTheme() async {
     final prefs = await _instance;
-    return prefs.getString(_keyTheme) ?? 'dracula';
+    return prefs.getString(_keyTheme) ?? 'github_dark';
   }
 
   @override

@@ -6,6 +6,8 @@ import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/settings_service.dart';
 import 'package:curel/presentation/screens/env_page.dart';
 import 'package:curel/presentation/screens/git_providers_page.dart';
+import 'package:curel/presentation/screens/crash_log_page.dart';
+import 'package:curel/presentation/screens/workspace_explorer_page.dart';
 import 'package:curel/presentation/widgets/import_preview_dialog.dart';
 import 'package:curel/presentation/theme/app_tokens.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
@@ -13,7 +15,6 @@ import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -201,20 +202,31 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
     if (confirmed != 'reset') return;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    final secure = FlutterSecureStorage();
-    await secure.deleteAll();
-    final fs = LocalFileSystemService();
-    final root = await fs.getWorkspaceRoot();
-    final dir = Directory(root);
-    if (await dir.exists()) await dir.delete(recursive: true);
-    final docsDir = await getApplicationSupportDirectory();
-    final isarFiles =
-        Directory(docsDir.path).listSync().where((f) => f.path.contains('history'));
-    for (final f in isarFiles) {
-      await f.delete(recursive: true);
+    try {
+      await ref.read(historyServiceProvider).clear();
+    } catch (_) {}
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (_) {}
+
+    try {
+      final secure = FlutterSecureStorage();
+      await secure.deleteAll();
+    } catch (_) {}
+
+    try {
+      final fs = LocalFileSystemService();
+      final root = await fs.getWorkspaceRoot();
+      final dir = Directory(root);
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {}
+
+    if (mounted) {
+      showTerminalToast(context, 'app data cleared — closing...');
     }
+    await Future.delayed(Duration(milliseconds: 800));
     exit(0);
   }
 
@@ -285,10 +297,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             () => Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => GitProvidersPage())),
                           ),
+                          _itemDivider(),
+                          _buildNavRow(
+                            Icons.bug_report,
+                            'crash log',
+                            () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => CrashLogPage())),
+                          ),
 
                           // ── danger zone ─────────────────────────
                           SizedBox(height: 24),
-                          Container(height: 1, color: TColors.border.withValues(alpha: 0.4)),
+                          Container(height: 1, color: TColors.red.withValues(alpha: 0.3)),
                           SizedBox(height: 12),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12),
@@ -296,6 +315,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               icon: Icons.delete_forever,
                               label: 'reset app',
                               onTap: _resetApp,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              '⚠ danger zone — this action is irreversible. '
+                              'all projects, environments, settings, and git provider tokens '
+                              'will be permanently deleted.',
+                              style: TextStyle(
+                                color: TColors.red.withValues(alpha: 0.8),
+                                fontFamily: 'monospace',
+                                fontSize: 10,
+                                height: 1.5,
+                              ),
                             ),
                           ),
                           SizedBox(height: 24),
@@ -473,14 +507,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildThemeBlock() {
     final featured = allThemes.values.take(4).toList();
     final more = allThemes.values.skip(4).toList();
-    return Container(
-      color: TColors.surface,
-      child: Column(
-        children: [
-          for (final theme in featured) _buildThemeRow(theme),
-          if (more.isNotEmpty) _buildMoreThemes(more),
-        ],
-      ),
+    return Column(
+      children: [
+        for (final theme in featured) _buildThemeRow(theme),
+        if (more.isNotEmpty) _buildMoreThemes(more),
+      ],
     );
   }
 
@@ -489,48 +520,85 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return GestureDetector(
       onTap: () => _applyTheme(theme.id),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        color: isActive ? TColors.background : Colors.transparent,
-        child: Row(
+        padding: EdgeInsets.fromLTRB(12, 6, 12, isActive ? 8 : 6),
+        decoration: BoxDecoration(
+          color: theme.background,
+          border: Border.all(
+            color: isActive ? TColors.green : TColors.border,
+            width: isActive ? 1.5 : 0.5,
+          ),
+        ),
+        margin: EdgeInsets.fromLTRB(12, 0, 12, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // radio indicator
-            Icon(
-              isActive ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              size: 12,
-              color: isActive ? TColors.green : TColors.mutedText,
+            // Mini terminal header bar
+            Container(
+              height: 14,
+              color: theme.surface,
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  _dot(theme.red),
+                  SizedBox(width: 2),
+                  _dot(theme.yellow),
+                  SizedBox(width: 2),
+                  _dot(theme.green),
+                  Spacer(),
+                  Text(
+                    theme.name.toLowerCase(),
+                    style: TextStyle(
+                      color: theme.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 7,
+                    ),
+                  ),
+                  if (isActive) ...[
+                    SizedBox(width: 4),
+                    Text(
+                      '●',
+                      style: TextStyle(color: theme.green, fontSize: 7),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            SizedBox(width: 8),
-            // color swatches
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _swatch(theme.background),
-                _swatch(theme.surface),
-                _swatch(theme.cyan),
-                _swatch(theme.green),
-                _swatch(theme.orange),
-                _swatch(theme.pink),
-              ],
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                theme.name.toLowerCase(),
-                style: TextStyle(
-                  color: isActive ? TColors.green : TColors.foreground,
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
+            // Simulated request lines
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('GET ', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8, fontWeight: FontWeight.bold)),
+                      Text('/users', style: TextStyle(color: theme.foreground, fontFamily: 'monospace', fontSize: 8)),
+                      Spacer(),
+                      Text('200', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8)),
+                    ],
+                  ),
+                  SizedBox(height: 1),
+                  Row(
+                    children: [
+                      Text('POST', style: TextStyle(color: theme.cyan, fontFamily: 'monospace', fontSize: 8, fontWeight: FontWeight.bold)),
+                      Text(' /login', style: TextStyle(color: theme.foreground, fontFamily: 'monospace', fontSize: 8)),
+                      Spacer(),
+                      Text('201', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8)),
+                    ],
+                  ),
+                ],
               ),
             ),
             if (isActive)
-              Text(
-                'active',
-                style: TextStyle(
-                  color: TColors.green,
-                  fontFamily: 'monospace',
-                  fontSize: 9,
+              Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'active',
+                  style: TextStyle(
+                    color: TColors.green,
+                    fontFamily: 'monospace',
+                    fontSize: 8,
+                  ),
                 ),
               ),
           ],
@@ -539,9 +607,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Widget _swatch(Color color) {
-    return Container(width: 6, height: 10, color: color, margin: EdgeInsets.only(right: 1));
-  }
+  Widget _dot(Color color) => Container(
+    width: 4,
+    height: 4,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 
   Widget _buildMoreThemes(List<AppThemeTokens> themes) {
     return Column(
@@ -610,6 +680,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               TermButton(icon: Icons.refresh, label: 'reset', onTap: _resetWorkspace),
               TermButton(icon: Icons.upload_file, label: 'import', onTap: _importWorkspace),
               TermButton(icon: Icons.download, label: 'export', onTap: _exportWorkspace),
+              TermButton(
+                icon: Icons.folder_open,
+                label: 'explore',
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => WorkspaceExplorerPage())),
+              ),
             ],
           ),
         ),

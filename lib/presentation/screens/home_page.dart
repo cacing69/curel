@@ -15,16 +15,20 @@ import 'package:curel/presentation/widgets/folder_chip.dart';
 import 'package:curel/presentation/widgets/request_drawer.dart';
 import 'package:curel/presentation/widgets/resolved_preview_dialog.dart';
 import 'package:curel/presentation/widgets/response_section.dart';
+import 'package:curel/presentation/widgets/diff_view.dart';
 import 'package:curel/presentation/widgets/window_controls.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:curel/presentation/screens/about_page.dart';
 import 'package:curel/presentation/screens/feedback_page.dart';
 import 'package:curel/presentation/screens/history_page.dart';
 import 'package:curel/presentation/screens/request_builder_page.dart';
+import 'package:curel/presentation/screens/workspace_explorer_page.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
+import 'package:curel/presentation/widgets/save_sample_dialog.dart';
+import 'package:curel/presentation/widgets/snippet_dialog.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
 import 'package:curel/presentation/screens/home/logic/home_actions.dart';
 import 'package:flutter/material.dart';
@@ -541,6 +545,50 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     Clipboard.setData(ClipboardData(text: text));
     showTerminalToast(context, '$_activePreviewTabLabel copied');
+  }
+
+  void _viewSnippet() {
+    final text = _curlController.text.trim();
+    if (text.isEmpty) {
+      showTerminalToast(context, 'no request to convert');
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (_) => SnippetDialog(curlCommand: text),
+    );
+  }
+
+  void _saveSample() {
+    final rs = ref.read(responseStateProvider);
+    final response = rs.response;
+    if (response == null) return;
+
+    final projectId = ref.read(activeProjectProvider)?.id;
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (projectId == null || selectedPath == null) {
+      showTerminalToast(context, 'no active request');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => SaveSampleDialog(
+        response: response,
+        projectId: projectId,
+        requestRelativePath: selectedPath,
+      ),
+    );
+  }
+
+  void _compareResponse(BuildContext context) {
+    final rs = ref.read(responseStateProvider);
+    final response = rs.response;
+    if (response == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => CompareSourceDialog(currentResponse: response),
+    );
   }
 
   Future<void> _saveResponse() async {
@@ -1217,6 +1265,9 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
         ),
       ),
+      onNavigateExplore: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => WorkspaceExplorerPage()),
+      ),
     );
   }
 
@@ -1227,6 +1278,9 @@ class _HomePageState extends ConsumerState<HomePage>
       onCopyActivePreview: _copyActivePreview,
       onSaveResponse: _saveResponse,
       onOpenFullscreen: () => openFullscreenResponse(context, rs.response!),
+      onViewSnippet: () => _viewSnippet(),
+      onSaveSample: () => _saveSample(),
+      onCompare: () => _compareResponse(context),
     );
   }
 

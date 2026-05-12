@@ -1,5 +1,6 @@
 import 'package:curel/domain/models/crash_log_model.dart';
 import 'package:curel/domain/providers/services.dart';
+import 'package:curel/presentation/screens/crash_log_detail_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,6 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
   List<CrashLog> _logs = [];
   bool _loading = true;
   int? _filterSeverity;
-  int _expandedId = -1;
 
   @override
   void initState() {
@@ -159,7 +159,6 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
   }
 
   Widget _buildLogRow(CrashLog log) {
-    final expanded = _expandedId == log.id;
     final color = _severityColor(log.severity);
     final time = '${log.timestamp.hour.toString().padLeft(2, '0')}:${log.timestamp.minute.toString().padLeft(2, '0')}';
     final date = '${log.timestamp.month.toString().padLeft(2, '0')}-${log.timestamp.day.toString().padLeft(2, '0')}';
@@ -168,7 +167,9 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: () => setState(() => _expandedId = expanded ? -1 : log.id),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => CrashLogDetailPage(log: log)),
+          ),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -217,7 +218,7 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
                   ),
                 ),
                 Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
+                  Icons.chevron_right,
                   size: 12,
                   color: TColors.mutedText,
                 ),
@@ -225,47 +226,8 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
             ),
           ),
         ),
-        if (expanded) _buildExpanded(log),
         Container(height: 1, color: TColors.border.withValues(alpha: 0.3)),
       ],
-    );
-  }
-
-  Widget _buildExpanded(CrashLog log) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(60, 4, 12, 8),
-      color: TColors.surface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            log.message,
-            style: TextStyle(
-              color: TColors.foreground,
-              fontFamily: 'monospace',
-              fontSize: 10,
-            ),
-          ),
-          if (log.stackTrace != null && log.stackTrace!.isNotEmpty) ...[
-            SizedBox(height: 4),
-            Container(
-              padding: EdgeInsets.all(6),
-              color: TColors.background,
-              child: Text(
-                log.stackTrace!,
-                style: TextStyle(
-                  color: TColors.mutedText,
-                  fontFamily: 'monospace',
-                  fontSize: 9,
-                  height: 1.4,
-                ),
-                maxLines: 20,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 

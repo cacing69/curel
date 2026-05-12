@@ -16,6 +16,7 @@ import 'package:curel/domain/services/git_sync_service.dart';
 import 'package:curel/domain/services/device_service.dart';
 import 'package:curel/domain/services/diff_service.dart';
 import 'package:curel/domain/services/crash_log_service.dart';
+import 'package:curel/domain/services/sample_service.dart';
 import 'package:curel/domain/adapters/adapter_registry.dart';
 
 final fileSystemProvider = Provider<FileSystemService>(
@@ -54,11 +55,16 @@ final clipboardServiceProvider = Provider<ClipboardService>(
   (ref) => FlutterClipboardService(),
 );
 
+final sampleServiceProvider = Provider<SampleService>(
+  (ref) => FileSystemSampleService(ref.read(fileSystemProvider)),
+);
+
 final workspaceServiceProvider = Provider<WorkspaceService>(
   (ref) => WorkspaceServiceImpl(
     envService: ref.read(envServiceProvider),
     projectService: ref.read(projectServiceProvider),
     requestService: ref.read(requestServiceProvider),
+    sampleService: ref.read(sampleServiceProvider),
     adapterRegistry: ref.read(adapterRegistryProvider),
   ),
 );

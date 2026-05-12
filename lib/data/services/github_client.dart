@@ -362,6 +362,32 @@ class GitHubClient implements GitClient {
     }
   }
 
+  @override
+  Future<List<GitRepo>> listUserRepos(String token, {String? baseUrl}) async {
+    final apiUrl = baseUrl != null && baseUrl.isNotEmpty
+        ? '$baseUrl/api/v3'
+        : _apiBase;
+    final url = '$apiUrl/user/repos?per_page=100&sort=updated&type=all';
+    final response = await _client.get(Uri.parse(url), headers: _headers(token));
+
+    if (response.statusCode != 200) {
+      _checkResponse(response);
+      throw Exception('failed to list repos: ${response.statusCode}');
+    }
+
+    final List data = jsonDecode(response.body);
+    return data.map((r) {
+      return GitRepo(
+        name: r['name'] ?? '',
+        owner: r['owner']?['login'] ?? '',
+        fullName: r['full_name'] ?? '',
+        cloneUrl: r['clone_url'] ?? r['html_url'] ?? '',
+        defaultBranch: r['default_branch'],
+        isPrivate: r['private'] ?? false,
+      );
+    }).toList();
+  }
+
   String _parseError(String body) {
     try {
       final data = jsonDecode(body);

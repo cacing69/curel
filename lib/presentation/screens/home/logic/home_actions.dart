@@ -74,6 +74,20 @@ mixin HomeActions on ConsumerState<HomePage> {
     final es = ref.read(editorStateProvider);
     if (es.isFullscreen) exitFullscreen(unfocus: false);
 
+    // auto-save if editing existing file
+    final selectedPath = ref.read(selectedRequestPathProvider);
+    if (selectedPath != null) {
+      final projectId = ref.read(activeProjectProvider)?.id;
+      if (projectId != null) {
+        await ref
+            .read(requestServiceProvider)
+            .writeCurl(projectId, selectedPath, text);
+        ref.read(editorStateProvider.notifier).update(
+              (s) => s.copyWith(baselineCurlText: text),
+            );
+      }
+    }
+
     await Future<void>.delayed(Duration.zero);
 
     final sw = Stopwatch()..start();

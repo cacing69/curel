@@ -6,12 +6,14 @@ class TermButton extends StatelessWidget {
   final String? label;
   final VoidCallback? onTap;
   final bool accent;
+  final bool fullWidth;
 
   const TermButton({
     this.icon,
     this.label,
     this.onTap,
     this.accent = false,
+    this.fullWidth = false,
     super.key,
   });
 
@@ -24,13 +26,15 @@ class TermButton extends StatelessWidget {
       child: Container(
         height: 28,
         padding: EdgeInsets.symmetric(horizontal: 14),
+        width: fullWidth ? double.infinity : null,
         color: accent
             ? (enabled
                   ? TColors.green.withValues(alpha: 0.15)
                   : TColors.surface)
             : TColors.surface,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: [
             if (icon != null) ...[
               Icon(

@@ -56,12 +56,12 @@ class AppThemeTokens {
 
 // ── Active Theme Registry ──────────────────────────────────────────
 
-AppThemeTokens _activeTokens = draculaTokens;
+AppThemeTokens _activeTokens = githubDarkTokens;
 
 AppThemeTokens get $tokens => _activeTokens;
 
 void setAppTheme(String themeId) {
-  _activeTokens = allThemes[themeId] ?? draculaTokens;
+  _activeTokens = allThemes[themeId] ?? githubDarkTokens;
 }
 
 void setAppThemeTokens(AppThemeTokens tokens) {

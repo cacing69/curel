@@ -1,0 +1,39 @@
+- implement local crash reporter: CrashLog Isar model with severity levels (critical/error/warning/info)
+- CrashLogService: log/getAll/clear/prune with auto-cleanup (>7 days, max 1000)
+- error capture in main.dart: runZonedGuarded + FlutterError.onError → auto-log critical errors
+- crash log viewer page: filter chips by severity, expandable rows with stack trace, clear button
+- add crash log entry in settings navigate section
+- fix Insomnia adapter: resolve parentId chains to build nested folder paths
+- refactor request drawer to nested tree view with recursive rendering and indent per depth
+- add workspace explorer page with directory navigation and file browsing
+- add 'explore' to more menu for one-tap access from home screen
+- add breadcrumb tap navigation in workspace explorer to jump to parent dirs
+- fix workspace explorer: empty path guard, null-safe file sizing, remove unused imports
+- add file preview page with syntax highlighting (json, bash, yaml, xml, sql, env) using ChunkedTextViewer
+- file tap in workspace explorer opens preview with line numbers
+- add share/open-external button in file preview header via share_plus
+- file preview: search with syntax highlight (SearchableText), copy-all, pull-to-refresh
+- file preview: scrollable relative path breadcrumb, tappable segments
+- file preview: large file guard (>512k warn with open-external/load-anyway), retry on error
+- ChunkedTextViewer: cache parsed lines in state, add onRefresh support
+- change default theme from dracula to github_dark
+- expand Phase 3 with 6 new items: Bruno adapter, code snippets, cookie jar, HAR, SSL/TLS, VS Code REST Client
+- move HAR and SSL/TLS from Phase 3 to new Phase 5c (Tooling & Interoperability)
+- sync PLAN.md + memory/product_roadmap.md + memory/phase3_expansion.md + MEMORY.md + SYNC.md
+- implement code snippet generation system: SnippetGenerator abstract class + SnippetRegistry + 7 generators (cURL/Python/JS/Go/Dart/PHP/Java OkHttp) + UI integration in response section toolbar
+- fix syntax highlighting in SnippetDialog: rewrite _buildTextSpan to use stack-based traversal matching searchable_text.dart pattern
+- add duplicate request: RequestService.duplicateRequest (copy curl + meta), context menu in request drawer
+- enhance duplicate request: add newName param to duplicateRequest, show rename dialog before duplicating, only proceed if name is changed
+- add batch delete: long-press to enter selection mode, multi-select with checkboxes, bulk delete with confirmation
+- fix MoreMenu popup width: add constraints maxWidth 180 to prevent overflow
+- fix MoreMenu popup bg in fullscreen editor: change color from TColors.surface to TColors.background for contrast
+- add AI BYOK (Bring Your Own Key) to roadmap: Phase 5d in PLAN.md + memory/product_roadmap.md, create memory/ai_integration.md with architecture details
+- promote Phase 5a Response Comparison to ACTIVE priority, restructure PLAN.md + memory/product_roadmap.md + memory/response_compare.md
+- fix fullscreen response viewer overflow: split toolbar into 2 rows (tabs + actions), wrap actions row in SingleChildScrollView
+- fix response section toolbar overflow: wrap icon row in SingleChildScrollView
+- implement Phase 5a Part 1: Response Comparison (compare request with another request)
+  - DiffEntry model + DiffType enum (added/removed/changed/unchanged)
+  - ResponseDiffEngine abstract + JsonDiffEngine (flatten + deep compare + volatile field ignore)
+  - DiffView widget with inline card-based diff view, color-coded
+  - CompareSourceDialog — URL input mode, fetch target, show diff summary + full diff page
+  - Compare button (Icons.compare_arrows) in response section toolbar + fullscreen viewer

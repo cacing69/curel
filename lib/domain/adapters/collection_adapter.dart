@@ -1,5 +1,6 @@
 import 'package:curel/domain/models/env_model.dart';
 import 'package:curel/domain/models/request_model.dart';
+import 'package:curel/domain/models/sample_model.dart';
 
 // ── Import direction (external → curel) ──────────────────────────
 
@@ -8,12 +9,14 @@ class ImportedCollection {
   final String? description;
   final List<ImportedEnv> environments;
   final List<ImportedRequest> requests;
+  final List<ImportedSample> samples;
 
   ImportedCollection({
     required this.name,
     this.description,
     this.environments = const [],
     this.requests = const [],
+    this.samples = const [],
   });
 }
 
@@ -41,6 +44,20 @@ class ImportedRequest {
   });
 }
 
+class ImportedSample {
+  final String requestPath;
+  final String name;
+  final String body;
+  final SampleMeta meta;
+
+  const ImportedSample({
+    required this.requestPath,
+    required this.name,
+    required this.body,
+    required this.meta,
+  });
+}
+
 // ── Export direction (curel → external) ──────────────────────────
 
 class ExportedProject {
@@ -48,12 +65,14 @@ class ExportedProject {
   final String? description;
   final List<ExportedEnv> environments;
   final List<ExportedRequest> requests;
+  final List<ExportedSample> samples;
 
   const ExportedProject({
     required this.name,
     this.description,
     this.environments = const [],
     this.requests = const [],
+    this.samples = const [],
   });
 }
 
@@ -78,6 +97,20 @@ class ExportedRequest {
     required this.displayName,
     this.folderPath = '',
     required this.curlContent,
+  });
+}
+
+class ExportedSample {
+  final String requestFolderPath;
+  final String name;
+  final String body;
+  final SampleMeta meta;
+
+  const ExportedSample({
+    required this.requestFolderPath,
+    required this.name,
+    required this.body,
+    required this.meta,
   });
 }
 

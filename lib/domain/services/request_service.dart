@@ -6,6 +6,7 @@ import 'package:curel/domain/models/request_item_model.dart';
 import 'package:curel/domain/models/request_model.dart';
 import 'package:path/path.dart' as p;
 
+
 abstract class RequestService {
   Future<List<RequestItem>> listRequests(String projectId);
   Future<List<RequestItem>> listRequestsFast(String projectId);
@@ -18,6 +19,7 @@ abstract class RequestService {
   );
   Future<void> deleteRequest(String projectId, String relativePath);
   Future<void> renameRequest(String projectId, String oldPath, String newName);
+  Future<String> duplicateRequest(String projectId, String relativePath, {String? newName});
   Future<RequestMeta> readMeta(String projectId, String relativePath);
   Future<void> updateMeta(
     String projectId,
@@ -141,6 +143,34 @@ class FilesystemRequestService implements RequestService {
     if (await _fs.exists(metaPath)) {
       await _fs.deleteFile(metaPath);
     }
+  }
+
+  @override
+  Future<String> duplicateRequest(String projectId, String relativePath, {String? newName}) async {
+    final content = await readCurl(projectId, relativePath);
+    if (content == null) throw Exception('source request not found');
+    final posix = relativePath.replaceAll('\\', '/');
+    final slash = posix.lastIndexOf('/');
+    final folder = slash >= 0 ? posix.substring(0, slash + 1) : '';
+    final newPath = await createRequest(
+      projectId,
+      newName != null ? '$folder$newName' : _autoDuplicateName(relativePath),
+      content,
+    );
+    try {
+      final meta = await readMeta(projectId, relativePath);
+      await updateMeta(projectId, newPath, meta);
+    } catch (_) {}
+    return newPath;
+  }
+
+  String _autoDuplicateName(String relativePath) {
+    final posix = relativePath.replaceAll('\\', '/');
+    final slash = posix.lastIndexOf('/');
+    final baseName = slash >= 0 ? posix.substring(slash + 1) : posix;
+    final nameWithoutExt = baseName.replaceAll('.curl', '');
+    final folder = slash >= 0 ? posix.substring(0, slash + 1) : '';
+    return '${folder}${nameWithoutExt}_copy';
   }
 
   @override

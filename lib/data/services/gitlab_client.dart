@@ -260,6 +260,32 @@ class GitLabClient implements GitClient {
     }
   }
 
+  @override
+  Future<List<GitRepo>> listUserRepos(String token, {String? baseUrl}) async {
+    final apiUrl = baseUrl != null && baseUrl.isNotEmpty
+        ? '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v4'
+        : 'https://gitlab.com/api/v4';
+    final url = '$apiUrl/projects?membership=true&per_page=100&sort=updated';
+    final response = await _client.get(Uri.parse(url), headers: _headers(token));
+
+    if (response.statusCode != 200) {
+      _checkResponse(response);
+      throw Exception('failed to list projects: ${response.statusCode}');
+    }
+
+    final List data = jsonDecode(response.body);
+    return data.map((r) {
+      return GitRepo(
+        name: r['path'] ?? '',
+        owner: (r['namespace']?['path'] ?? r['owner']?['username']) ?? '',
+        fullName: r['path_with_namespace'] ?? '',
+        cloneUrl: r['http_url_to_repo'] ?? '',
+        defaultBranch: r['default_branch'],
+        isPrivate: r['visibility'] == 'private',
+      );
+    }).toList();
+  }
+
   String _parseError(String body) {
     try {
       final data = jsonDecode(body);
