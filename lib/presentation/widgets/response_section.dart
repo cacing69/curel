@@ -41,21 +41,85 @@ class ResponseSection extends ConsumerWidget {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Row 1: Tabs
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        Text(
-                          'res',
-                          style: TextStyle(
-                            color: TColors.purple,
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        FlatTab(
+                          label: 'headers',
+                          selected: rs.selectedTab == ResponseTab.headers,
+                          onTap: () => ref
+                              .read(responseStateProvider.notifier)
+                              .update((s) => s.copyWith(
+                                    selectedTab: ResponseTab.headers,
+                                    showHtmlPreview: false,
+                                  )),
                         ),
                         SizedBox(width: 8),
+                        FlatTab(
+                          label: 'body',
+                          selected: rs.selectedTab == ResponseTab.body && !rs.showHtmlPreview,
+                          onTap: () => ref
+                              .read(responseStateProvider.notifier)
+                              .update((s) => s.copyWith(
+                                    selectedTab: ResponseTab.body,
+                                    showHtmlPreview: false,
+                                  )),
+                        ),
+                        if (rs.response!.isHtml) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'preview',
+                            selected: rs.showHtmlPreview,
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(
+                                      selectedTab: ResponseTab.body,
+                                      showHtmlPreview: true,
+                                      searchActive: false,
+                                    )),
+                          ),
+                        ],
+                        if (rs.response!.verboseLog != null &&
+                            rs.response!.verboseLog!.isNotEmpty) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'verbose',
+                            selected: rs.selectedTab == ResponseTab.verbose,
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(
+                                      selectedTab: ResponseTab.verbose,
+                                      showHtmlPreview: false,
+                                    )),
+                          ),
+                        ],
+                        if (rs.response!.traceLog != null &&
+                            rs.response!.traceLog!.isNotEmpty) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'trace',
+                            selected: rs.selectedTab == ResponseTab.trace,
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(
+                                      selectedTab: ResponseTab.trace,
+                                      showHtmlPreview: false,
+                                    )),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  // Row 2: Info
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
                         Text(
                           '${rs.response!.statusCode ?? '-'}',
                           style: TextStyle(
@@ -65,9 +129,10 @@ class ResponseSection extends ConsumerWidget {
                                 : TColors.red,
                             fontFamily: 'monospace',
                             fontSize: 11,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(width: 8),
+                        SizedBox(width: 12),
                         Text(
                           rs.response!.timeLabel,
                           style: TextStyle(
@@ -94,163 +159,87 @@ class ResponseSection extends ConsumerWidget {
                             fontSize: 11,
                           ),
                         ),
-                        if (rs.response!.isHtml) ...[
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(responseStateProvider.notifier)
-                                .update((s) => s.copyWith(
-                                      selectedTab: ResponseTab.body,
-                                      showHtmlPreview: true,
-                                      searchActive: false,
-                                    )),
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.visibility, size: 16, color: TColors.mutedText),
-                            ),
-                          ),
-                        ],
-                        GestureDetector(
-                          onTap: onCopyActivePreview,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: onSaveResponse,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.save, size: 16, color: TColors.mutedText),
-                          ),
-                        ),
-                        if (onViewSnippet != null)
-                          GestureDetector(
-                            onTap: onViewSnippet,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.code, size: 16, color: TColors.mutedText),
-                            ),
-                          ),
-                        if (onSaveSample != null)
-                          GestureDetector(
-                            onTap: onSaveSample,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.archive, size: 16, color: TColors.mutedText),
-                            ),
-                          ),
-                        GestureDetector(
-                          onTap: () => ref
-                              .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(searchActive: !s.searchActive)),
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(
-                              rs.searchActive ? Icons.search_off : Icons.search,
-                              size: 16,
-                              color: rs.searchActive ? TColors.green : TColors.mutedText,
-                            ),
-                          ),
-                        ),
-                        if (rs.response?.highlightLanguage == 'json') ...[
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(responseStateProvider.notifier)
-                                .update((s) => s.copyWith(prettify: !s.prettify)),
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(
-                                rs.prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
-                                size: 16,
-                                color: rs.prettify ? TColors.green : TColors.mutedText,
-                              ),
-                            ),
-                          ),
-                        ],
-                        GestureDetector(
-                          onTap: () => ref
-                              .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.format_list_numbered,
-                              size: 16,
-                              color: rs.showLineNumbers ? TColors.green : TColors.mutedText,
-                            ),
-                          ),
-                        ),
-                        if (onCompare != null)
-                          GestureDetector(
-                            onTap: onCompare,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.compare_arrows, size: 16, color: TColors.mutedText),
-                            ),
-                          ),
-                        GestureDetector(
-                          onTap: onOpenFullscreen,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.fullscreen, size: 16, color: TColors.mutedText),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   SizedBox(height: 4),
-                  Row(
-                    children: [
-                      FlatTab(
-                        label: 'headers',
-                        selected: rs.selectedTab == ResponseTab.headers,
-                        onTap: () => ref
-                            .read(responseStateProvider.notifier)
-                            .update((s) => s.copyWith(
-                                  selectedTab: ResponseTab.headers,
-                                  showHtmlPreview: false,
-                                )),
-                      ),
-                      SizedBox(width: 8),
-                      FlatTab(
-                        label: 'body',
-                        selected: rs.selectedTab == ResponseTab.body && !rs.showHtmlPreview,
-                        onTap: () => ref
-                            .read(responseStateProvider.notifier)
-                            .update((s) => s.copyWith(
-                                  selectedTab: ResponseTab.body,
-                                  showHtmlPreview: false,
-                                )),
-                      ),
-                      if (rs.response!.verboseLog != null &&
-                          rs.response!.verboseLog!.isNotEmpty) ...[
+                  // Row 3: Actions
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: onCopyActivePreview,
+                          child: Icon(Icons.copy, size: 16, color: TColors.mutedText),
+                        ),
                         SizedBox(width: 8),
-                        FlatTab(
-                          label: 'verbose',
-                          selected: rs.selectedTab == ResponseTab.verbose,
+                        GestureDetector(
+                          onTap: onSaveResponse,
+                          child: Icon(Icons.save, size: 16, color: TColors.mutedText),
+                        ),
+                        if (onViewSnippet != null) ...[
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onViewSnippet,
+                            child: Icon(Icons.code, size: 16, color: TColors.mutedText),
+                          ),
+                        ],
+                        if (onSaveSample != null) ...[
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onSaveSample,
+                            child: Icon(Icons.archive, size: 16, color: TColors.mutedText),
+                          ),
+                        ],
+                        SizedBox(width: 8),
+                        GestureDetector(
                           onTap: () => ref
                               .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(
-                                    selectedTab: ResponseTab.verbose,
-                                    showHtmlPreview: false,
-                                  )),
+                              .update((s) => s.copyWith(searchActive: !s.searchActive)),
+                          child: Icon(
+                            rs.searchActive ? Icons.search_off : Icons.search,
+                            size: 16,
+                            color: rs.searchActive ? TColors.green : TColors.mutedText,
+                          ),
                         ),
-                      ],
-                      if (rs.response!.traceLog != null &&
-                          rs.response!.traceLog!.isNotEmpty) ...[
+                        if (rs.response?.highlightLanguage == 'json') ...[
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(responseStateProvider.notifier)
+                                .update((s) => s.copyWith(prettify: !s.prettify)),
+                            child: Icon(
+                              rs.prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
+                              size: 16,
+                              color: rs.prettify ? TColors.green : TColors.mutedText,
+                            ),
+                          ),
+                        ],
                         SizedBox(width: 8),
-                        FlatTab(
-                          label: 'trace',
-                          selected: rs.selectedTab == ResponseTab.trace,
+                        GestureDetector(
                           onTap: () => ref
                               .read(responseStateProvider.notifier)
-                              .update((s) => s.copyWith(
-                                    selectedTab: ResponseTab.trace,
-                                    showHtmlPreview: false,
-                                  )),
+                              .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
+                          child: Icon(
+                            Icons.format_list_numbered,
+                            size: 16,
+                            color: rs.showLineNumbers ? TColors.green : TColors.mutedText,
+                          ),
+                        ),
+                        if (onCompare != null) ...[
+                          SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onCompare,
+                            child: Icon(Icons.compare_arrows, size: 16, color: TColors.mutedText),
+                          ),
+                        ],
+                        SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: onOpenFullscreen,
+                          child: Icon(Icons.fullscreen, size: 16, color: TColors.mutedText),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ],
               ),

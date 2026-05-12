@@ -584,10 +584,18 @@ class _HomePageState extends ConsumerState<HomePage>
   void _compareResponse(BuildContext context) {
     final rs = ref.read(responseStateProvider);
     final response = rs.response;
-    if (response == null) return;
+    final projectId = ref.read(activeProjectProvider)?.id;
+    if (response == null || projectId == null) return;
+    final curlText = curlController.text.trim();
+    if (curlText.isEmpty) return;
     showDialog(
       context: context,
-      builder: (_) => CompareSourceDialog(currentResponse: response),
+      builder: (_) => CompareSourceDialog(
+        baseCurlText: curlText,
+        projectId: projectId,
+        requestService: ref.read(requestServiceProvider),
+        currentResponse: response,
+      ),
     );
   }
 
@@ -1272,12 +1280,21 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _buildResponseSection({required bool isHorizontal}) {
-    final rs = ref.read(responseStateProvider);
     return ResponseSection(
       isHorizontal: isHorizontal,
       onCopyActivePreview: _copyActivePreview,
       onSaveResponse: _saveResponse,
-      onOpenFullscreen: () => openFullscreenResponse(context, rs.response!),
+      onOpenFullscreen: () {
+        final rs = ref.read(responseStateProvider);
+        if (rs.response == null) return;
+        openFullscreenResponse(
+          context,
+          rs.response!,
+          baseCurlText: curlController.text,
+          projectId: ref.read(activeProjectProvider)?.id,
+          requestService: ref.read(requestServiceProvider),
+        );
+      },
       onViewSnippet: () => _viewSnippet(),
       onSaveSample: () => _saveSample(),
       onCompare: () => _compareResponse(context),

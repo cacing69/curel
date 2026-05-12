@@ -2,6 +2,8 @@ import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 
 class CurlHighlightController extends TextEditingController {
+  CurlHighlightController({super.text});
+
   static const methods = {
     'GET',
     'POST',

@@ -35,5 +35,5 @@
   - DiffEntry model + DiffType enum (added/removed/changed/unchanged)
   - ResponseDiffEngine abstract + JsonDiffEngine (flatten + deep compare + volatile field ignore)
   - DiffView widget with inline card-based diff view, color-coded
-  - CompareSourceDialog — URL input mode, fetch target, show diff summary + full diff page
+  - CompareSourceDialog — shows current curl text as base, pick target from saved requests or URL, execute both, show diff summary + full diff page
   - Compare button (Icons.compare_arrows) in response section toolbar + fullscreen viewer

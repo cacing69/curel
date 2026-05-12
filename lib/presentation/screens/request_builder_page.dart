@@ -844,6 +844,7 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
       color: TColors.surface,
       padding: EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMethodDropdown(),
           SizedBox(width: 8),

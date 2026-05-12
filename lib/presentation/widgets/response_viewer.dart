@@ -5,6 +5,7 @@ import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
 import 'package:curel/presentation/widgets/html_preview.dart';
 import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:curel/presentation/widgets/diff_view.dart';
+import 'package:curel/domain/services/request_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -221,8 +222,17 @@ class ResponseViewer extends StatelessWidget {
 
 class FullscreenResponseViewer extends StatefulWidget {
   final CurlResponse response;
+  final String? baseCurlText;
+  final String? projectId;
+  final RequestService? requestService;
 
-  const FullscreenResponseViewer({required this.response, super.key});
+  const FullscreenResponseViewer({
+    required this.response,
+    this.baseCurlText,
+    this.projectId,
+    this.requestService,
+    super.key,
+  });
 
   @override
   State<FullscreenResponseViewer> createState() =>
@@ -251,62 +261,129 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Icon(
-                          Icons.arrow_back,
-                          size: 18,
-                          color: TColors.mutedText,
+                  // Row 1: Back + Tabs
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Icon(
+                            Icons.arrow_back,
+                            size: 18,
+                            color: TColors.mutedText,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      FlatTab(
-                        label: 'headers',
-                        selected: _selectedTab == ResponseTab.headers,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.headers;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      SizedBox(width: 4),
-                      FlatTab(
-                        label: 'body',
-                        selected: _selectedTab == ResponseTab.body && !_showHtmlPreview,
-                        onTap: () => setState(() {
-                          _selectedTab = ResponseTab.body;
-                          _showHtmlPreview = false;
-                        }),
-                      ),
-                      if (widget.response.isHtml) ...[
-                        SizedBox(width: 4),
+                        SizedBox(width: 8),
                         FlatTab(
-                          label: 'preview',
-                          selected: _showHtmlPreview,
+                          label: 'headers',
+                          selected: _selectedTab == ResponseTab.headers,
+                          onTap: () => setState(() {
+                            _selectedTab = ResponseTab.headers;
+                            _showHtmlPreview = false;
+                          }),
+                        ),
+                        SizedBox(width: 8),
+                        FlatTab(
+                          label: 'body',
+                          selected: _selectedTab == ResponseTab.body && !_showHtmlPreview,
                           onTap: () => setState(() {
                             _selectedTab = ResponseTab.body;
-                            _showHtmlPreview = true;
-                            _searchActive = false;
-                          }),
-                        ),
-                      ],
-                      if (widget.response.traceLog != null &&
-                          widget.response.traceLog!.isNotEmpty) ...[
-                        SizedBox(width: 4),
-                        FlatTab(
-                          label: 'trace',
-                          selected: _selectedTab == ResponseTab.trace,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.trace;
                             _showHtmlPreview = false;
-                            _searchActive = false;
                           }),
                         ),
+                        if (widget.response.isHtml) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'preview',
+                            selected: _showHtmlPreview,
+                            onTap: () => setState(() {
+                              _selectedTab = ResponseTab.body;
+                              _showHtmlPreview = true;
+                              _searchActive = false;
+                            }),
+                          ),
+                        ],
+                        if (widget.response.verboseLog != null &&
+                            widget.response.verboseLog!.isNotEmpty) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'verbose',
+                            selected: _selectedTab == ResponseTab.verbose,
+                            onTap: () => setState(() {
+                              _selectedTab = ResponseTab.verbose;
+                              _showHtmlPreview = false;
+                              _searchActive = false;
+                            }),
+                          ),
+                        ],
+                        if (widget.response.traceLog != null &&
+                            widget.response.traceLog!.isNotEmpty) ...[
+                          SizedBox(width: 8),
+                          FlatTab(
+                            label: 'trace',
+                            selected: _selectedTab == ResponseTab.trace,
+                            onTap: () => setState(() {
+                              _selectedTab = ResponseTab.trace;
+                              _showHtmlPreview = false;
+                              _searchActive = false;
+                            }),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                   SizedBox(height: 6),
+                  // Row 2: Info
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                            color:
+                                (widget.response.statusCode ?? 0) >= 200 &&
+                                    (widget.response.statusCode ?? 0) < 300
+                                ? TColors.green
+                                : TColors.red,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          widget.response.timeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          widget.response.bodySizeLabel,
+                          style: TextStyle(
+                            color: TColors.mutedText,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          widget.response.contentTypeLabel,
+                          style: TextStyle(
+                            color: TColors.cyan,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  // Row 3: Actions
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -318,15 +395,13 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                             );
                             showTerminalToast(context, 'copied to clipboard');
                           },
-                          child: Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: Icon(
-                              Icons.copy,
-                              size: 16,
-                              color: TColors.mutedText,
-                            ),
+                          child: Icon(
+                            Icons.copy,
+                            size: 16,
+                            color: TColors.mutedText,
                           ),
                         ),
+                        SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => setState(() {
                             _searchActive = !_searchActive;
@@ -370,46 +445,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                                 : TColors.mutedText,
                           ),
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          widget.response.contentTypeLabel,
-                          style: TextStyle(
-                            color: TColors.cyan,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          widget.response.timeLabel,
-                          style: TextStyle(
-                            color: TColors.mutedText,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          widget.response.bodySizeLabel,
-                          style: TextStyle(
-                            color: TColors.mutedText,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                            color:
-                                (widget.response.statusCode ?? 0) >= 200 &&
-                                    (widget.response.statusCode ?? 0) < 300
-                                ? TColors.green
-                                : TColors.red,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -435,17 +470,34 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
   }
 
   void _openCompareDialog(BuildContext context) {
+    if (widget.projectId == null || widget.baseCurlText == null || widget.requestService == null) return;
     showDialog(
       context: context,
-      builder: (_) => CompareSourceDialog(currentResponse: widget.response),
+      builder: (_) => CompareSourceDialog(
+        baseCurlText: widget.baseCurlText!,
+        projectId: widget.projectId!,
+        requestService: widget.requestService!,
+        currentResponse: widget.response,
+      ),
     );
   }
 }
 
-void openFullscreenResponse(BuildContext context, CurlResponse response) {
+void openFullscreenResponse(
+  BuildContext context,
+  CurlResponse response, {
+  String? baseCurlText,
+  String? projectId,
+  RequestService? requestService,
+}) {
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => FullscreenResponseViewer(response: response),
+      builder: (_) => FullscreenResponseViewer(
+        response: response,
+        baseCurlText: baseCurlText,
+        projectId: projectId,
+        requestService: requestService,
+      ),
     ),
   );
 }
