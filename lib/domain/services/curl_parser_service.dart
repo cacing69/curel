@@ -114,13 +114,15 @@ class ParsedCurl {
   final String? outputFileName;
   final bool verbose;
   final bool followRedirects;
+  final bool insecure;
   final String? traceFileName;
   final bool traceAscii;
   final bool traceEnabled;
   final Duration? connectTimeout;
   final Duration? maxTime;
-  final bool insecure;
   final String? httpVersion;
+  final String curlCommand;
+  final bool needsNativeCurl;
 
   const ParsedCurl({
     required this.curl,
@@ -134,6 +136,8 @@ class ParsedCurl {
     this.maxTime,
     this.insecure = false,
     this.httpVersion,
+    this.curlCommand = '',
+    this.needsNativeCurl = false,
   });
 }
 
@@ -147,6 +151,22 @@ String _unquote(String s) {
 
 /// Pre-processes a curl command string to strip unsupported flags,
 /// then parses it into a [ParsedCurl] object with optional output filename.
+/// Flags that Dio cannot handle — must fall back to native curl.
+const _nativeOnlyFlagsShort = {'E', 'Q', 'Y', 'Z', 'c', 'n', 'p', 'r', 'x', 'y'};
+const _nativeOnlyFlagsLong = {
+  'cert', 'key', 'cacert', 'cert-type', 'key-type', 'pass', 'engine',
+  'pinnedpubkey', 'pubkey',
+  'proxy', 'proxy-header', 'noproxy', 'proxy-user', 'proxy-cert', 'proxy-key',
+  'proxy-cacert', 'proxy-cert-type', 'proxy-key-type', 'proxy-pass',
+  'proxy-tls13-ciphers', 'proxy-tlsuser', 'proxy-tlspassword',
+  'interface', 'dns-servers', 'dns-ipv4-addr', 'dns-ipv6-addr',
+  'resolve', 'connect-to', 'cipher', 'tls-max', 'tls13-ciphers',
+  'curves', 'egd-file', 'random-file', 'crlfile',
+  'tlsuser', 'tlspassword', 'tlsauthtype',
+  'socks4', 'socks4a', 'socks5', 'socks5-hostname',
+  'socks5-basic', 'socks5-gssapi', 'socks5-gssapi-nec', 'socks5-gssapi-service',
+};
+
 ParsedCurl parseCurl(String input) {
   final tokens = _tokenize(input);
 
@@ -415,6 +435,9 @@ ParsedCurl parseCurl(String input) {
   // Protect values that look like URLs but aren't (e.g. --pinnedpubkey "sha256//...")
   final (safe, _) = _protectNonUrlValues(cleaned);
 
+  // Detect unsupported flags that need native curl
+  final needsNative = _hasNativeOnlyFlags(tokens);
+
   try {
     final curl = Curl.parse(safe);
     return ParsedCurl(
@@ -429,6 +452,8 @@ ParsedCurl parseCurl(String input) {
       maxTime: maxTime,
       insecure: insecure,
       httpVersion: httpVersion,
+      curlCommand: needsNative ? input : '',
+      needsNativeCurl: needsNative,
     );
   } on FormatException {
     final curl = Curl.parse(_stripAllUnknownFlags(safe));
@@ -444,6 +469,8 @@ ParsedCurl parseCurl(String input) {
       maxTime: maxTime,
       insecure: insecure,
       httpVersion: httpVersion,
+      curlCommand: needsNative ? input : '',
+      needsNativeCurl: needsNative,
     );
   }
 }
@@ -471,6 +498,24 @@ ParsedCurl parseCurl(String input) {
   }
 
   return (buf.toString().trimRight(), restored);
+}
+
+bool _hasNativeOnlyFlags(List<String> tokens) {
+  for (final tok in tokens) {
+    if (tok.startsWith('--')) {
+      final body = tok.substring(2);
+      final eq = body.indexOf('=');
+      final name = eq >= 0 ? body.substring(0, eq) : body;
+      if (_nativeOnlyFlagsLong.contains(name)) return true;
+    } else if (tok.length == 2 && tok.startsWith('-')) {
+      if (_nativeOnlyFlagsShort.contains(tok[1])) return true;
+    } else if (tok.length > 2 && tok.startsWith('-') && !tok.startsWith('--')) {
+      for (var i = 1; i < tok.length; i++) {
+        if (_nativeOnlyFlagsShort.contains(tok[i])) return true;
+      }
+    }
+  }
+  return false;
 }
 
 Curl _curlWithHeaders(Curl curl, Map<String, String> headers) {

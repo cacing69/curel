@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/data/services/libcurl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/bookmark_service.dart';
 import 'package:curel/domain/services/clipboard_service.dart';
@@ -30,7 +31,11 @@ final settingsProvider = Provider<SettingsService>(
 );
 
 final httpClientProvider = Provider<CurlHttpClient>(
-  (ref) => DioCurlHttpClient(),
+  (ref) => LibcurlHttpClient(),
+);
+
+final libcurlClientProvider = Provider<LibcurlHttpClient>(
+  (ref) => LibcurlHttpClient(),
 );
 
 final envServiceProvider = Provider<EnvService>(

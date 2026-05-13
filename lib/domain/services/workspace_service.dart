@@ -14,12 +14,6 @@ class PreviewResult {
   PreviewResult({required this.adapterName, required this.collection});
 }
 
-class PreviewResult {
-  final String adapterName;
-  final ImportedCollection collection;
-  PreviewResult({required this.adapterName, required this.collection});
-}
-
 abstract class WorkspaceService {
   Future<String> exportWorkspace();
   Future<({int projects, int requests, int envs})> importWorkspace(String json);
@@ -282,8 +276,6 @@ class WorkspaceServiceImpl implements WorkspaceService {
     if (adapter == null) return (requests: 0, envs: 0);
 
     final collection = await adapter.convert(json);
-    return _saveImportedCollection(collection, projectId: null);
-  }
 
     // Rewrite request paths to include subfolder
     final adjusted = ImportedCollection(

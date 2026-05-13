@@ -44,6 +44,40 @@ mixin HomeActions on ConsumerState<HomePage> {
     return 'error: $msg';
   }
 
+  Future<CurlResponse> _executeRequest(
+    WidgetRef ref,
+    ParsedCurl parsed,
+    Duration connectTimeout,
+    Duration? maxTime, {
+    required bool binary,
+  }) async {
+    // Use native libcurl for flags that Dio can't handle
+    if (parsed.needsNativeCurl && parsed.curlCommand.isNotEmpty) {
+      final client = ref.read(libcurlClientProvider);
+      return client.executeRaw(
+        parsed.curlCommand,
+        verbose: parsed.verbose,
+        trace: parsed.traceEnabled,
+        traceAscii: parsed.traceAscii,
+      );
+    }
+
+    // Standard Dio execution
+    final client = ref.read(httpClientProvider);
+    final executor = binary ? client.executeBinary : client.execute;
+    return executor(
+      parsed.curl,
+      verbose: parsed.verbose,
+      followRedirects: parsed.followRedirects,
+      trace: parsed.traceEnabled,
+      traceAscii: parsed.traceAscii,
+      connectTimeout: connectTimeout,
+      maxTime: maxTime,
+      insecure: parsed.insecure,
+      httpVersion: parsed.httpVersion,
+    );
+  }
+
   Future<void> executeCurl() async {
     final text = curlController.text.trim();
     if (text.isEmpty || !text.startsWith('curl')) {
@@ -176,32 +210,10 @@ mixin HomeActions on ConsumerState<HomePage> {
               : null);
 
       final result = hasOutput
-          ? await ref
-                .read(httpClientProvider)
-                .executeBinary(
-                  parsed.curl,
-                  verbose: parsed.verbose,
-                  followRedirects: parsed.followRedirects,
-                  trace: parsed.traceEnabled,
-                  traceAscii: parsed.traceAscii,
-                  connectTimeout: effectiveConnectTimeout,
-                  maxTime: effectiveMaxTime,
-                  insecure: parsed.insecure,
-                  httpVersion: parsed.httpVersion,
-                )
-          : await ref
-                .read(httpClientProvider)
-                .execute(
-                  parsed.curl,
-                  verbose: parsed.verbose,
-                  followRedirects: parsed.followRedirects,
-                  trace: parsed.traceEnabled,
-                  traceAscii: parsed.traceAscii,
-                  connectTimeout: effectiveConnectTimeout,
-                  maxTime: effectiveMaxTime,
-                  insecure: parsed.insecure,
-                  httpVersion: parsed.httpVersion,
-                );
+          ? await _executeRequest(
+              ref, parsed, effectiveConnectTimeout, effectiveMaxTime, binary: true)
+          : await _executeRequest(
+              ref, parsed, effectiveConnectTimeout, effectiveMaxTime, binary: false);
 
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
