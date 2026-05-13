@@ -105,8 +105,9 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
 
   static String _extractEndpoint(String curl) {
     // Last single-quoted string in the curl content
-    final matches =
-        RegExp(r"'([^']*)'").allMatches(curl.split('\\\n').join(' '));
+    final matches = RegExp(
+      r"'([^']*)'",
+    ).allMatches(curl.split('\\\n').join(' '));
     final last = matches.isNotEmpty ? matches.last.group(1) : null;
     if (last != null && last.isNotEmpty) {
       // Strip query params for display
@@ -206,34 +207,51 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
                   : _visibleCount,
               (i) => _buildRequestRow(_requests[i]),
             ),
-            if (_visibleCount < _requests.length) _more(_requests.length - _visibleCount),
+            if (_visibleCount < _requests.length)
+              _more(_requests.length - _visibleCount),
           ],
           if (_detectedVars.isNotEmpty) ...[
             SizedBox(height: 8),
-            _sectionHeader('detected variables', _detectedVars.length, TColors.purple),
+            _sectionHeader(
+              'detected variables',
+              _detectedVars.length,
+              TColors.purple,
+            ),
             Wrap(
               spacing: 4,
               runSpacing: 2,
-              children: _detectedVars.map((v) => Container(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(border: Border.all(color: TColors.purple.withValues(alpha: 0.4))),
-                child: Text(
-                  v,
-                  style: TextStyle(
-                    color: TColors.purple,
-                    fontFamily: 'monospace',
-                    fontSize: 9,
-                  ),
-                ),
-              )).toList(),
+              children: _detectedVars
+                  .map(
+                    (v) => Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: TColors.purple.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Text(
+                        v,
+                        style: TextStyle(
+                          color: TColors.purple,
+                          fontFamily: 'monospace',
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
           if (c.environments.isNotEmpty) ...[
             SizedBox(height: 8),
-            _sectionHeader('environments', c.environments.length, TColors.orange),
-            ...c.environments.map((e) => _item(
-              '${e.name} (${e.variables.length} vars)',
-            )),
+            _sectionHeader(
+              'environments',
+              c.environments.length,
+              TColors.orange,
+            ),
+            ...c.environments.map(
+              (e) => _item('${e.name} (${e.variables.length} vars)'),
+            ),
           ],
         ],
       ),
@@ -241,7 +259,9 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
   }
 
   Widget _buildSummaryRow() {
-    final parts = _methodCounts.entries.map((e) => '${e.key.toLowerCase()}:${e.value}');
+    final parts = _methodCounts.entries.map(
+      (e) => '${e.key.toLowerCase()}:${e.value}',
+    );
     return Row(
       children: [
         Text(
@@ -329,10 +349,7 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
         ),
         SizedBox(height: 4),
         _targetOption(null, 'new project'),
-        if (_isNewProject) ...[
-          SizedBox(height: 4),
-          _buildNameField(),
-        ],
+        if (_isNewProject) ...[SizedBox(height: 4), _buildNameField()],
         if (widget.projects.isNotEmpty)
           ...widget.projects.map((p) => _targetOption(p.id, p.name)),
       ],
@@ -386,7 +403,9 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
         child: Row(
           children: [
             Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
               size: 12,
               color: selected ? TColors.green : TColors.comment,
             ),
@@ -516,10 +535,14 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
           TermButton(
             label: 'import',
             onTap: () {
-              Navigator.of(context).pop(ImportResult(
-                projectId: _selectedProjectId,
-                customName: _isNewProject ? _nameController.text.trim() : null,
-              ));
+              Navigator.of(context).pop(
+                ImportResult(
+                  projectId: _selectedProjectId,
+                  customName: _isNewProject
+                      ? _nameController.text.trim()
+                      : null,
+                ),
+              );
             },
             color: TColors.green,
             bordered: true,

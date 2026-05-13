@@ -401,13 +401,33 @@ class _HomePageState extends ConsumerState<HomePage>
         builder: (ctx) => AlertDialog(
           backgroundColor: TColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          title: Text('import', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14, fontWeight: FontWeight.bold)),
+          title: Text(
+            'import',
+            style: TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _importSourceButton(ctx, 'file', Icons.insert_drive_file, 'import file', 'postman, insomnia, hoppscotch, .bru, .http, .rest'),
+              _importSourceButton(
+                ctx,
+                'file',
+                Icons.insert_drive_file,
+                'import file',
+                'postman, insomnia, hoppscotch, .bru, .http, .rest',
+              ),
               SizedBox(height: 8),
-              _importSourceButton(ctx, 'folder', Icons.folder, 'import folder', 'bruno collection — scans all .bru files'),
+              _importSourceButton(
+                ctx,
+                'folder',
+                Icons.folder,
+                'import folder',
+                'bruno collection — scans all .bru files',
+              ),
             ],
           ),
         ),
@@ -421,12 +441,21 @@ class _HomePageState extends ConsumerState<HomePage>
       }
     } catch (e) {
       if (mounted) {
-        showTerminalToast(context, 'error: ${e.toString().replaceFirst('Exception: ', '')}');
+        showTerminalToast(
+          context,
+          'error: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
       }
     }
   }
 
-  Widget _importSourceButton(BuildContext ctx, String value, IconData icon, String title, String subtitle) {
+  Widget _importSourceButton(
+    BuildContext ctx,
+    String value,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
     return GestureDetector(
       onTap: () => Navigator.pop(ctx, value),
       child: Container(
@@ -440,8 +469,23 @@ class _HomePageState extends ConsumerState<HomePage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.bold)),
-                  Text(subtitle, style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 10)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -496,10 +540,14 @@ class _HomePageState extends ConsumerState<HomePage>
         final content = await bruFile.readAsString();
         if (content.trim().isEmpty) continue;
 
-        final preview = await ref.read(workspaceServiceProvider).previewImport(content);
+        final preview = await ref
+            .read(workspaceServiceProvider)
+            .previewImport(content);
         if (preview == null) continue;
 
-        final counts = await ref.read(workspaceServiceProvider).importIntoCollection(
+        final counts = await ref
+            .read(workspaceServiceProvider)
+            .importIntoCollection(
               content,
               collectionName,
               subfolder: _bruSubfolder(dirPath, bruFile.path),
@@ -513,7 +561,10 @@ class _HomePageState extends ConsumerState<HomePage>
 
     if (mounted) {
       _loadActiveProject();
-      showTerminalToast(context, 'imported $totalRequests requests, $totalEnvs envs${errors > 0 ? " ($errors skipped)" : ""}');
+      showTerminalToast(
+        context,
+        'imported $totalRequests requests, $totalEnvs envs${errors > 0 ? " ($errors skipped)" : ""}',
+      );
     }
   }
 
@@ -526,7 +577,9 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Future<void> _doImport(String content) async {
-    final preview = await ref.read(workspaceServiceProvider).previewImport(content);
+    final preview = await ref
+        .read(workspaceServiceProvider)
+        .previewImport(content);
     if (preview == null) {
       if (mounted) showTerminalToast(context, 'error: unsupported file format');
       return;
@@ -540,12 +593,17 @@ class _HomePageState extends ConsumerState<HomePage>
     if (importResult == null || !mounted) return;
 
     final counts = importResult.projectId == null
-        ? await ref.read(workspaceServiceProvider).importProject(
-              content, customName: importResult.customName)
-        : await ref.read(workspaceServiceProvider).importIntoProject(
-              content, importResult.projectId!);
+        ? await ref
+              .read(workspaceServiceProvider)
+              .importProject(content, customName: importResult.customName)
+        : await ref
+              .read(workspaceServiceProvider)
+              .importIntoProject(content, importResult.projectId!);
     if (mounted) {
-      showTerminalToast(context, 'imported ${counts.requests} requests, ${counts.envs} envs');
+      showTerminalToast(
+        context,
+        'imported ${counts.requests} requests, ${counts.envs} envs',
+      );
     }
   }
 
@@ -562,11 +620,14 @@ class _HomePageState extends ConsumerState<HomePage>
           children: [
             Icon(Icons.content_paste, size: 14, color: TColors.cyan),
             SizedBox(width: 8),
-            Text('batch curl import',
-                style: TextStyle(
-                    color: TColors.foreground,
-                    fontFamily: 'monospace',
-                    fontSize: 14)),
+            Text(
+              'batch curl import',
+              style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
         content: SizedBox(
@@ -574,11 +635,14 @@ class _HomePageState extends ConsumerState<HomePage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('paste multiple curl commands below. each command starting with "curl" will become a separate request.',
-                  style: TextStyle(
-                      color: TColors.mutedText,
-                      fontFamily: 'monospace',
-                      fontSize: 11)),
+              Text(
+                'paste multiple curl commands below. each command starting with "curl" will become a separate request.',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
               SizedBox(height: 8),
               Container(
                 constraints: BoxConstraints(maxHeight: 400),
@@ -590,15 +654,18 @@ class _HomePageState extends ConsumerState<HomePage>
                   cursorColor: TColors.green,
                   maxLines: null,
                   style: TextStyle(
-                      color: TColors.foreground,
-                      fontFamily: 'monospace',
-                      fontSize: 12),
+                    color: TColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                  ),
                   decoration: InputDecoration(
-                    hintText: 'curl https://api.example.com/users\ncurl -X POST https://api.example.com/login ...',
+                    hintText:
+                        'curl https://api.example.com/users\ncurl -X POST https://api.example.com/login ...',
                     hintStyle: TextStyle(
-                        color: TColors.mutedText,
-                        fontFamily: 'monospace',
-                        fontSize: 12),
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -613,15 +680,20 @@ class _HomePageState extends ConsumerState<HomePage>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('cancel',
-                style: TextStyle(
-                    color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('import',
-                style:
-                    TextStyle(color: TColors.green, fontFamily: 'monospace')),
+            child: Text(
+              'import',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -716,7 +788,8 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true, clearLog: true,
+            clearError: true,
+            clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -743,7 +816,8 @@ class _HomePageState extends ConsumerState<HomePage>
             .update(
               (s) => s.copyWith(
                 clearResponse: true,
-                clearError: true, clearLog: true,
+                clearError: true,
+                clearLog: true,
                 showHtmlPreview: false,
                 searchActive: false,
               ),
@@ -755,7 +829,8 @@ class _HomePageState extends ConsumerState<HomePage>
             .update(
               (s) => s.copyWith(
                 response: result,
-                clearError: true, clearLog: true,
+                clearError: true,
+                clearLog: true,
                 showHtmlPreview: false,
                 searchActive: false,
               ),
@@ -772,7 +847,6 @@ class _HomePageState extends ConsumerState<HomePage>
   Future<void> loadRequest(String relativePath) => _loadRequest(relativePath);
 
   // File download and trace logic moved to HomeActions mixin
-
 
   // ── Save response ────────────────────────────────────────────────
 
@@ -1058,7 +1132,8 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true, clearLog: true,
+            clearError: true,
+            clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -1082,7 +1157,8 @@ class _HomePageState extends ConsumerState<HomePage>
           .update(
             (s) => s.copyWith(
               clearResponse: true,
-              clearError: true, clearLog: true,
+              clearError: true,
+              clearLog: true,
               showHtmlPreview: false,
               searchActive: false,
             ),
@@ -1180,7 +1256,8 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true, clearLog: true,
+            clearError: true,
+            clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -1223,7 +1300,8 @@ class _HomePageState extends ConsumerState<HomePage>
         .update(
           (s) => s.copyWith(
             clearResponse: true,
-            clearError: true, clearLog: true,
+            clearError: true,
+            clearLog: true,
             showHtmlPreview: false,
             searchActive: false,
           ),
@@ -1249,7 +1327,8 @@ class _HomePageState extends ConsumerState<HomePage>
           .update(
             (s) => s.copyWith(
               clearResponse: true,
-              clearError: true, clearLog: true,
+              clearError: true,
+              clearLog: true,
               showHtmlPreview: false,
               searchActive: false,
             ),
@@ -1542,12 +1621,12 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
         ),
       ),
-      onNavigateExplore: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const WorkspaceExplorerPage()),
-      ),
-      onNavigateTrafficLog: (ctx) => Navigator.of(ctx).push(
-        MaterialPageRoute(builder: (_) => const TrafficLogPage()),
-      ),
+      onNavigateExplore: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const WorkspaceExplorerPage())),
+      onNavigateTrafficLog: (ctx) => Navigator.of(
+        ctx,
+      ).push(MaterialPageRoute(builder: (_) => const TrafficLogPage())),
     );
   }
 
@@ -1592,10 +1671,7 @@ class _HomePageState extends ConsumerState<HomePage>
             if (es.isFullscreen) ...[
               Container(
                 color: TColors.surface,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 child: Row(
                   children: [
                     WindowDot(
@@ -1630,10 +1706,7 @@ class _HomePageState extends ConsumerState<HomePage>
               Expanded(
                 child: Container(
                   color: TColors.surface,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: _buildInputField(maxLines: null, minLines: 1),
                 ),
               )
@@ -1643,10 +1716,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 onTap: _enterFullscreen,
                 child: Container(
                   color: TColors.surface,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: _buildInputField(),
                 ),
               ),

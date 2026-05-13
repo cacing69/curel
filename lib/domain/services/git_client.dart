@@ -4,16 +4,34 @@ import 'package:curel/data/services/gitea_client.dart';
 
 abstract class GitClient {
   /// Get the latest commit SHA from a branch
-  Future<String?> getLatestCommitSha(String remoteUrl, String branch, String token);
+  Future<String?> getLatestCommitSha(
+    String remoteUrl,
+    String branch,
+    String token,
+  );
 
   /// Fetch all files from a remote repository branch
-  Future<List<GitFile>> fetchFiles(String remoteUrl, String branch, String token);
+  Future<List<GitFile>> fetchFiles(
+    String remoteUrl,
+    String branch,
+    String token,
+  );
 
   /// List only file paths from remote tree (no content fetch)
-  Future<List<String>> listRemotePaths(String remoteUrl, String branch, String token);
+  Future<List<String>> listRemotePaths(
+    String remoteUrl,
+    String branch,
+    String token,
+  );
 
   /// Push local changes to the remote repository. Returns the new commit SHA.
-  Future<String> pushFiles(String remoteUrl, String branch, String token, List<GitFile> files, String message);
+  Future<String> pushFiles(
+    String remoteUrl,
+    String branch,
+    String token,
+    List<GitFile> files,
+    String message,
+  );
 
   /// Validate token by testing authentication. Returns username on success, null on failure.
   Future<String?> validateToken(String token, {String? baseUrl});
@@ -22,7 +40,12 @@ abstract class GitClient {
   Future<List<String>> listBranches(String remoteUrl, String token);
 
   /// Create a new branch from an existing branch
-  Future<void> createBranch(String remoteUrl, String branch, String fromBranch, String token);
+  Future<void> createBranch(
+    String remoteUrl,
+    String branch,
+    String fromBranch,
+    String token,
+  );
 
   /// List user's repositories. Returns list of repos the authenticated user has access to.
   Future<List<GitRepo>> listUserRepos(String token, {String? baseUrl});
@@ -57,6 +80,7 @@ class GitSyncResult {
   final bool hasConflict;
   final String? newSyncSha;
   final dynamic data;
+
   /// File paths affected by this operation, prefixed with operation symbol:
   /// `+ path` = added/updated, `- path` = deleted, `↑ path` = pushed
   final List<String> affectedFiles;

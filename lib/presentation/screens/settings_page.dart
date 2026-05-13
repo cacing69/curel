@@ -65,16 +65,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final defaultUA = await ref.read(settingsProvider).getDefaultUserAgent();
     final connectTimeout = await ref.read(settingsProvider).getConnectTimeout();
     final maxTime = await ref.read(settingsProvider).getMaxTime();
-    final workspace = await ref.read(settingsProvider).getEffectiveWorkspacePath();
+    final workspace = await ref
+        .read(settingsProvider)
+        .getEffectiveWorkspacePath();
     final themeId = await ref.read(settingsProvider).getTheme();
     if (mounted) {
       _defaultUA = defaultUA;
       _selectedThemeId = themeId;
       _uaController.text = ua == defaultUA ? '' : ua;
-      _connectTimeoutController.text =
-          connectTimeout == defaultConnectTimeout ? '' : connectTimeout.toString();
-      _maxTimeController.text =
-          maxTime == defaultMaxTime ? '' : maxTime.toString();
+      _connectTimeoutController.text = connectTimeout == defaultConnectTimeout
+          ? ''
+          : connectTimeout.toString();
+      _maxTimeController.text = maxTime == defaultMaxTime
+          ? ''
+          : maxTime.toString();
       _workspaceDisplay = workspace;
       setState(() => _loading = false);
     }
@@ -108,7 +112,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _resetWorkspace() async {
     await ref.read(settingsProvider).clearWorkspacePath();
-    final effective = await ref.read(settingsProvider).getEffectiveWorkspacePath();
+    final effective = await ref
+        .read(settingsProvider)
+        .getEffectiveWorkspacePath();
     await ref.read(fileSystemProvider).setWorkspaceRoot(effective);
     if (mounted) Navigator.of(context).pop();
     widget.onWorkspaceChanged();
@@ -122,7 +128,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         fileName: 'curel-workspace.json',
         bytes: utf8.encode(json),
       );
-      if (path != null && mounted) showTerminalToast(context, 'workspace exported');
+      if (path != null && mounted)
+        showTerminalToast(context, 'workspace exported');
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
     }
@@ -140,9 +147,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ? utf8.decode(file.bytes!)
           : await File(file.path!).readAsString();
 
-      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      final preview = await ref
+          .read(workspaceServiceProvider)
+          .previewImport(json);
       if (preview == null) {
-        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        if (mounted)
+          showTerminalToast(context, 'error: unsupported file format');
         return;
       }
 
@@ -153,7 +163,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       );
       if (importResult == null || !mounted) return;
 
-      final counts = await ref.read(workspaceServiceProvider).importWorkspace(json);
+      final counts = await ref
+          .read(workspaceServiceProvider)
+          .importWorkspace(json);
       widget.onWorkspaceChanged();
       if (mounted) {
         showTerminalToast(
@@ -174,7 +186,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         title: Text(
           'reset app',
-          style: TextStyle(color: TColors.red, fontFamily: 'monospace', fontSize: 14),
+          style: TextStyle(
+            color: TColors.red,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
         ),
         content: Text(
           'this will delete all projects, environments, and settings. '
@@ -189,13 +205,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('cancel',
-                style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('reset'),
-            child: Text('reset',
-                style: TextStyle(color: TColors.red, fontFamily: 'monospace')),
+            child: Text(
+              'reset',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -286,28 +309,38 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           _buildNavRow(
                             Icons.data_object,
                             'env',
-                            () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => EnvPage(projectId: widget.projectId),
-                            )),
+                            () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    EnvPage(projectId: widget.projectId),
+                              ),
+                            ),
                           ),
                           _itemDivider(),
                           _buildNavRow(
                             Icons.cloud,
                             'git providers',
                             () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => GitProvidersPage())),
+                              MaterialPageRoute(
+                                builder: (_) => GitProvidersPage(),
+                              ),
+                            ),
                           ),
                           _itemDivider(),
                           _buildNavRow(
                             Icons.bug_report,
                             'crash log',
                             () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => CrashLogPage())),
+                              MaterialPageRoute(builder: (_) => CrashLogPage()),
+                            ),
                           ),
 
                           // ── danger zone ─────────────────────────
                           SizedBox(height: 24),
-                          Container(height: 1, color: TColors.red.withValues(alpha: 0.3)),
+                          Container(
+                            height: 1,
+                            color: TColors.red.withValues(alpha: 0.3),
+                          ),
                           SizedBox(height: 12),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12),
@@ -366,7 +399,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ),
           Spacer(),
-          TermButton(icon: Icons.check, label: 'save', onTap: _save, accent: true),
+          TermButton(
+            icon: Icons.check,
+            label: 'save',
+            onTap: _save,
+            accent: true,
+          ),
         ],
       ),
     );
@@ -387,8 +425,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Widget _itemDivider() =>
-      Container(height: 1, color: TColors.background);
+  Widget _itemDivider() => Container(height: 1, color: TColors.background);
 
   // ── Section blocks ────────────────────────────────────────────────
 
@@ -571,19 +608,63 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   Row(
                     children: [
-                      Text('GET ', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8, fontWeight: FontWeight.bold)),
-                      Text('/users', style: TextStyle(color: theme.foreground, fontFamily: 'monospace', fontSize: 8)),
+                      Text(
+                        'GET ',
+                        style: TextStyle(
+                          color: theme.green,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '/users',
+                        style: TextStyle(
+                          color: theme.foreground,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                        ),
+                      ),
                       Spacer(),
-                      Text('200', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8)),
+                      Text(
+                        '200',
+                        style: TextStyle(
+                          color: theme.green,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: 1),
                   Row(
                     children: [
-                      Text('POST', style: TextStyle(color: theme.cyan, fontFamily: 'monospace', fontSize: 8, fontWeight: FontWeight.bold)),
-                      Text(' /login', style: TextStyle(color: theme.foreground, fontFamily: 'monospace', fontSize: 8)),
+                      Text(
+                        'POST',
+                        style: TextStyle(
+                          color: theme.cyan,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        ' /login',
+                        style: TextStyle(
+                          color: theme.foreground,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                        ),
+                      ),
                       Spacer(),
-                      Text('201', style: TextStyle(color: theme.green, fontFamily: 'monospace', fontSize: 8)),
+                      Text(
+                        '201',
+                        style: TextStyle(
+                          color: theme.green,
+                          fontFamily: 'monospace',
+                          fontSize: 8,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -617,7 +698,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Column(
       children: [
         GestureDetector(
-          onTap: () => setState(() => _moreThemesExpanded = !_moreThemesExpanded),
+          onTap: () =>
+              setState(() => _moreThemesExpanded = !_moreThemesExpanded),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -673,18 +755,32 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             runSpacing: 6,
             children: [
               TermButton(
-                  icon: Icons.folder_open,
-                  label: 'change',
-                  onTap: _pickWorkspace,
-                  accent: true),
-              TermButton(icon: Icons.refresh, label: 'reset', onTap: _resetWorkspace),
-              TermButton(icon: Icons.upload_file, label: 'import', onTap: _importWorkspace),
-              TermButton(icon: Icons.download, label: 'export', onTap: _exportWorkspace),
+                icon: Icons.folder_open,
+                label: 'change',
+                onTap: _pickWorkspace,
+                accent: true,
+              ),
+              TermButton(
+                icon: Icons.refresh,
+                label: 'reset',
+                onTap: _resetWorkspace,
+              ),
+              TermButton(
+                icon: Icons.upload_file,
+                label: 'import',
+                onTap: _importWorkspace,
+              ),
+              TermButton(
+                icon: Icons.download,
+                label: 'export',
+                onTap: _exportWorkspace,
+              ),
               TermButton(
                 icon: Icons.folder_open,
                 label: 'explore',
                 onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => WorkspaceExplorerPage())),
+                  MaterialPageRoute(builder: (_) => WorkspaceExplorerPage()),
+                ),
               ),
             ],
           ),

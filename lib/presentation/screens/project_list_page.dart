@@ -14,9 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProjectListPage extends ConsumerStatefulWidget {
-  ProjectListPage({
-    super.key,
-  });
+  ProjectListPage({super.key});
 
   @override
   ConsumerState<ProjectListPage> createState() => _ProjectListPageState();
@@ -36,10 +34,14 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
 
   Future<void> _load() async {
     final projects = await ref.read(projectServiceProvider).getAll();
-    final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
+    final activeId = await ref
+        .read(projectServiceProvider)
+        .getActiveProjectId();
     final counts = <String, int>{};
     for (final p in projects) {
-      final requests = await ref.read(requestServiceProvider).listRequests(p.id);
+      final requests = await ref
+          .read(requestServiceProvider)
+          .listRequests(p.id);
       counts[p.id] = requests.length;
     }
     if (mounted) {
@@ -64,7 +66,9 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
   Future<void> _renameProject(Project project) async {
     final name = await _showNameDialog('rename', initial: project.name);
     if (name == null || name.trim().isEmpty) return;
-    await ref.read(projectServiceProvider).update(project.copyWith(name: name.trim()));
+    await ref
+        .read(projectServiceProvider)
+        .update(project.copyWith(name: name.trim()));
     await _load();
   }
 
@@ -101,27 +105,38 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
       elevation: 0,
       position: position,
       color: TColors.surface,
-      items: adapters.map((a) => PopupMenuItem<(String, String)>(
-        height: 36,
-        value: (a.id, a.name),
-        child: _menuItem(_iconFor(a.id), a.name),
-      )).toList(),
+      items: adapters
+          .map(
+            (a) => PopupMenuItem<(String, String)>(
+              height: 36,
+              value: (a.id, a.name),
+              child: _menuItem(_iconFor(a.id), a.name),
+            ),
+          )
+          .toList(),
     );
 
     if (selected == null || !mounted) return;
     await _doExport(project, selected.$1, selected.$2);
   }
 
-  Future<void> _doExport(Project project, String adapterId, String formatName) async {
+  Future<void> _doExport(
+    Project project,
+    String adapterId,
+    String formatName,
+  ) async {
     try {
-      final json = await ref.read(workspaceServiceProvider).exportProjectAs(project.id, adapterId);
+      final json = await ref
+          .read(workspaceServiceProvider)
+          .exportProjectAs(project.id, adapterId);
       final ext = _extFor(adapterId);
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'export as $formatName',
         fileName: '${project.name}$ext',
         bytes: utf8.encode(json),
       );
-      if (path != null && mounted) showTerminalToast(context, 'exported as $formatName');
+      if (path != null && mounted)
+        showTerminalToast(context, 'exported as $formatName');
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
     }
@@ -153,27 +168,30 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           ? utf8.decode(file.bytes!)
           : await File(file.path!).readAsString();
 
-      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
+      final preview = await ref
+          .read(workspaceServiceProvider)
+          .previewImport(json);
       if (preview == null) {
-        if (mounted) showTerminalToast(context, 'error: unsupported file format');
+        if (mounted)
+          showTerminalToast(context, 'error: unsupported file format');
         return;
       }
 
       if (!mounted) return;
       final importResult = await showDialog<ImportResult>(
         context: context,
-        builder: (_) => ImportPreviewDialog(
-          preview: preview,
-          projects: _projects,
-        ),
+        builder: (_) =>
+            ImportPreviewDialog(preview: preview, projects: _projects),
       );
       if (importResult == null || !mounted) return;
 
       final counts = importResult.projectId == null
-          ? await ref.read(workspaceServiceProvider).importProject(
-                json, customName: importResult.customName)
-          : await ref.read(workspaceServiceProvider).importIntoProject(
-                json, importResult.projectId!);
+          ? await ref
+                .read(workspaceServiceProvider)
+                .importProject(json, customName: importResult.customName)
+          : await ref
+                .read(workspaceServiceProvider)
+                .importIntoProject(json, importResult.projectId!);
       await _load();
       if (mounted) {
         showTerminalToast(
@@ -201,8 +219,8 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
               child: _loading
                   ? const Center(child: TerminalLoader())
                   : _projects.isEmpty
-                      ? _buildEmpty()
-                      : _buildList(),
+                  ? _buildEmpty()
+                  : _buildList(),
             ),
             Container(height: 1, color: TColors.border),
             _buildFooter(),
@@ -303,7 +321,8 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (project.description != null && project.description!.isNotEmpty)
+                  if (project.description != null &&
+                      project.description!.isNotEmpty)
                     Text(
                       project.description!,
                       style: TextStyle(
@@ -364,14 +383,34 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
           ),
           color: TColors.surface,
           items: [
-            PopupMenuItem(value: 0, height: 36, child: _menuItem(Icons.edit, 'rename')),
+            PopupMenuItem(
+              value: 0,
+              height: 36,
+              child: _menuItem(Icons.edit, 'rename'),
+            ),
             if (project.provider == null)
-              PopupMenuItem(value: 4, height: 36, child: _menuItem(Icons.cloud, 'connect to git')),
+              PopupMenuItem(
+                value: 4,
+                height: 36,
+                child: _menuItem(Icons.cloud, 'connect to git'),
+              ),
             if (project.provider != null)
-              PopupMenuItem(value: 3, height: 36, child: _menuItem(Icons.cloud_off, 'disconnect git')),
-            PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.download, 'export')),
+              PopupMenuItem(
+                value: 3,
+                height: 36,
+                child: _menuItem(Icons.cloud_off, 'disconnect git'),
+              ),
+            PopupMenuItem(
+              value: 1,
+              height: 36,
+              child: _menuItem(Icons.download, 'export'),
+            ),
             if (project.name != 'default')
-              PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
+              PopupMenuItem(
+                value: 2,
+                height: 36,
+                child: _menuItem(Icons.delete, 'delete'),
+              ),
           ],
         ).then((value) {
           if (value == 0) _renameProject(project);
@@ -397,7 +436,9 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
     );
     if (updated != null && mounted) {
       await ref.read(projectServiceProvider).update(updated);
-      final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
+      final activeId = await ref
+          .read(projectServiceProvider)
+          .getActiveProjectId();
       if (activeId == project.id) {
         ref.read(activeProjectProvider.notifier).set(updated);
       }
@@ -429,7 +470,9 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
     await ref.read(projectServiceProvider).update(finalProject);
 
     // If this is the active project, update the active project state too
-    final activeId = await ref.read(projectServiceProvider).getActiveProjectId();
+    final activeId = await ref
+        .read(projectServiceProvider)
+        .getActiveProjectId();
     if (activeId == project.id) {
       ref.read(activeProjectProvider.notifier).set(finalProject);
     }
@@ -461,9 +504,18 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
       padding: EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Row(
         children: [
-          TermButton(icon: Icons.add, label: 'new project', onTap: _createProject, accent: true),
+          TermButton(
+            icon: Icons.add,
+            label: 'new project',
+            onTap: _createProject,
+            accent: true,
+          ),
           Spacer(),
-          TermButton(icon: Icons.upload_file, label: 'import', onTap: _importProject),
+          TermButton(
+            icon: Icons.upload_file,
+            label: 'import',
+            onTap: _importProject,
+          ),
           SizedBox(width: 6),
           TermButton(icon: Icons.refresh, label: 'refresh', onTap: _load),
         ],
@@ -481,7 +533,11 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         backgroundColor: TColors.background,
         title: Text(
           action,
-          style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
         ),
         content: Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -490,10 +546,18 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             controller: controller,
             autofocus: true,
             cursorColor: TColors.green,
-            style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 13),
+            style: TextStyle(
+              color: TColors.foreground,
+              fontFamily: 'monospace',
+              fontSize: 13,
+            ),
             decoration: InputDecoration(
               hintText: 'name',
-              hintStyle: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 13),
+              hintStyle: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -505,11 +569,20 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text('ok', style: TextStyle(color: TColors.green, fontFamily: 'monospace')),
+            child: Text(
+              'ok',
+              style: TextStyle(color: TColors.green, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
@@ -523,20 +596,37 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
         backgroundColor: TColors.background,
         title: Text(
           title,
-          style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14),
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
         ),
         content: Text(
           message,
-          style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12),
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('cancel', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace')),
+            child: Text(
+              'cancel',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('delete', style: TextStyle(color: TColors.red, fontFamily: 'monospace')),
+            child: Text(
+              'delete',
+              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
