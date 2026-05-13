@@ -15,6 +15,8 @@ class ActionToolbar extends ConsumerWidget {
   final VoidCallback onExecute;
   final VoidCallback onNewCurl;
   final VoidCallback onImportCollection;
+  final VoidCallback? onBatchCurlImport;
+  final VoidCallback? onCookieJars;
   final void Function(String curl) onHistorySelect;
   final VoidCallback onHelp;
   final void Function(BuildContext) onNavigateAbout;
@@ -22,6 +24,7 @@ class ActionToolbar extends ConsumerWidget {
   final void Function(BuildContext) onNavigateSettings;
   final void Function(BuildContext) onNavigateHistory;
   final VoidCallback onNavigateExplore;
+  final void Function(BuildContext) onNavigateTrafficLog;
 
   const ActionToolbar({
     required this.curlText,
@@ -31,6 +34,8 @@ class ActionToolbar extends ConsumerWidget {
     required this.onExecute,
     required this.onNewCurl,
     required this.onImportCollection,
+    this.onBatchCurlImport,
+    this.onCookieJars,
     required this.onHistorySelect,
     required this.onHelp,
     required this.onNavigateAbout,
@@ -38,6 +43,7 @@ class ActionToolbar extends ConsumerWidget {
     required this.onNavigateSettings,
     required this.onNavigateHistory,
     required this.onNavigateExplore,
+    required this.onNavigateTrafficLog,
     super.key,
   });
 
@@ -72,6 +78,9 @@ class ActionToolbar extends ConsumerWidget {
             onHistory: () => onNavigateHistory(context),
             onExplore: onNavigateExplore,
             onImportCollection: onImportCollection,
+            onBatchCurlImport: onBatchCurlImport,
+            onCookieJars: onCookieJars,
+            onTrafficLog: () => onNavigateTrafficLog(context),
           ),
 
           const SizedBox(width: 8),

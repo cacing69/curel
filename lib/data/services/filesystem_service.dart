@@ -9,6 +9,7 @@ abstract class FileSystemService {
   Future<String> getProjectDir(String projectId);
   Future<String> getRequestsDir(String projectId);
   Future<String> getEnvironmentsDir(String projectId);
+  Future<String> getCookieJarDir(String projectId);
   Future<String> readFile(String path);
   Future<void> writeFile(String path, String content);
   Future<void> deleteFile(String path);
@@ -54,6 +55,12 @@ class LocalFileSystemService implements FileSystemService {
   Future<String> getEnvironmentsDir(String projectId) async {
     final projectDir = await getProjectDir(projectId);
     return p.join(projectDir, 'environments');
+  }
+
+  @override
+  Future<String> getCookieJarDir(String projectId) async {
+    final requestsDir = await getRequestsDir(projectId);
+    return p.join(requestsDir, '.cookiejar');
   }
 
   @override

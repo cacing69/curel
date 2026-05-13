@@ -60,26 +60,34 @@ Android, iOS, macOS, Windows, Linux, Web
 - [x] Postman Import (Postman v2.1 collection adapter)
 - [x] Collection Export (Postman/Insomnia/Hoppscotch/Curel Native export adapters)
 - [x] Insomnia Import (Insomnia v4 adapter)
-- [ ] OAuth Device Flow for GitHub (token-less auth)
-- [ ] **Bruno Import/Export** — adapter for `.bru` format (open-source local-first API client)
-- [ ] **VS Code REST Client Import** — adapter for `.http`/`.rest` files
+- [x] OAuth Device Flow for GitHub (token-less auth)
+- [x] **Bruno Import/Export** — adapter for `.bru` format (open-source local-first API client)
+- [x] **VS Code REST Client Import** — adapter for `.http`/`.rest` files
 - [x] **Code Snippet Generation** — 7 languages: cURL, Python, JS fetch, Go, Dart http, PHP, Java OkHttp
-- [ ] **Cookie Jar Management** — persistent cookie storage mimicking real curl `--cookie-jar`
+- [x] **Cookie Jar Management** — named cookie jars per project (`.cookiejar/` dir), Netscape format import, auto-inject `-b` flag, auto-capture `Set-Cookie`, RFC 6265 domain/path matching
+- [x] **Batch curl Import** — paste multiple curl commands at once, auto-split into separate `.curl` files (entry point feature for onboarding)
+- [ ] **Simple Response Assertions** — visual pass/fail assertions per request without scripting (status range, body contains, header exists, json path, response time)
+- [x] **Request Notes** — `.notes.md` sidecar file per request for developer documentation, git-diffable markdown
+- [x] **curl Config Support** — per-project `.curlrc` for default curl flags (headers, proxy, insecure, user-agent)
+- [ ] **Proxy Configuration** — `--proxy`, `--proxy-header`, `--noproxy` support for corporate networks and interception tools (Burp/Charles/mitmproxy)
+- [ ] **Folder-level Environment Override** — `.env.json` per folder extending layered env resolution (global → project → folder → subfolder)
+- [ ] **Network Throttle Presets** — simulate slow 3G / fast 3G / offline, visual presets in request builder (unique differentiator)
+- [x] **Duplicate Request with Env Switch** — clone request auto-bound to different environment target
 
 ### Phase 5: Response Comparison / Query / Scripting (ACTIVE)
 
-**Phase 5a — Response Comparison (Part 1 — Core Diff Engine)**
-- [ ] `ResponseDiffEngine` abstract class + `JsonDiffEngine` impl
-- [ ] `DiffEntry` model — path, valueA, valueB, DiffType enum (added/removed/changed/unchanged)
-- [ ] `DiffView` widget — inline card-based diff view, color-coded
-- [ ] Compare button in response viewer toolbar
-- [ ] CompareSourceDialog — URL input mode, fetch target, show diff
-- [ ] Field ignore / masking — auto-detect volatile fields (timestamp, uuid, etc.)
+**Phase 5a — Response Comparison (Part 1 — Core Diff Engine) ✅**
+- [x] `ResponseDiffEngine` abstract class + `JsonDiffEngine` impl
+- [x] `DiffEntry` model — path, valueA, valueB, DiffType enum (added/removed/changed/unchanged)
+- [x] `DiffView` widget — unified diff view (git-diff style), color-coded
+- [x] Compare button in response viewer toolbar (home + fullscreen)
+- [x] CompareSourceDialog — editable curl editor with syntax highlighting (CurlHighlightController), saved request loader with search filter, 80% dialog sizing
+- [x] Field ignore / masking — auto-detect volatile fields (timestamp, uuid, etc.)
+- [x] Terminal-style loading (no spinners)
 - Detail: `memory/response_compare.md`
 
 **Phase 5a — Part 2 (after Part 1)**
 - [ ] TextDiffEngine (Myers algorithm) for non-JSON
-- [ ] Saved request as comparison source
 - [ ] History entry as comparison source
 - [ ] Cross-env comparison
 - [ ] Persist comparison pair in `.meta.json`
@@ -128,11 +136,16 @@ Android, iOS, macOS, Windows, Linux, Web
       environments/
         development.json      # project env
       requests/
+        .curlrc                # project-level default curl flags
+        .cookiejar/            # named cookie jars
+          default.cookiejar.json
         login.curl            # curl commands
         login.meta.json       # request metadata
         login.query.json      # response query/transformation definitions
         login.baseline.json   # response baseline snapshot for diff comparison
+        login.notes.md        # developer notes per request
         auth/
+          .env.json            # folder-level env override
           login.curl          # subfolder support
 ```
 
@@ -147,5 +160,5 @@ Android, iOS, macOS, Windows, Linux, Web
 - 3-layer safety: optimistic lock → delete propagation → fast-forward check
 - Merge pull: local files preserved if different from remote
 
-**Why:** Phase 3 remaining: OAuth Device Flow, Bruno adapter, VS Code REST Client, cookie jar. HAR and SSL/TLS moved to Phase 5c. Phase 5a (response query + response comparison) is next priority after Phase 3 — extract/transform JSON responses with jq-like syntax, stored as `.query.json` sidecar files, plus compare responses across URLs with mobile-friendly diff. Both enhance the response viewer. Bridges to Phase 5b scripting.
-**How to apply:** Query engine must be separate abstract class for reuse in scripting. Diff engine must be pure Dart, testable, with DiffView widget reusable for git file diffs later. `.query.json` follows existing sidecar pattern (`.curl` + `.meta.json`). Env integration reuses `<<VAR>>` system. For new Phase 3 items: each new format adapter follows `CollectionAdapter` interface in `adapter_registry.dart`; code snippet generators implement `SnippetGenerator` abstract class at `lib/domain/snippets/` and register in `SnippetRegistry`; cookie jar stored as filesystem sidecar per project.
+**Why:** Phase 3 nearly complete — remaining: Simple Response Assertions, Proxy Configuration, Folder-level Environment Override, Network Throttle Presets. Bruno, VS Code REST Client, cookie jar, batch curl, notes, curlrc all done. Phase 5a Part 1 (response comparison core engine) completed. Part 2 next — extended sources (history, cross-env), baseline snapshot, non-JSON handling, filter chips, auto-compare on env switch.
+**How to apply:** Query engine must be separate abstract class for reuse in scripting. Diff engine must be pure Dart, testable, with DiffView widget reusable for git file diffs later. `.query.json` follows existing sidecar pattern (`.curl` + `.meta.json`). Env integration reuses `<<VAR>>` system. For new Phase 3 items: each new format adapter follows `CollectionAdapter` interface in `adapter_registry.dart`; code snippet generators implement `SnippetGenerator` abstract class at `lib/domain/snippets/` and register in `SnippetRegistry`; cookie jar stored as `.cookiejar/` dir per project.

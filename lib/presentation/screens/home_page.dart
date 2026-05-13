@@ -7,6 +7,7 @@ import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/presentation/widgets/import_preview_dialog.dart';
 import 'package:curel/presentation/screens/project_list_page.dart';
 import 'package:curel/presentation/widgets/action_toolbar.dart';
+import 'package:curel/presentation/widgets/cookie_jar_dialog.dart';
 import 'package:curel/presentation/widgets/curl_highlight_controller.dart';
 import 'package:curel/presentation/widgets/curl_input_field.dart';
 import 'package:curel/presentation/widgets/editor_dashboard.dart';
@@ -26,10 +27,12 @@ import 'package:curel/presentation/screens/workspace_explorer_page.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/help_sheet.dart';
+import 'package:curel/presentation/widgets/response_toolbar.dart';
 import 'package:curel/presentation/widgets/response_viewer.dart';
 import 'package:curel/presentation/widgets/save_sample_dialog.dart';
 import 'package:curel/presentation/widgets/snippet_dialog.dart';
 import 'package:curel/presentation/screens/settings_page.dart';
+import 'package:curel/presentation/screens/traffic_log_page.dart';
 import 'package:curel/presentation/screens/home/logic/home_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -392,48 +395,312 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Future<void> _importCollection() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.first;
-      final json = file.bytes != null
-          ? utf8.decode(file.bytes!)
-          : await File(file.path!).readAsString();
-
-      final preview = await ref.read(workspaceServiceProvider).previewImport(json);
-      if (preview == null) {
-        if (mounted) showTerminalToast(context, 'error: unsupported file format');
-        return;
-      }
-
-      if (!mounted) return;
-      final importResult = await showDialog<ImportResult>(
+      // Show choice: file or folder
+      final source = await showDialog<String>(
         context: context,
-        builder: (_) => ImportPreviewDialog(preview: preview),
+        builder: (ctx) => AlertDialog(
+          backgroundColor: TColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          title: Text('import', style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 14, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _importSourceButton(ctx, 'file', Icons.insert_drive_file, 'import file', 'postman, insomnia, hoppscotch, .bru, .http, .rest'),
+              SizedBox(height: 8),
+              _importSourceButton(ctx, 'folder', Icons.folder, 'import folder', 'bruno collection — scans all .bru files'),
+            ],
+          ),
+        ),
       );
-      if (importResult == null || !mounted) return;
+      if (source == null || !mounted) return;
 
-      final counts = importResult.projectId == null
-          ? await ref.read(workspaceServiceProvider).importProject(
-                json, customName: importResult.customName)
-          : await ref.read(workspaceServiceProvider).importIntoProject(
-                json, importResult.projectId!);
-      if (mounted) {
-        showTerminalToast(
-          context,
-          'imported ${counts.requests} requests, ${counts.envs} envs',
-        );
+      if (source == 'folder') {
+        await _importFolder();
+      } else {
+        await _importFile();
       }
     } catch (e) {
       if (mounted) {
-        showTerminalToast(
-          context,
-          'error: ${e.toString().replaceFirst('Exception: ', '')}',
-        );
+        showTerminalToast(context, 'error: ${e.toString().replaceFirst('Exception: ', '')}');
       }
     }
+  }
+
+  Widget _importSourceButton(BuildContext ctx, String value, IconData icon, String title, String subtitle) {
+    return GestureDetector(
+      onTap: () => Navigator.pop(ctx, value),
+      child: Container(
+        padding: EdgeInsets.all(10),
+        decoration: BoxDecoration(border: Border.all(color: TColors.border)),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: TColors.cyan),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: TColors.foreground, fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text(subtitle, style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 10)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 14, color: TColors.mutedText),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      dialogTitle: 'select collection file (.json, .bru, .http, .rest)',
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    final content = file.bytes != null
+        ? utf8.decode(file.bytes!)
+        : await File(file.path!).readAsString();
+
+    await _doImport(content);
+  }
+
+  Future<void> _importFolder() async {
+    final dirPath = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'select bruno collection folder',
+    );
+    if (dirPath == null || !mounted) return;
+
+    final dir = Directory(dirPath);
+    final bruFiles = <File>[];
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.bru')) {
+        bruFiles.add(entity);
+      }
+    }
+
+    if (bruFiles.isEmpty) {
+      if (mounted) showTerminalToast(context, 'no .bru files found in folder');
+      return;
+    }
+
+    // Read all .bru files and import each one
+    final collectionName = dirPath.split(Platform.pathSeparator).last;
+    int totalRequests = 0;
+    int totalEnvs = 0;
+    int errors = 0;
+
+    for (final bruFile in bruFiles) {
+      try {
+        final content = await bruFile.readAsString();
+        if (content.trim().isEmpty) continue;
+
+        final preview = await ref.read(workspaceServiceProvider).previewImport(content);
+        if (preview == null) continue;
+
+        final counts = await ref.read(workspaceServiceProvider).importIntoCollection(
+              content,
+              collectionName,
+              subfolder: _bruSubfolder(dirPath, bruFile.path),
+            );
+        totalRequests += counts.requests;
+        totalEnvs += counts.envs;
+      } catch (_) {
+        errors++;
+      }
+    }
+
+    if (mounted) {
+      _loadActiveProject();
+      showTerminalToast(context, 'imported $totalRequests requests, $totalEnvs envs${errors > 0 ? " ($errors skipped)" : ""}');
+    }
+  }
+
+  String _bruSubfolder(String rootPath, String filePath) {
+    final relative = filePath.substring(rootPath.length + 1);
+    final parts = relative.split(Platform.pathSeparator);
+    // Remove filename, keep only directory path
+    if (parts.length <= 1) return '';
+    return parts.sublist(0, parts.length - 1).join('/');
+  }
+
+  Future<void> _doImport(String content) async {
+    final preview = await ref.read(workspaceServiceProvider).previewImport(content);
+    if (preview == null) {
+      if (mounted) showTerminalToast(context, 'error: unsupported file format');
+      return;
+    }
+
+    if (!mounted) return;
+    final importResult = await showDialog<ImportResult>(
+      context: context,
+      builder: (_) => ImportPreviewDialog(preview: preview),
+    );
+    if (importResult == null || !mounted) return;
+
+    final counts = importResult.projectId == null
+        ? await ref.read(workspaceServiceProvider).importProject(
+              content, customName: importResult.customName)
+        : await ref.read(workspaceServiceProvider).importIntoProject(
+              content, importResult.projectId!);
+    if (mounted) {
+      showTerminalToast(context, 'imported ${counts.requests} requests, ${counts.envs} envs');
+    }
+  }
+
+  Future<void> _batchCurlImport() async {
+    final currentProject = ref.read(activeProjectProvider);
+    if (currentProject == null) return;
+
+    final controller = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Row(
+          children: [
+            Icon(Icons.content_paste, size: 14, color: TColors.cyan),
+            SizedBox(width: 8),
+            Text('batch curl import',
+                style: TextStyle(
+                    color: TColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 14)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('paste multiple curl commands below. each command starting with "curl" will become a separate request.',
+                  style: TextStyle(
+                      color: TColors.mutedText,
+                      fontFamily: 'monospace',
+                      fontSize: 11)),
+              SizedBox(height: 8),
+              Container(
+                constraints: BoxConstraints(maxHeight: 400),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                color: TColors.surface,
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  cursorColor: TColors.green,
+                  maxLines: null,
+                  style: TextStyle(
+                      color: TColors.foreground,
+                      fontFamily: 'monospace',
+                      fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: 'curl https://api.example.com/users\ncurl -X POST https://api.example.com/login ...',
+                    hintStyle: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 12),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('cancel',
+                style: TextStyle(
+                    color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('import',
+                style:
+                    TextStyle(color: TColors.green, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true || !mounted) return;
+
+    final text = controller.text.trim();
+    if (text.isEmpty) return;
+
+    final commands = _splitCurlCommands(text);
+    if (commands.isEmpty) {
+      showTerminalToast(context, 'no curl commands found');
+      return;
+    }
+
+    final service = ref.read(requestServiceProvider);
+    var created = 0;
+    for (final cmd in commands) {
+      try {
+        final name = _inferNameFromCurl(cmd);
+        await service.createRequest(currentProject.id, name, cmd);
+        created++;
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      showTerminalToast(context, 'imported $created requests');
+      _loadActiveProject();
+    }
+  }
+
+  void _openCookieJars() {
+    final project = ref.read(activeProjectProvider);
+    if (project == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => CookieJarDialog(projectId: project.id),
+    );
+  }
+
+  List<String> _splitCurlCommands(String text) {
+    final lines = text.split('\n');
+    final commands = <String>[];
+    final buf = StringBuffer();
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+
+      if (trimmed.startsWith('curl ') && buf.isNotEmpty) {
+        commands.add(buf.toString().trim());
+        buf.clear();
+      }
+      // join backslash-continued lines
+      if (trimmed.endsWith('\\')) {
+        buf.writeln(trimmed.substring(0, trimmed.length - 1));
+      } else {
+        buf.writeln(trimmed);
+      }
+    }
+    if (buf.isNotEmpty) {
+      commands.add(buf.toString().trim());
+    }
+
+    return commands.where((c) => c.startsWith('curl ')).toList();
+  }
+
+  String _inferNameFromCurl(String cmd) {
+    // extract path from URL for naming
+    final urlMatch = RegExp(r'(?:https?://[^/\s]+)(/[^\s]*)?').firstMatch(cmd);
+    if (urlMatch != null) {
+      final path = urlMatch.group(1) ?? '/';
+      final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+      if (segments.isNotEmpty) {
+        return segments.last.replaceAll(RegExp(r'[^\w]'), '-');
+      }
+    }
+    return 'request';
   }
 
   void _newCurl() {
@@ -1227,6 +1494,8 @@ class _HomePageState extends ConsumerState<HomePage>
       onExecute: executeCurl,
       onNewCurl: _newCurl,
       onImportCollection: _importCollection,
+      onBatchCurlImport: _batchCurlImport,
+      onCookieJars: _openCookieJars,
       onHistorySelect: (curl) {
         setState(() => curlController.text = curl);
         ref
@@ -1274,7 +1543,10 @@ class _HomePageState extends ConsumerState<HomePage>
         ),
       ),
       onNavigateExplore: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => WorkspaceExplorerPage()),
+        MaterialPageRoute(builder: (_) => const WorkspaceExplorerPage()),
+      ),
+      onNavigateTrafficLog: (ctx) => Navigator.of(ctx).push(
+        MaterialPageRoute(builder: (_) => const TrafficLogPage()),
       ),
     );
   }
@@ -1293,6 +1565,11 @@ class _HomePageState extends ConsumerState<HomePage>
           baseCurlText: curlController.text,
           projectId: ref.read(activeProjectProvider)?.id,
           requestService: ref.read(requestServiceProvider),
+          onSaveResponse: _saveResponse,
+          onSaveSample: () => _saveSample(),
+          onViewSnippet: () => _viewSnippet(),
+          onCompare: () => _compareResponse(context),
+          onCopyActivePreview: _copyActivePreview,
         );
       },
       onViewSnippet: () => _viewSnippet(),

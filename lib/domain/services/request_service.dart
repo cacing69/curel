@@ -28,6 +28,9 @@ abstract class RequestService {
   );
   Future<bool> requestExists(String projectId, String name);
   String resolvePath(String name);
+  Future<String?> readNotes(String projectId, String relativePath);
+  Future<void> writeNotes(String projectId, String relativePath, String content);
+  Future<String?> readCurlrc(String projectId);
 }
 
 class FilesystemRequestService implements RequestService {
@@ -137,11 +140,12 @@ class FilesystemRequestService implements RequestService {
   Future<void> deleteRequest(String projectId, String relativePath) async {
     final requestsDir = await _fs.getRequestsDir(projectId);
     final curlPath = p.join(requestsDir, relativePath);
-    final metaPath = _metaPathFor(requestsDir, relativePath);
 
     await _fs.deleteFile(curlPath);
-    if (await _fs.exists(metaPath)) {
-      await _fs.deleteFile(metaPath);
+    for (final sidecar in _sidecarPathsFor(requestsDir, relativePath)) {
+      if (await _fs.exists(sidecar)) {
+        await _fs.deleteFile(sidecar);
+      }
     }
   }
 
@@ -149,6 +153,7 @@ class FilesystemRequestService implements RequestService {
   Future<String> duplicateRequest(String projectId, String relativePath, {String? newName}) async {
     final content = await readCurl(projectId, relativePath);
     if (content == null) throw Exception('source request not found');
+    final requestsDir = await _fs.getRequestsDir(projectId);
     final posix = relativePath.replaceAll('\\', '/');
     final slash = posix.lastIndexOf('/');
     final folder = slash >= 0 ? posix.substring(0, slash + 1) : '';
@@ -157,10 +162,15 @@ class FilesystemRequestService implements RequestService {
       newName != null ? '$folder$newName' : _autoDuplicateName(relativePath),
       content,
     );
-    try {
-      final meta = await readMeta(projectId, relativePath);
-      await updateMeta(projectId, newPath, meta);
-    } catch (_) {}
+    for (final sidecar in _sidecarPathsFor(requestsDir, relativePath)) {
+      if (await _fs.exists(sidecar)) {
+        final newBase = p.withoutExtension(newPath);
+        final ext = p.extension(sidecar);
+        final newSidecar = p.join(requestsDir, '$newBase$ext');
+        final sidecarContent = await _fs.readFile(sidecar);
+        await _fs.writeFile(newSidecar, sidecarContent);
+      }
+    }
     return newPath;
   }
 
@@ -181,19 +191,22 @@ class FilesystemRequestService implements RequestService {
   ) async {
     final requestsDir = await _fs.getRequestsDir(projectId);
     final oldCurlPath = p.join(requestsDir, oldRelativePath);
-    final oldMetaPath = _metaPathFor(requestsDir, oldRelativePath);
     final newRelativePath = '${_sanitizeName(newName)}.curl';
     final newCurlPath = p.join(requestsDir, newRelativePath);
-    final newMetaPath = _metaPathFor(requestsDir, newRelativePath);
 
     final content = await _fs.readFile(oldCurlPath);
     await _fs.writeFile(newCurlPath, content);
     await _fs.deleteFile(oldCurlPath);
 
-    if (await _fs.exists(oldMetaPath)) {
-      final metaContent = await _fs.readFile(oldMetaPath);
-      await _fs.writeFile(newMetaPath, metaContent);
-      await _fs.deleteFile(oldMetaPath);
+    for (final oldSidecar in _sidecarPathsFor(requestsDir, oldRelativePath)) {
+      if (await _fs.exists(oldSidecar)) {
+        final newBase = p.withoutExtension(newRelativePath);
+        final ext = p.extension(oldSidecar);
+        final newSidecar = p.join(requestsDir, '$newBase$ext');
+        final sidecarContent = await _fs.readFile(oldSidecar);
+        await _fs.writeFile(newSidecar, sidecarContent);
+        await _fs.deleteFile(oldSidecar);
+      }
     }
   }
 
@@ -222,6 +235,14 @@ class FilesystemRequestService implements RequestService {
     return p.join(requestsDir, '$basePath.meta.json');
   }
 
+  List<String> _sidecarPathsFor(String requestsDir, String curlRelativePath) {
+    final basePath = p.withoutExtension(curlRelativePath);
+    return [
+      p.join(requestsDir, '$basePath.meta.json'),
+      p.join(requestsDir, '$basePath.notes.md'),
+    ];
+  }
+
   String _sanitizeName(String name) {
     return name
         .trim()
@@ -245,4 +266,29 @@ class FilesystemRequestService implements RequestService {
 
   @override
   String resolvePath(String name) => '${_sanitizePath(name)}.curl';
+
+  @override
+  Future<String?> readNotes(String projectId, String relativePath) async {
+    final requestsDir = await _fs.getRequestsDir(projectId);
+    final basePath = p.withoutExtension(relativePath);
+    final notesPath = p.join(requestsDir, '$basePath.notes.md');
+    if (!await _fs.exists(notesPath)) return null;
+    return _fs.readFile(notesPath);
+  }
+
+  @override
+  Future<void> writeNotes(String projectId, String relativePath, String content) async {
+    final requestsDir = await _fs.getRequestsDir(projectId);
+    final basePath = p.withoutExtension(relativePath);
+    final notesPath = p.join(requestsDir, '$basePath.notes.md');
+    await _fs.writeFile(notesPath, content);
+  }
+
+  @override
+  Future<String?> readCurlrc(String projectId) async {
+    final requestsDir = await _fs.getRequestsDir(projectId);
+    final curlrcPath = p.join(requestsDir, '.curlrc');
+    if (!await _fs.exists(curlrcPath)) return null;
+    return _fs.readFile(curlrcPath);
+  }
 }

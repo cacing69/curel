@@ -57,6 +57,13 @@ class FilesystemProjectService implements ProjectService {
 
   @override
   Future<Project> create(String name, {String? description}) async {
+    // Prevent duplicate "default" project
+    if (name == _defaultProjectName) {
+      final all = await getAll();
+      final existing = all.where((p) => p.name == _defaultProjectName).firstOrNull;
+      if (existing != null) return existing;
+    }
+
     final project = Project(
       id: const Uuid().v4(),
       name: name,
@@ -102,15 +109,16 @@ class FilesystemProjectService implements ProjectService {
     final all = await getAll();
     final project = all.where((p) => p.id == id).firstOrNull;
 
-    if (project != null) {
-      all.removeWhere((p) => p.id == id);
-      await _saveAll(all);
-      await _fs.deleteProjectDir(id);
+    if (project == null) return;
+    if (project.name == _defaultProjectName) return;
 
-      final prefs = await _instance;
-      if (prefs.getString(_keyActiveProject) == id) {
-        await prefs.remove(_keyActiveProject);
-      }
+    all.removeWhere((p) => p.id == id);
+    await _saveAll(all);
+    await _fs.deleteProjectDir(id);
+
+    final prefs = await _instance;
+    if (prefs.getString(_keyActiveProject) == id) {
+      await prefs.remove(_keyActiveProject);
     }
   }
 
@@ -153,11 +161,23 @@ class FilesystemProjectService implements ProjectService {
   @override
   Future<Project> ensureDefaultProject() async {
     final all = await getAll();
-    final existing = all.where((p) => p.name == _defaultProjectName).firstOrNull;
-    if (existing != null) {
+    final defaults = all.where((p) => p.name == _defaultProjectName).toList();
+    if (defaults.isNotEmpty) {
+      // Deduplicate: keep first, delete rest (legacy cleanup)
+      final keep = defaults.first;
+      for (final dup in defaults.skip(1)) {
+        await _fs.deleteProjectDir(dup.id);
+      }
+      if (defaults.length > 1) {
+        final cleaned = all
+            .where((p) => p.name != _defaultProjectName || p.id == keep.id)
+            .toList();
+        await _saveAll(cleaned);
+      }
+
       final activeId = await getActiveProjectId();
-      if (activeId == null) await setActiveProject(existing.id);
-      return existing;
+      if (activeId == null) await setActiveProject(keep.id);
+      return keep;
     }
 
     final project = await create(_defaultProjectName);

@@ -3,11 +3,7 @@ import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 class CrashLogService {
-  late Future<Isar> _db;
-
-  CrashLogService() {
-    _db = _init();
-  }
+  late final Future<Isar> _db = _init();
 
   Future<Isar> _init() async {
     final dir = await getApplicationSupportDirectory();

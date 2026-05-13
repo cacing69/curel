@@ -1,5 +1,6 @@
 import 'package:curel/domain/services/diff_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:flutter/material.dart';
 
@@ -100,60 +101,72 @@ class _ConflictDialogState extends State<ConflictDialog> {
 
   Widget _buildSidebar() {
     return SizedBox(
-      width: 180,
+      width: 130,
       child: Container(
         decoration: BoxDecoration(
           border: Border(right: BorderSide(color: TColors.border)),
         ),
-        child: ListView.builder(
-          itemCount: widget.changes.length,
-          itemBuilder: (context, index) {
-            final change = widget.changes[index];
-            final isSelected = _selectedIndex == index;
-            final resolution = _resolutions[change.path] ?? 'local';
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Row(
+                children: [
+                  _actionChip('all L', TColors.cyan, () => _setAll('local')),
+                  const SizedBox(width: 4),
+                  _actionChip('all R', TColors.green, () => _setAll('remote')),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: TColors.border),
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.changes.length,
+                itemBuilder: (context, index) {
+                  final change = widget.changes[index];
+                  final isSelected = _selectedIndex == index;
+                  final resolution = _resolutions[change.path] ?? 'local';
 
-            return InkWell(
-              onTap: () => setState(() => _selectedIndex = index),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                color: isSelected ? TColors.surface : Colors.transparent,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _changeIcon(change.type),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
+                  return InkWell(
+                    onTap: () => setState(() => _selectedIndex = index),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      color: isSelected ? TColors.surface : Colors.transparent,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
                             change.path,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: isSelected ? TColors.foreground : TColors.comment,
                               fontFamily: 'monospace',
-                              fontSize: 10,
+                              fontSize: 9,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              _changeIcon(change.type),
+                              const SizedBox(width: 4),
+                              _resolutionChip('L', resolution == 'local', () {
+                                setState(() => _resolutions[change.path] = 'local');
+                              }),
+                              const SizedBox(width: 3),
+                              _resolutionChip('R', resolution == 'remote', () {
+                                setState(() => _resolutions[change.path] = 'remote');
+                              }),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _resolutionChip('L', resolution == 'local', () {
-                          setState(() => _resolutions[change.path] = 'local');
-                        }),
-                        const SizedBox(width: 4),
-                        _resolutionChip('R', resolution == 'remote', () {
-                          setState(() => _resolutions[change.path] = 'remote');
-                        }),
-                      ],
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -182,6 +195,27 @@ class _ConflictDialogState extends State<ConflictDialog> {
             color: active
                 ? (label == 'L' ? TColors.cyan : TColors.green)
                 : TColors.comment,
+            fontFamily: 'monospace',
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionChip(String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          border: Border.all(color: color),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
             fontFamily: 'monospace',
             fontSize: 9,
             fontWeight: FontWeight.bold,
@@ -244,14 +278,6 @@ class _ConflictDialogState extends State<ConflictDialog> {
       }
     }
 
-    // Pad to same length for side-by-side scrolling
-    while (leftLines.length < rightLines.length) {
-      leftLines.add(_DiffLine('', DiffType.padding));
-    }
-    while (rightLines.length < leftLines.length) {
-      rightLines.add(_DiffLine('', DiffType.padding));
-    }
-
     return _buildTwoPanes(
       left: _buildDiffPane('local', leftLines),
       right: _buildDiffPane('remote', rightLines),
@@ -261,56 +287,30 @@ class _ConflictDialogState extends State<ConflictDialog> {
   Widget _buildTwoPanes({required Widget left, required Widget right}) {
     return Column(
       children: [
-        // Column headers
-        Container(
-          height: 24,
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: TColors.border)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  alignment: Alignment.center,
-                  child: Text(
-                    'local',
-                    style: TextStyle(
-                      color: TColors.cyan,
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              Container(width: 1, color: TColors.border),
-              Expanded(
-                child: Container(
-                  alignment: Alignment.center,
-                  child: Text(
-                    'remote',
-                    style: TextStyle(
-                      color: TColors.green,
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: left),
-              Container(width: 1, color: TColors.border),
-              Expanded(child: right),
-            ],
-          ),
-        ),
+        _paneHeader('local', TColors.cyan),
+        Expanded(child: left),
+        Divider(height: 1, color: TColors.border),
+        _paneHeader('remote', TColors.green),
+        Expanded(child: right),
       ],
+    );
+  }
+
+  Widget _paneHeader(String label, Color color) {
+    return Container(
+      height: 20,
+      color: TColors.surface,
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontFamily: 'monospace',
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -335,8 +335,6 @@ class _ConflictDialogState extends State<ConflictDialog> {
             prefix = '+';
           case DiffType.equal:
             fg = TColors.comment;
-          case DiffType.padding:
-            fg = Colors.transparent;
         }
 
         return Container(
@@ -359,6 +357,8 @@ class _ConflictDialogState extends State<ConflictDialog> {
               Expanded(
                 child: Text(
                   line.text,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: fg,
                     fontFamily: 'monospace',
@@ -412,57 +412,31 @@ class _ConflictDialogState extends State<ConflictDialog> {
       padding: EdgeInsets.all(12),
       color: TColors.surface,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          _footerButton('use local for all', TColors.cyan, () => _setAll('local')),
-          const SizedBox(width: 8),
-          _footerButton('use remote for all', TColors.green, () => _setAll('remote')),
-          const Spacer(),
-          _footerButton('cancel', TColors.comment, () => Navigator.pop(context)),
+          TermButton(
+            label: 'cancel',
+            onTap: () => Navigator.pop(context),
+            color: TColors.comment,
+            bordered: true,
+          ),
           const SizedBox(width: 12),
-          _footerButton(
-            'resolve $_resolvedCount files',
-            TColors.green,
-            _resolvedCount == 0
-                ? () {}
+          TermButton(
+            label: 'resolve $_resolvedCount files',
+            onTap: _resolvedCount == 0
+                ? null
                 : () => Navigator.pop(context, _resolutions),
+            color: TColors.green,
             icon: Icons.check,
+            bordered: true,
           ),
         ],
       ),
     );
   }
-
-  Widget _footerButton(String label, Color color, VoidCallback onTap, {IconData? icon}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 28,
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(border: Border.all(color: color)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontFamily: 'monospace',
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
-enum DiffType { equal, added, removed, padding }
+enum DiffType { equal, added, removed }
 
 class _DiffLine {
   final String text;

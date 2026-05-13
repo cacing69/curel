@@ -330,6 +330,17 @@ ParsedCurl parseCurl(String input) {
     'connect-timeout',
     'trace',
     'trace-ascii',
+    'cert',
+    'key',
+    'cacert',
+    'proxy',
+    'proxy-header',
+    'noproxy',
+    'interface',
+    'dns-servers',
+    'resolve',
+    'connect-to',
+    'cipher',
   };
 
   final cleanedTokens = <String>[];
@@ -401,8 +412,11 @@ ParsedCurl parseCurl(String input) {
 
   final cleaned = _ensureScheme(cleanedTokens).join(' ');
 
+  // Protect values that look like URLs but aren't (e.g. --pinnedpubkey "sha256//...")
+  final (safe, _) = _protectNonUrlValues(cleaned);
+
   try {
-    final curl = Curl.parse(cleaned);
+    final curl = Curl.parse(safe);
     return ParsedCurl(
       curl: _curlWithHeaders(curl, rawHeaders),
       outputFileName: outputFile,
@@ -417,7 +431,7 @@ ParsedCurl parseCurl(String input) {
       httpVersion: httpVersion,
     );
   } on FormatException {
-    final curl = Curl.parse(_stripAllUnknownFlags(cleaned));
+    final curl = Curl.parse(_stripAllUnknownFlags(safe));
     return ParsedCurl(
       curl: _curlWithHeaders(curl, rawHeaders),
       outputFileName: outputFile,
@@ -432,6 +446,31 @@ ParsedCurl parseCurl(String input) {
       httpVersion: httpVersion,
     );
   }
+}
+
+/// Replace non-HTTP values that look like URLs (e.g. pinnedpubkey sha256//...)
+/// with safe placeholders so curl_parser doesn't crash. Returns (safe, originalValues).
+(String, Map<String, String>) _protectNonUrlValues(String input) {
+  final restored = <String, String>{};
+  final buf = StringBuffer();
+  final tokens = _tokenize(input);
+  var index = 0;
+
+  for (final tok in tokens) {
+    final unquoted = _unquote(tok);
+    if (unquoted.contains('://') &&
+        !unquoted.startsWith('http://') &&
+        !unquoted.startsWith('https://')) {
+      final key = '__CUREL_VAL_${index++}__';
+      restored[key] = tok;
+      buf.write(' "$key"');
+    } else {
+      buf.write(tok);
+    }
+    buf.write(' ');
+  }
+
+  return (buf.toString().trimRight(), restored);
 }
 
 Curl _curlWithHeaders(Curl curl, Map<String, String> headers) {
@@ -491,6 +530,17 @@ String _stripAllUnknownFlags(String input) {
     'referer',
     'user-agent',
     'form',
+    'pinnedpubkey',
+    'cert',
+    'key',
+    'cacert',
+    'proxy',
+    'proxy-header',
+    'noproxy',
+    'resolve',
+    'connect-to',
+    'interface',
+    'dns-servers',
   };
 
   final tokens = _tokenize(input);

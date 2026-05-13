@@ -16,6 +16,8 @@ import 'package:curel/domain/services/git_sync_service.dart';
 import 'package:curel/domain/services/device_service.dart';
 import 'package:curel/domain/services/diff_service.dart';
 import 'package:curel/domain/services/crash_log_service.dart';
+import 'package:curel/domain/services/cookie_jar_service.dart';
+import 'package:curel/domain/services/traffic_capture_service.dart';
 import 'package:curel/domain/services/sample_service.dart';
 import 'package:curel/domain/adapters/adapter_registry.dart';
 
@@ -97,5 +99,13 @@ final diffServiceProvider = Provider<DiffService>(
 
 final crashLogServiceProvider = Provider<CrashLogService>(
   (ref) => CrashLogService(),
+);
+
+final cookieJarServiceProvider = Provider<CookieJarService>(
+  (ref) => FilesystemCookieJarService(ref.read(fileSystemProvider)),
+);
+
+final trafficCaptureServiceProvider = Provider<TrafficCaptureService>(
+  (ref) => TrafficCaptureService(),
 );
 

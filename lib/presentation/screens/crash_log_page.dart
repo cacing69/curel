@@ -25,10 +25,15 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
   }
 
   Future<void> _load() async {
-    final logs = await ref
-        .read(crashLogServiceProvider)
-        .getAll(severity: _filterSeverity);
-    if (mounted) setState(() { _logs = logs; _loading = false; });
+    try {
+      final logs = await ref
+          .read(crashLogServiceProvider)
+          .getAll(severity: _filterSeverity)
+          .timeout(const Duration(seconds: 5));
+      if (mounted) setState(() { _logs = logs; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override

@@ -370,7 +370,8 @@ class _ProjectListPageState extends ConsumerState<ProjectListPage> {
             if (project.provider != null)
               PopupMenuItem(value: 3, height: 36, child: _menuItem(Icons.cloud_off, 'disconnect git')),
             PopupMenuItem(value: 1, height: 36, child: _menuItem(Icons.download, 'export')),
-            PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
+            if (project.name != 'default')
+              PopupMenuItem(value: 2, height: 36, child: _menuItem(Icons.delete, 'delete')),
           ],
         ).then((value) {
           if (value == 0) _renameProject(project);

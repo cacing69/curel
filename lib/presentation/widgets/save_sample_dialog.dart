@@ -2,6 +2,7 @@ import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/sample_model.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -164,56 +165,28 @@ class _SaveSampleDialogState extends ConsumerState<SaveSampleDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      GestureDetector(
+                      TermButton(
+                        label: 'cancel',
                         onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          height: 28,
-                          padding: EdgeInsets.symmetric(horizontal: 14),
-                          color: TColors.surface,
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              'cancel',
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 12,
-                                color: TColors.mutedText,
-                              ),
-                            ),
-                          ),
-                        ),
+                        color: TColors.comment,
+                        bordered: true,
                       ),
                       SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _saving ? null : _save,
-                        child: Container(
-                          height: 28,
-                          padding: EdgeInsets.symmetric(horizontal: 14),
-                          color: _saving
-                              ? TColors.surface
-                              : TColors.green.withValues(alpha: 0.15),
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: _saving
-                                ? SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: TColors.mutedText,
-                                    ),
-                                  )
-                                : Text(
-                                    'save',
-                                    style: TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 12,
-                                      color: TColors.green,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
+                      _saving
+                          ? SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: TColors.mutedText,
+                              ),
+                            )
+                          : TermButton(
+                              label: 'save',
+                              onTap: _save,
+                              color: TColors.green,
+                              bordered: true,
+                            ),
                     ],
                   ),
                 ],

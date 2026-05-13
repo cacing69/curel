@@ -46,38 +46,77 @@ Android, iOS, macOS, Windows, Linux, Web
 
 ### Phase 3: Maturity & Pluginable Growth (Ongoing)
 
+- [x] **Dialog Control Bar Refactor** — Unified all dialog action buttons to use `TermButton` with `bordered` variant (compare/sync/conflict/import/save dialogs). Removed local `_ActionButton`, `_footerButton`, `_btn` definitions. Added `bordered` and `color` parameters to `TermButton`. Conflict dialog: fixed layout crash (Spacer inside horizontal scroll), redesigned to vertical preview (local top/remote bottom), moved bulk actions to sidebar header, reduced sidebar width 180→130.
+
 - [x] **Pluginable Collection Engine** (Adapter Pattern)
 - [x] **Curel Data Convention** (ImportedCollection)
 - [x] **Internal Adapters** (Curel Native implemented)
 - [x] **Smarter sync** (Incremental diff with `diff_match_patch`)
-- [x] **Diff Viewer UI** (Visual line-by-line comparison)
-- [x] **Conflict UI & Partial Sync** (Selective file sync)
+- [x] **Diff Viewer UI** (Visual line-by-line comparison) — Checkbox size reduced (24→16px) with `Transform.scale(0.7)`, `shrinkWrap`, `VisualDensity.compact` for compact file list sidebar.
+- [x] **Conflict UI & Partial Sync** (Selective file sync) — Vertical stacked preview (local top/remote bottom), sidebar reduced 180→130px, `[all L]`/`[all R]` bulk chips in sidebar header, footer simplified to cancel+resolve, fixed `Spacer`+horizontal scroll crash.
 - [x] **Branch Management** (Git branch switching)
 - [x] **Environment Protection** (Sensitive variables masking)
 - [x] **Postman Import** (Postman v2.1 collection adapter)
 - [x] **Collection Export** (Postman/Insomnia/Hoppscotch/Curel Native export adapters)
 - [x] **Insomnia Import** (Insomnia v4 adapter)
 - [x] **OAuth Device Flow for GitHub** (token-less auth via device flow) — requires registered OAuth App client_id
-- [ ] **Bruno Import/Export** — adapter for `.bru` format (open-source local-first API client)
-- [ ] **VS Code REST Client Import** — adapter for `.http`/`.rest` files
+- [x] **Crash Log Service Fix** — Fixed `CrashLogService` eager `_init()` (called before `runApp`) → changed to `late final` lazy init pattern. Added 5s timeout guard in `crash_log_page.dart` `_load()` to prevent infinite spinner on Isar open failure.
+- [x] **Default Project Persistence** — Project "default" is now undeletable: menu option hidden in `project_list_page.dart`, `ProjectService.delete()` blocks by name, `ensureDefaultProject()` auto-deduplicates legacy duplicates from disk + SharedPreferences, `create()` prevents duplicate "default" naming.
+- [x] **Bruno Import/Export** — adapter for `.bru` format (open-source local-first API client)
+- [x] **VS Code REST Client Import** — adapter for `.http`/`.rest` files
 - [x] **Code Snippet Generation** — 7 languages: cURL, Python, JS fetch, Go, Dart http, PHP, Java OkHttp
 - [x] **Save Sample Response** — save response bodies categorized by status code group (`2xx`, `4xx`, etc.) into `samples/` folder alongside `.curl` file, with user-provided names, `.meta.json` sidecars, and import/export support
-- [ ] **Cookie Jar Management** — persistent cookie storage mimicking real curl `--cookie-jar`
+- [x] **Cookie Jar Management** — named cookie jars per project (`.cookiejar/` dir), Netscape format import, auto-inject `-b` flag, auto-capture `Set-Cookie`, RFC 6265 domain/path matching
+- [x] **Batch curl Import** — paste multiple curl commands at once, auto-split into separate `.curl` files (entry point feature for onboarding)
+- [ ] **Simple Response Assertions** — visual pass/fail assertions per request without scripting (status range, body contains, header exists, json path, response time)
+- [x] **Request Notes** — `.notes.md` sidecar file per request for developer documentation, git-diffable markdown
+- [x] **curl Config Support** — per-project `.curlrc` for default curl flags (headers, proxy, insecure, user-agent)
+- [ ] **Proxy Configuration** — `--proxy`, `--proxy-header`, `--noproxy` support for corporate networks and interception tools (Burp/Charles/mitmproxy)
+
+- [ ] **Folder-level Environment Override** — `.env.json` per folder extending layered env resolution (global → project → folder → subfolder)
+- [ ] **Network Throttle Presets** — simulate slow 3G / fast 3G / offline, visual presets in request builder (unique differentiator)
+- [x] **Duplicate Request with Env Switch** — clone request auto-bound to different environment target
+
+### Phase 4: Network Traffic Interception (HTTPCanary-style)
+
+System-wide HTTP/HTTPS traffic capture via local VPN. Android-first, iOS deferred. Captured traffic auto-converted to `.curl` files in `_intercept/` project. Major differentiator feature — no other API client does this.
+
+**Requires:** Native platform code (Kotlin/Java for Android VpnService) + Dart FFI/platform channels bridge.
+
+#### Phase 4a: Android HTTP-only Interception (MVP)
+
+- [ ] **Android VpnService Tunnel** — Kotlin/Java native code implementing `VpnService` to create local VPN; all device traffic routed through tunnel; IP packet reassembly → TCP stream extraction
+- [ ] **HTTP Request/Response Parser** — parse raw TCP streams into HTTP request/response pairs; extract method, URL, headers, body; reconstruct HTTP messages from captured packets
+- [ ] **Flutter Platform Bridge** — method channel or FFI bridge: native → Dart streaming transfer of captured requests; start/stop capture control; traffic filtering rules
+- [ ] **Traffic Log Viewer** — real-time list of captured requests with method badge, URL, status code, response size; search/filter by domain, method, status; tap to view full request/response
+- [ ] **Auto-export to `.curl`** — captured requests written as `.curl` files to `_intercept/` project; request body auto-included; response saved as sample
+- [ ] **Foreground Service** — persistent notification during capture (Android requirement); capture toggle in app toolbar
+
+#### Phase 4b: HTTPS Interception (TLS MITM)
+
+- [ ] **Local CA Certificate Generator** — generate self-signed root CA on device; user installs via Android settings (one-time setup); `network_security_config.xml` for debug builds
+- [ ] **TLS MITM Proxy** — man-in-the-middle TLS termination; dynamic certificate generation per hostname (like mitmproxy); forward original request to destination, return decrypted response
+- [ ] **SSL Pinning Bypass (best-effort)** — some apps pin certificates; document limitation
+
+#### Phase 4c: iOS (later)
+
+- [ ] **iOS Local Proxy Mode** — user manually sets proxy in WiFi settings; curel runs local HTTP proxy server (no VPN requirement); limited to WiFi, no cellular
+- [ ] **iOS VPN (if feasible)** — explore `NEPacketTunnelProvider`; likely App Store rejection risk → document tradeoffs
 
 ### Phase 5: Response Comparison / Query / Scripting (ACTIVE)
 
-#### Phase 5a: Response Comparison (Part 1 — Core Diff Engine)
+#### Phase 5a: Response Comparison (Part 1 — Core Diff Engine) ✅
 
-- [ ] `ResponseDiffEngine` abstract class + `JsonDiffEngine` impl
-- [ ] `DiffEntry` model — path, valueA, valueB, DiffType enum (added/removed/changed/unchanged)
-- [ ] `DiffView` widget — inline card-based diff view, color-coded
-- [ ] Compare button in response viewer toolbar
-- [ ] CompareSourceDialog — URL input mode, fetch target, show diff
-- [ ] Field ignore / masking — auto-detect volatile fields (timestamp, uuid, etc.)
+- [x] `ResponseDiffEngine` abstract class + `JsonDiffEngine` impl
+- [x] `DiffEntry` model — path, valueA, valueB, DiffType enum (added/removed/changed/unchanged)
+- [x] `DiffView` widget — unified diff view (git-diff style), color-coded
+- [x] Compare button in response viewer toolbar (home + fullscreen)
+- [x] CompareSourceDialog — editable curl editor with syntax highlighting (CurlHighlightController), saved request loader with search filter, 80% dialog sizing
+- [x] Field ignore / masking — auto-detect volatile fields (timestamp, uuid, etc.)
+- [x] Terminal-style loading (no spinners)
 
-**Phase 5a — Part 2 (after Part 1):**
+**Phase 5a — Part 2 (next):**
 - [ ] TextDiffEngine (Myers algorithm) for non-JSON
-- [ ] Saved request as comparison source
 - [ ] History entry as comparison source
 - [ ] Cross-env comparison
 - [ ] Persist comparison pair in `.meta.json`
@@ -98,20 +137,18 @@ Android, iOS, macOS, Windows, Linux, Web
 
 #### Phase 5c: Pre/Post-request Scripts
 
-#### Phase 5b: Pre/Post-request Scripts
-
 - Pre-request scripts — run before each request (set env vars, modify headers, generate tokens, compute signatures)
 - Post-response scripts — run after each response (extract values into env vars, assert status codes, chain requests)
 - Script format: `.js` sidecar file per request or project-level scripts, executed in sandboxed JS runtime
 - Use cases: auto-refresh OAuth tokens, sign AWS requests, extract session IDs, run test assertions
 - Integration with env system — scripts can read/write env variables dynamically
 
-#### Phase 5c: Tooling & Interoperability
+#### Phase 5d: Tooling & Interoperability
 
 - [ ] **HAR Import/Export** — HTTP Archive format for browser dev tools interop
 - [ ] **SSL/TLS Certificate Management** — self-signed cert, mTLS client certificates
 
-#### Phase 5d: AI Integration (BYOK)
+#### Phase 5e: AI Integration (BYOK)
 
 - [ ] **BYOK Provider System** — abstract AI provider interface supporting OpenAI, Anthropic, etc.; users configure their own API key per provider; key stored in FlutterSecureStorage
 - [ ] **Response Summarizer** — "summarize" button in response viewer that sends JSON response to AI for concise summary; configurable prompt template
@@ -133,10 +170,14 @@ Android, iOS, macOS, Windows, Linux, Web
       environments/
         development.json      # project env
       requests/
+        .curlrc                # project-level default curl flags
+        .cookiejar/            # named cookie jars
+          default.cookiejar.json
         login.curl            # curl commands
         login.meta.json       # request metadata
         login.query.json      # response query/transformation definitions
         login.baseline.json   # response baseline snapshot for diff comparison
+        login.notes.md        # developer notes per request
         samples/               # saved response samples
           2xx/
             login-success.json       # response body

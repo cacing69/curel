@@ -6,7 +6,7 @@ Agent yang membaca file ini akan memahami: apa yang sedang dikerjakan, dimana me
 ## Sumber Informasi
 
 | Sumber | Lokasi | Isi | Kapan dibaca |
-|--------|--------|-----|-------------|
+| ------ | ------- | --- | ------------ |
 | `PLAN.md` | repo root | Product roadmap, phase status, workspace structure, sync philosophy | Saat mulai kerja, cek phase aktif |
 | `memory/MEMORY.md` | Claude memory | Index semua memory files | SELALU — ini entry point |
 | `memory/*.md` | Claude memory | Detailed specs, decisions, rationale, architecture notes | Saat task relevan dengan topik memory |
@@ -65,7 +65,7 @@ Change logging           →  feedback_notes.md
 Ini bukan optional — drift antara kedua file menyebabkan agent bekerja dari informasi yang salah. Lihat `memory/feedback_sync.md` untuk detail lengkap.
 
 | Kalau kamu edit... | Juga edit... |
-|---|---|
+| ------------------- | ----------- |
 | Phase status/label di PLAN.md | Phase yang sama di memory/product_roadmap.md |
 | Feature list di PLAN.md | Feature list yang sama di memory/product_roadmap.md |
 | Workspace structure di PLAN.md | Workspace structure di memory/product_roadmap.md |
@@ -95,22 +95,29 @@ Ini bukan optional — drift antara kedua file menyebabkan agent bekerja dari in
 2. PLAN.md (product direction)
 3. memory/*.md (context dan history)
 
-## Current State (2026-05-12)
+## Current State (2026-05-13)
 
 ### Phase aktif:
-- **Phase 3** — ongoing, 13/16 items done (remaining: OAuth Device Flow, Bruno adapter, VS Code REST Client, cookie jar)
+- **Phase 3** — nearly complete, 21/25 items done (remaining: Simple Assertions, Proxy, Folder-level env, Network Throttle)
 - **Phase 5c** — new sub-phase for tooling & interop (HAR, SSL/TLS moved from Phase 3)
 - **Phase 4** — belum dimulai (libgit2 migration, next after Phase 3)
-- **Phase 5a** — planned, belum dimulai (response query & transformation)
+- **Phase 5a** — Part 1 complete (response comparison core engine). Part 2 next.
+
+### Phase 3 new items (Wave 2, added 2026-05-13):
+- Batch curl Import (entry point, low effort, high impact)
+- Simple Response Assertions (testing, medium effort, high impact)
+- Request Notes `.notes.md` sidecar (docs, low effort)
+- curl Config `.curlrc` (curl fidelity, low effort)
+- Proxy Configuration (corporate/advanced, medium effort)
+- Folder-level Environment Override (workflow depth, medium effort, high impact)
+- Network Throttle Presets (unique differentiator, medium effort)
+- Duplicate Request with Env Switch (nice-to-have, low effort)
+- Detail: `memory/phase3_expansion.md`
 
 ### Next priority:
-1. Selesaikan Phase 3 (prioritas: OAuth Device Flow + Bruno adapter + code snippets)
-2. Mulai Phase 5a — Response Query & Transformation + Response Comparison & Diff
-   - Query engine: jq subset syntax
-   - File format: `.query.json` sidecar per request
-   - UI: tab "query" di response viewer
-   - Response diff: compare responses across URLs, mobile-friendly inline diff
-   - Detail lengkap: `memory/response_query.md`, `memory/response_compare.md`
+1. Phase 5a Part 2 — extended comparison (TextDiffEngine, history source, baseline, filter chips)
+2. Phase 3 remaining — Simple Assertions, Proxy, Folder-level env, Network Throttle
+3. Phase 5b — Response Query & Transformation (jq engine, `.query.json` sidecar)
 
 ### Decisions yang sudah di-lock:
 - Query convention: **jq-like syntax** (dipilih 2026-05-12, alternatif ditolak: JS expression, JSONPath, dot-path, GraphQL-like)

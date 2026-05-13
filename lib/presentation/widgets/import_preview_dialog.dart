@@ -2,6 +2,7 @@ import 'package:curel/domain/adapters/collection_adapter.dart';
 import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/services/workspace_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:flutter/material.dart';
 
 class ImportResult {
@@ -505,36 +506,25 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
       child: Row(
         children: [
           Spacer(),
-          _btn(context, 'cancel', TColors.comment, () => Navigator.of(context).pop()),
-          SizedBox(width: 6),
-          _btn(context, 'import', TColors.green, () {
-            Navigator.of(context).pop(ImportResult(
-              projectId: _selectedProjectId,
-              customName: _isNewProject ? _nameController.text.trim() : null,
-            ));
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _btn(BuildContext context, String label, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 26,
-        padding: EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(border: Border.all(color: color)),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontFamily: 'monospace',
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
+          TermButton(
+            label: 'cancel',
+            onTap: () => Navigator.of(context).pop(),
+            color: TColors.comment,
+            bordered: true,
           ),
-        ),
+          SizedBox(width: 6),
+          TermButton(
+            label: 'import',
+            onTap: () {
+              Navigator.of(context).pop(ImportResult(
+                projectId: _selectedProjectId,
+                customName: _isNewProject ? _nameController.text.trim() : null,
+              ));
+            },
+            color: TColors.green,
+            bordered: true,
+          ),
+        ],
       ),
     );
   }

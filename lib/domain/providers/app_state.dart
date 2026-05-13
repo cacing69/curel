@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/project_model.dart';
-import 'package:curel/presentation/widgets/response_viewer.dart' show ResponseTab;
+import 'package:curel/presentation/widgets/response_toolbar.dart' show ResponseTab;
 
 // ── Active Project ────────────────────────────────────────────────
 

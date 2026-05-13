@@ -7,6 +7,7 @@ class RequestMeta {
   final DateTime? lastRunAt;
   final int? lastStatusCode;
   final Map<String, dynamic>? tags;
+  final String? targetEnv;
 
   const RequestMeta({
     this.displayName,
@@ -15,6 +16,7 @@ class RequestMeta {
     this.lastRunAt,
     this.lastStatusCode,
     this.tags,
+    this.targetEnv,
   });
 
   RequestMeta copyWith({
@@ -24,6 +26,7 @@ class RequestMeta {
     DateTime? lastRunAt,
     int? lastStatusCode,
     Map<String, dynamic>? tags,
+    String? targetEnv,
   }) {
     return RequestMeta(
       displayName: displayName ?? this.displayName,
@@ -32,6 +35,7 @@ class RequestMeta {
       lastRunAt: lastRunAt ?? this.lastRunAt,
       lastStatusCode: lastStatusCode ?? this.lastStatusCode,
       tags: tags ?? this.tags,
+      targetEnv: targetEnv ?? this.targetEnv,
     );
   }
 
@@ -42,6 +46,7 @@ class RequestMeta {
         if (lastRunAt != null) 'last_run_at': lastRunAt!.toIso8601String(),
         if (lastStatusCode != null) 'last_status_code': lastStatusCode,
         if (tags != null && tags!.isNotEmpty) 'tags': tags,
+        if (targetEnv != null) 'target_env': targetEnv,
       };
 
   factory RequestMeta.fromJson(Map<String, dynamic> json) => RequestMeta(
@@ -55,6 +60,7 @@ class RequestMeta {
         tags: json['tags'] != null
             ? Map<String, dynamic>.from(json['tags'] as Map)
             : null,
+        targetEnv: json['target_env'] as String?,
       );
 
   static String encode(RequestMeta meta) =>

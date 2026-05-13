@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
@@ -39,15 +40,24 @@ class OAuthTokenResponse {
 }
 
 class GitHubOAuthService {
-  final Dio _client = Dio();
+  late final Dio _client;
   final String clientId;
+  final String? clientSecret;
 
-  GitHubOAuthService({required this.clientId});
+  GitHubOAuthService({required this.clientId, this.clientSecret}) {
+    _client = Dio(BaseOptions(
+      connectTimeout: Duration(seconds: 10),
+      receiveTimeout: Duration(seconds: 15),
+    ));
+  }
 
   Future<DeviceFlowResponse> startDeviceFlow() async {
     final response = await _client.post(
       'https://github.com/login/device/code',
-      options: Options(headers: {'Accept': 'application/json'}),
+      options: Options(
+        headers: {'Accept': 'application/json'},
+        responseType: ResponseType.json,
+      ),
       data: {
         'client_id': clientId,
         'scope': 'repo',
@@ -58,7 +68,7 @@ class GitHubOAuthService {
       throw Exception('failed to start device flow: ${response.statusCode}');
     }
 
-    final data = response.data as Map<String, dynamic>;
+    final data = _parseJsonMap(response.data);
     return DeviceFlowResponse(
       deviceCode: data['device_code'],
       userCode: data['user_code'],
@@ -78,56 +88,63 @@ class GitHubOAuthService {
     while (DateTime.now().isBefore(endTime)) {
       await Future.delayed(Duration(seconds: interval));
 
-      final response = await _client.post(
-        'https://github.com/login/oauth/access_token',
-        options: Options(headers: {'Accept': 'application/json'}),
-        data: {
-          'client_id': clientId,
-          'device_code': deviceCode,
-          'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-        },
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('token polling failed: ${response.statusCode}');
-      }
-
-      final data = response.data as Map<String, dynamic>;
-
-      if (data.containsKey('access_token')) {
-        return OAuthTokenResponse(
-          accessToken: data['access_token'],
-          refreshToken: data['refresh_token'],
-          expiresIn: data['expires_in'],
-          scope: data['scope'],
+      try {
+        final response = await _client.post(
+          'https://github.com/login/oauth/access_token',
+          options: Options(
+            headers: {'Accept': 'application/json'},
+            responseType: ResponseType.json,
+          ),
+          data: {
+            'client_id': clientId,
+            'device_code': deviceCode,
+            'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+          },
         );
-      }
 
-      final error = data['error'] as String?;
+        if (response.statusCode != 200) {
+          continue;
+        }
 
-      switch (error) {
-        case 'authorization_pending':
-          break;
-        case 'slow_down':
-          interval += 5;
-          break;
-        case 'expired_token':
+        final data = _parseJsonMap(response.data);
+
+        if (data.containsKey('access_token')) {
           return OAuthTokenResponse(
-            error: error,
-            errorDescription: 'device code expired. please try again.',
+            accessToken: data['access_token'],
+            refreshToken: data['refresh_token'],
+            expiresIn: data['expires_in'],
+            scope: data['scope'],
           );
-        case 'access_denied':
-          return OAuthTokenResponse(
-            error: error,
-            errorDescription: 'authorization cancelled.',
-          );
-        case null:
-          break;
-        default:
-          return OAuthTokenResponse(
-            error: error,
-            errorDescription: data['error_description'],
-          );
+        }
+
+        final error = data['error'] as String?;
+
+        switch (error) {
+          case 'authorization_pending':
+            break;
+          case 'slow_down':
+            interval += 5;
+            break;
+          case 'expired_token':
+            return OAuthTokenResponse(
+              error: error,
+              errorDescription: 'device code expired. please try again.',
+            );
+          case 'access_denied':
+            return OAuthTokenResponse(
+              error: error,
+              errorDescription: 'authorization cancelled.',
+            );
+          case null:
+            break;
+          default:
+            return OAuthTokenResponse(
+              error: error,
+              errorDescription: data['error_description'],
+            );
+        }
+      } catch (_) {
+        interval = (interval * 1.5).round().clamp(5, 60);
       }
     }
 
@@ -137,27 +154,73 @@ class GitHubOAuthService {
     );
   }
 
-  Future<OAuthTokenResponse> refreshToken(String refreshToken) async {
-    final response = await _client.post(
-      'https://github.com/login/oauth/access_token',
-      options: Options(headers: {'Accept': 'application/json'}),
-      data: {
-        'client_id': clientId,
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-      },
-    );
+  Future<bool> revokeToken(String accessToken) async {
+    if (clientSecret == null || clientSecret!.isEmpty) return false;
 
-    if (response.statusCode != 200) {
-      throw Exception('token refresh failed: ${response.statusCode}');
+    try {
+      final credentials = base64Encode(utf8.encode('$clientId:$clientSecret'));
+      final response = await _client.delete(
+        'https://api.github.com/applications/$clientId/token',
+        options: Options(
+          headers: {
+            'Authorization': 'Basic $credentials',
+            'Accept': 'application/json',
+          },
+          responseType: ResponseType.json,
+        ),
+        data: {'access_token': accessToken},
+      );
+      return response.statusCode == 204;
+    } catch (_) {
+      return false;
     }
+  }
 
-    final data = response.data as Map<String, dynamic>;
-    return OAuthTokenResponse(
-      accessToken: data['access_token'],
-      refreshToken: data['refresh_token'],
-      expiresIn: data['expires_in'],
-      scope: data['scope'],
-    );
+  Map<String, dynamic> _parseJsonMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is String) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+    return {};
+  }
+
+  Future<OAuthTokenResponse> refreshToken(String refreshToken) async {
+    try {
+      final response = await _client.post(
+        'https://github.com/login/oauth/access_token',
+        options: Options(
+          headers: {'Accept': 'application/json'},
+          responseType: ResponseType.json,
+        ),
+        data: {
+          'client_id': clientId,
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        return OAuthTokenResponse(
+          error: 'refresh_failed',
+          errorDescription: 'token refresh failed: ${response.statusCode}',
+        );
+      }
+
+      final data = _parseJsonMap(response.data);
+      return OAuthTokenResponse(
+        accessToken: data['access_token'],
+        refreshToken: data['refresh_token'],
+        expiresIn: data['expires_in'],
+        scope: data['scope'],
+      );
+    } catch (e) {
+      return OAuthTokenResponse(
+        error: 'refresh_error',
+        errorDescription: '$e',
+      );
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:curel/domain/models/project_model.dart';
 import 'package:curel/domain/providers/app_state.dart';
 import 'package:curel/domain/providers/services.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/cookie_jar_dialog.dart';
 import 'package:curel/presentation/widgets/env_switch.dart';
 import 'package:curel/presentation/widgets/git_connect_dialog.dart';
 import 'package:curel/presentation/widgets/diff_viewer_dialog.dart';
@@ -132,6 +133,9 @@ class EnvBar extends ConsumerWidget {
               ),
             ],
           ],
+          SizedBox(width: 6),
+          if (activeProject != null)
+            _CookieJarButton(projectId: activeProject.id),
           SizedBox(width: 6),
           EnvSwitch(
             projectId: ref.read(activeProjectProvider)?.id,
@@ -448,5 +452,28 @@ class _GitSyncButtonState extends ConsumerState<_GitSyncButton> {
       ref.read(activeProjectProvider.notifier).set(disconnectedProject);
       showTerminalToast(context, 'project disconnected from git');
     }
+  }
+}
+
+class _CookieJarButton extends ConsumerWidget {
+  final String projectId;
+
+  const _CookieJarButton({required this.projectId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Tooltip(
+      message: 'cookie jars',
+      preferBelow: false,
+      child: GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (_) => CookieJarDialog(projectId: projectId),
+          );
+        },
+        child: Icon(Icons.cookie_outlined, size: 14, color: TColors.mutedText),
+      ),
+    );
   }
 }

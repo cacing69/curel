@@ -1,15 +1,13 @@
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
-import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:curel/presentation/widgets/chunked_text_viewer.dart';
 import 'package:curel/presentation/widgets/html_preview.dart';
 import 'package:curel/presentation/widgets/searchable_text.dart';
 import 'package:curel/presentation/widgets/diff_view.dart';
+import 'package:curel/presentation/widgets/response_toolbar.dart';
 import 'package:curel/domain/services/request_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-enum ResponseTab { headers, body, verbose, trace }
 
 class ResponseViewer extends StatelessWidget {
   final CurlResponse? response;
@@ -225,12 +223,22 @@ class FullscreenResponseViewer extends StatefulWidget {
   final String? baseCurlText;
   final String? projectId;
   final RequestService? requestService;
+  final VoidCallback? onSaveResponse;
+  final VoidCallback? onSaveSample;
+  final VoidCallback? onViewSnippet;
+  final VoidCallback? onCompare;
+  final VoidCallback? onCopyActivePreview;
 
   const FullscreenResponseViewer({
     required this.response,
     this.baseCurlText,
     this.projectId,
     this.requestService,
+    this.onSaveResponse,
+    this.onSaveSample,
+    this.onViewSnippet,
+    this.onCompare,
+    this.onCopyActivePreview,
     super.key,
   });
 
@@ -254,202 +262,39 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              color: TColors.surface,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Row 1: Back + Tabs
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
-                          child: Icon(
-                            Icons.arrow_back,
-                            size: 18,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        FlatTab(
-                          label: 'headers',
-                          selected: _selectedTab == ResponseTab.headers,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.headers;
-                            _showHtmlPreview = false;
-                          }),
-                        ),
-                        SizedBox(width: 8),
-                        FlatTab(
-                          label: 'body',
-                          selected: _selectedTab == ResponseTab.body && !_showHtmlPreview,
-                          onTap: () => setState(() {
-                            _selectedTab = ResponseTab.body;
-                            _showHtmlPreview = false;
-                          }),
-                        ),
-                        if (widget.response.isHtml) ...[
-                          SizedBox(width: 8),
-                          FlatTab(
-                            label: 'preview',
-                            selected: _showHtmlPreview,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.body;
-                              _showHtmlPreview = true;
-                              _searchActive = false;
-                            }),
-                          ),
-                        ],
-                        if (widget.response.verboseLog != null &&
-                            widget.response.verboseLog!.isNotEmpty) ...[
-                          SizedBox(width: 8),
-                          FlatTab(
-                            label: 'verbose',
-                            selected: _selectedTab == ResponseTab.verbose,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.verbose;
-                              _showHtmlPreview = false;
-                              _searchActive = false;
-                            }),
-                          ),
-                        ],
-                        if (widget.response.traceLog != null &&
-                            widget.response.traceLog!.isNotEmpty) ...[
-                          SizedBox(width: 8),
-                          FlatTab(
-                            label: 'trace',
-                            selected: _selectedTab == ResponseTab.trace,
-                            onTap: () => setState(() {
-                              _selectedTab = ResponseTab.trace;
-                              _showHtmlPreview = false;
-                              _searchActive = false;
-                            }),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  // Row 2: Info
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        Text(
-                          '${widget.response.statusCode ?? '-'} ${widget.response.statusMessage}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                            fontWeight: FontWeight.bold,
-                            color:
-                                (widget.response.statusCode ?? 0) >= 200 &&
-                                    (widget.response.statusCode ?? 0) < 300
-                                ? TColors.green
-                                : TColors.red,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          widget.response.timeLabel,
-                          style: TextStyle(
-                            color: TColors.mutedText,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          widget.response.bodySizeLabel,
-                          style: TextStyle(
-                            color: TColors.mutedText,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          widget.response.contentTypeLabel,
-                          style: TextStyle(
-                            color: TColors.cyan,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  // Row 3: Actions
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Clipboard.setData(
-                              ClipboardData(text: widget.response.bodyText),
-                            );
-                            showTerminalToast(context, 'copied to clipboard');
-                          },
-                          child: Icon(
-                            Icons.copy,
-                            size: 16,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _searchActive = !_searchActive;
-                            if (_searchActive) _showHtmlPreview = false;
-                          }),
-                          child: Icon(
-                            _searchActive ? Icons.search_off : Icons.search,
-                            size: 16,
-                            color: _searchActive ? TColors.green : TColors.mutedText,
-                          ),
-                        ),
-                        if (widget.response.highlightLanguage == 'json') ...[
-                          SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () => setState(() => _prettify = !_prettify),
-                            child: Icon(
-                              _prettify ? Icons.auto_fix_high : Icons.auto_fix_off,
-                              size: 16,
-                              color: _prettify ? TColors.green : TColors.mutedText,
-                            ),
-                          ),
-                        ],
-                        SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _openCompareDialog(context),
-                          child: Icon(
-                            Icons.compare_arrows,
-                            size: 16,
-                            color: TColors.mutedText,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () =>
-                              setState(() => _showLineNumbers = !_showLineNumbers),
-                          child: Icon(
-                            Icons.format_list_numbered,
-                            size: 16,
-                            color: _showLineNumbers
-                                ? TColors.green
-                                : TColors.mutedText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            ResponseToolbar(
+              response: widget.response,
+              selectedTab: _selectedTab,
+              showHtmlPreview: _showHtmlPreview,
+              searchActive: _searchActive,
+              prettify: _prettify,
+              showLineNumbers: _showLineNumbers,
+              showBackButton: true,
+              onBack: () => Navigator.of(context).pop(),
+              onTabChanged: (tab, {showHtmlPreview = false, searchActive}) {
+                setState(() {
+                  _selectedTab = tab;
+                  _showHtmlPreview = showHtmlPreview;
+                  if (searchActive != null) _searchActive = searchActive;
+                });
+              },
+              onCopy: widget.onCopyActivePreview ?? (() {
+                Clipboard.setData(
+                  ClipboardData(text: widget.response.bodyText),
+                );
+                showTerminalToast(context, 'copied to clipboard');
+              }),
+              onSaveResponse: widget.onSaveResponse,
+              onViewSnippet: widget.onViewSnippet,
+              onSaveSample: widget.onSaveSample,
+              onCompare: widget.onCompare ?? (() => _openCompareDialog(context)),
+              onToggleSearch: () => setState(() {
+                _searchActive = !_searchActive;
+                if (_searchActive) _showHtmlPreview = false;
+              }),
+              onTogglePrettify: () => setState(() => _prettify = !_prettify),
+              onToggleLineNumbers: () =>
+                  setState(() => _showLineNumbers = !_showLineNumbers),
             ),
             Container(height: 1, color: TColors.border),
             Expanded(
@@ -489,6 +334,11 @@ void openFullscreenResponse(
   String? baseCurlText,
   String? projectId,
   RequestService? requestService,
+  VoidCallback? onSaveResponse,
+  VoidCallback? onSaveSample,
+  VoidCallback? onViewSnippet,
+  VoidCallback? onCompare,
+  VoidCallback? onCopyActivePreview,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute(
@@ -497,6 +347,11 @@ void openFullscreenResponse(
         baseCurlText: baseCurlText,
         projectId: projectId,
         requestService: requestService,
+        onSaveResponse: onSaveResponse,
+        onSaveSample: onSaveSample,
+        onViewSnippet: onViewSnippet,
+        onCompare: onCompare,
+        onCopyActivePreview: onCopyActivePreview,
       ),
     ),
   );

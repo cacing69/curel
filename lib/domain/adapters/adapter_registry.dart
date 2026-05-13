@@ -1,4 +1,6 @@
 import 'package:curel/domain/adapters/collection_adapter.dart';
+import 'package:curel/domain/adapters/bruno_adapter.dart';
+import 'package:curel/domain/adapters/vscode_rest_adapter.dart';
 import 'package:curel/domain/adapters/internal/curel_native_adapter.dart';
 import 'package:curel/domain/adapters/postman_adapter.dart';
 import 'package:curel/domain/adapters/insomnia_adapter.dart';
@@ -13,6 +15,8 @@ class AdapterRegistry {
     _register(PostmanAdapter());
     _register(InsomniaAdapter());
     _register(HoppscotchAdapter());
+    _register(BrunoAdapter());
+    _register(VscodeRestAdapter());
   }
 
   void _register(CollectionAdapter adapter) {

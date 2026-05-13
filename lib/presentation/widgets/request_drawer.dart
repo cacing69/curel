@@ -485,6 +485,12 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
             height: 36,
             child: _menuItem(Icons.content_copy, 'duplicate')),
         PopupMenuItem(
+            value: 'duplicate_env',
+            height: 36,
+            child: _menuItem(Icons.sync_alt, 'duplicate to env')),
+        PopupMenuItem(
+            value: 'notes', height: 36, child: _menuItem(Icons.notes, 'notes')),
+        PopupMenuItem(
             value: 'share', height: 36, child: _menuItem(Icons.share, 'share')),
         PopupMenuItem(
             value: 'rename', height: 36, child: _menuItem(Icons.edit, 'rename')),
@@ -507,6 +513,10 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
           );
           _load();
         }
+      } else if (value == 'duplicate_env') {
+        await _duplicateToEnv(item);
+      } else if (value == 'notes') {
+        await _showNotesDialog(item);
       } else if (value == 'share') {
         final content = await ref.read(requestServiceProvider).readCurl(
               widget.projectId,
@@ -533,6 +543,173 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         _load();
       }
     });
+  }
+
+  Future<void> _showNotesDialog(RequestItem item) async {
+    final service = ref.read(requestServiceProvider);
+    final existing = await service.readNotes(widget.projectId, item.relativePath) ?? '';
+    if (!mounted) return;
+
+    final controller = TextEditingController(text: existing);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Row(
+          children: [
+            Icon(Icons.notes, size: 14, color: TColors.cyan),
+            SizedBox(width: 8),
+            Text('notes',
+                style: TextStyle(
+                    color: TColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 14)),
+            Spacer(),
+            Text(item.displayName,
+                style: TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 10)),
+          ],
+        ),
+        content: Container(
+          width: double.maxFinite,
+          constraints: BoxConstraints(maxHeight: 400),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          color: TColors.surface,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            cursorColor: TColors.green,
+            maxLines: null,
+            style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 12),
+            decoration: InputDecoration(
+              hintText: 'write notes here (markdown)...',
+              hintStyle: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 12),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('cancel',
+                style: TextStyle(
+                    color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('save',
+                style:
+                    TextStyle(color: TColors.green, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      final content = controller.text.trim();
+      if (content.isEmpty) return;
+      await service.writeNotes(
+        widget.projectId,
+        item.relativePath,
+        content,
+      );
+    }
+  }
+
+  Future<void> _duplicateToEnv(RequestItem item) async {
+    final envs = await ref.read(envServiceProvider).getAll(widget.projectId);
+    if (envs.isEmpty) {
+      if (!mounted) return;
+      showTerminalToast(context, 'no environments found — create one first');
+      return;
+    }
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text('duplicate to env',
+            style: TextStyle(
+                color: TColors.foreground,
+                fontFamily: 'monospace',
+                fontSize: 14)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: envs.length,
+            itemBuilder: (ctx, i) {
+              final env = envs[i];
+              return GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(env.name),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  color: TColors.surface,
+                  margin: EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    env.name.toLowerCase(),
+                    style: TextStyle(
+                      color: TColors.cyan,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('cancel',
+                style: TextStyle(
+                    color: TColors.mutedText, fontFamily: 'monospace')),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+
+    final sanitized = selected.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '-');
+    final posix = item.relativePath.replaceAll('\\', '/');
+    final slash = posix.lastIndexOf('/');
+    final baseName = slash >= 0 ? posix.substring(slash + 1) : posix;
+    final nameWithoutExt = baseName.replaceAll('.curl', '');
+    final newName = '$nameWithoutExt-$sanitized';
+
+    final newPath = await ref.read(requestServiceProvider).duplicateRequest(
+      widget.projectId,
+      item.relativePath,
+      newName: newName,
+    );
+
+    final meta = await ref.read(requestServiceProvider).readMeta(
+      widget.projectId,
+      newPath,
+    );
+    await ref.read(requestServiceProvider).updateMeta(
+      widget.projectId,
+      newPath,
+      meta.copyWith(targetEnv: selected),
+    );
+
+    _load();
   }
 
   Widget _menuItem(IconData icon, String label) {

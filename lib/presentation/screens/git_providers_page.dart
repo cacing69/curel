@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:curel/data/app_config.dart';
 import 'package:curel/data/services/github_oauth_service.dart';
 import 'package:curel/domain/models/crash_log_model.dart';
 import 'package:curel/domain/models/git_provider_model.dart';
 import 'package:curel/domain/providers/services.dart';
+import 'package:curel/domain/services/crash_log_service.dart';
 import 'package:curel/domain/services/git_client.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
@@ -19,6 +22,8 @@ class GitProvidersPage extends ConsumerStatefulWidget {
 
 class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   List<GitProviderModel> _providers = [];
+  Map<String, bool> _tokenExists = {};
+  Map<String, DateTime?> _tokenExpiresAt = {};
   bool _loading = true;
 
   @override
@@ -28,10 +33,19 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
   }
 
   Future<void> _load() async {
-    final ps = await ref.read(gitProviderServiceProvider).getAll();
+    final svc = ref.read(gitProviderServiceProvider);
+    final ps = await svc.getAll();
+    final tokenMap = <String, bool>{};
+    final expiryMap = <String, DateTime?>{};
+    for (final p in ps) {
+      tokenMap[p.id] = await svc.hasToken(p.id);
+      expiryMap[p.id] = await svc.getTokenExpiresAt(p.id);
+    }
     if (mounted) {
       setState(() {
         _providers = ps;
+        _tokenExists = tokenMap;
+        _tokenExpiresAt = expiryMap;
         _loading = false;
       });
     }
@@ -247,42 +261,18 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     String baseUrl,
   ) async {
     final crashLog = ref.read(crashLogServiceProvider);
-
-    GitHubOAuthService oauth;
-    try {
-      oauth = GitHubOAuthService(clientId: curelGitHubClientId);
-    } catch (e) {
-      crashLog.log(Severity.error, 'oauth', 'setup failed: $e');
-      if (outerCtx.mounted) showTerminalToast(outerCtx, 'oauth setup failed: $e');
-      return;
-    }
-
-    DeviceFlowResponse deviceFlow;
-    try {
-      deviceFlow = await oauth.startDeviceFlow();
-    } catch (e) {
-      crashLog.log(Severity.error, 'oauth', 'start device flow failed: $e');
-      if (outerCtx.mounted) showTerminalToast(outerCtx, 'failed to start device flow: $e');
-      return;
-    }
-
-    if (!outerCtx.mounted) return;
+    final oauth = GitHubOAuthService(clientId: curelGitHubClientId);
 
     final oauthResult = await showDialog<OAuthTokenResponse>(
       context: outerCtx,
       barrierDismissible: false,
-      builder: (ctx) => _OAuthDeviceDialog(deviceFlow: deviceFlow, oauth: oauth),
+      builder: (ctx) => _OAuthDeviceDialog(
+        oauth: oauth,
+        crashLog: crashLog,
+      ),
     );
 
     if (oauthResult == null) {
-      // user cancelled dialog — no need to log
-      return;
-    }
-
-    if (oauthResult.isError) {
-      crashLog.log(Severity.warning, 'oauth',
-          '${oauthResult.error}: ${oauthResult.errorDescription}');
-      if (outerCtx.mounted) showTerminalToast(outerCtx, oauthResult.errorDescription ?? 'oauth failed');
       return;
     }
 
@@ -305,11 +295,16 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     }
 
     try {
+      final expiresAt = oauthResult.expiresIn != null
+          ? DateTime.now().add(Duration(seconds: oauthResult.expiresIn!))
+          : null;
       final provider = await ref.read(gitProviderServiceProvider).create(
         name: providerName,
         type: 'github',
         baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
         token: token,
+        refreshToken: oauthResult.refreshToken,
+        expiresAt: expiresAt,
       );
 
       if (outerCtx.mounted) {
@@ -372,26 +367,44 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     );
   }
 
-  Future<void> _deleteProvider(GitProviderModel provider) async {
+  Future<void> _deleteProvider(GitProviderModel provider,
+      {String? reason}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: TColors.background,
         title: Text(
-          'delete provider?',
+          reason != null ? 'logout' : 'delete provider',
           style: TextStyle(
-            color: TColors.foreground,
+            color: reason != null ? TColors.orange : TColors.red,
             fontFamily: 'monospace',
             fontSize: 14,
           ),
         ),
-        content: Text(
-          'are you sure you want to delete ${provider.name}?',
-          style: TextStyle(
-            color: TColors.mutedText,
-            fontFamily: 'monospace',
-            fontSize: 12,
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              reason ?? 'are you sure you want to delete ${provider.name}?',
+              style: TextStyle(
+                color: TColors.mutedText,
+                fontFamily: 'monospace',
+                fontSize: 12,
+              ),
+            ),
+            if (reason != null) ...[
+              SizedBox(height: 8),
+              Text(
+                'provider: ${provider.name}',
+                style: TextStyle(
+                  color: TColors.foreground,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -407,8 +420,11 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'delete',
-              style: TextStyle(color: TColors.red, fontFamily: 'monospace'),
+              reason != null ? 'logout' : 'delete',
+              style: TextStyle(
+                color: reason != null ? TColors.orange : TColors.red,
+                fontFamily: 'monospace',
+              ),
             ),
           ),
         ],
@@ -494,29 +510,84 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
     );
   }
 
+  Widget _icon(IconData icon, Color color, VoidCallback onTap, {String? tooltip}) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(4),
+          child: Icon(icon, size: 14, color: color),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTile(GitProviderModel provider) {
+    final hasToken = _tokenExists[provider.id] ?? false;
+    final expiresAt = _tokenExpiresAt[provider.id];
+    final isExpired = expiresAt != null && DateTime.now().isAfter(expiresAt);
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
-          Icon(Icons.cloud_circle, size: 16, color: TColors.cyan),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: TColors.surface,
+              border: Border.all(color: TColors.border, width: 0.5),
+            ),
+            child: Center(
+              child: Text(
+                provider.type[0].toUpperCase(),
+                style: TextStyle(
+                  color: hasToken
+                      ? (isExpired ? TColors.red : TColors.green)
+                      : TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
           SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  provider.name,
-                  style: TextStyle(
-                    color: TColors.foreground,
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: hasToken
+                            ? (isExpired ? TColors.red : TColors.green)
+                            : TColors.mutedText,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        provider.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: TColors.foreground,
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'type: ${provider.type}${provider.baseUrl != null && provider.baseUrl!.isNotEmpty ? ' | url: ${provider.baseUrl}' : ''}',
+                  '${provider.type}${provider.baseUrl != null && provider.baseUrl!.isNotEmpty ? ' | ${provider.baseUrl}' : ''}',
                   style: TextStyle(
                     color: TColors.mutedText,
                     fontFamily: 'monospace',
@@ -526,18 +597,21 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
               ],
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.edit, size: 16, color: TColors.mutedText),
-            onPressed: () => _showProviderDialog(provider: provider),
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(),
-          ),
-          SizedBox(width: 16),
-          IconButton(
-            icon: Icon(Icons.delete, size: 16, color: TColors.red),
-            onPressed: () => _deleteProvider(provider),
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _icon(Icons.edit, TColors.mutedText,
+                  () => _showProviderDialog(provider: provider)),
+              SizedBox(width: 2),
+              _icon(Icons.logout, TColors.orange,
+                  () => _deleteProvider(provider,
+                      reason: 'log out from ${provider.name}? this will revoke the token.'),
+                  tooltip: 'logout & revoke token'),
+              SizedBox(width: 2),
+              _icon(Icons.delete, TColors.red,
+                  () => _deleteProvider(provider),
+                  tooltip: 'remove provider'),
+            ],
           ),
         ],
       ),
@@ -563,12 +637,12 @@ class _GitProvidersPageState extends ConsumerState<GitProvidersPage> {
 }
 
 class _OAuthDeviceDialog extends StatefulWidget {
-  final DeviceFlowResponse deviceFlow;
   final GitHubOAuthService oauth;
+  final CrashLogService crashLog;
 
   const _OAuthDeviceDialog({
-    required this.deviceFlow,
     required this.oauth,
+    required this.crashLog,
   });
 
   @override
@@ -576,129 +650,381 @@ class _OAuthDeviceDialog extends StatefulWidget {
 }
 
 class _OAuthDeviceDialogState extends State<_OAuthDeviceDialog> {
-  String _status = 'waiting for authorization...';
-  bool _isPolling = true;
-  bool _isDone = false;
+  static const int _maxRetries = 3;
+
+  DeviceFlowResponse? _deviceFlow;
+  String _status = 'starting...';
+  bool _loading = true;
+  bool _isPolling = false;
+  String? _errorDetail;
+  int _secondsRemaining = 0;
+  int _retryCount = 0;
+  Timer? _countdownTimer;
 
   @override
   void initState() {
     super.initState();
-    _poll();
+    _startFlow();
   }
 
-  Future<void> _poll() async {
-    final result = await widget.oauth.pollForToken(
-      widget.deviceFlow.deviceCode,
-      interval: widget.deviceFlow.interval,
-      expiresIn: widget.deviceFlow.expiresIn,
-    );
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
 
-    if (!mounted) return;
+  Future<void> _startFlow() async {
+    setState(() {
+      _loading = true;
+      _isPolling = false;
+      _status = 'starting...';
+      _errorDetail = null;
+    });
 
-    if (result.isError) {
+    try {
+      final flow = await widget.oauth.startDeviceFlow();
+      if (!mounted) return;
+
+      setState(() {
+        _deviceFlow = flow;
+        _loading = false;
+        _isPolling = true;
+        _status = 'waiting for authorization...';
+        _secondsRemaining = flow.expiresIn;
+      });
+
+      _startCountdown();
+      _poll(flow);
+    } catch (e) {
+      widget.crashLog.log(Severity.error, 'oauth', 'start device flow failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isPolling = false;
+        _errorDetail = '$e';
+        _status = 'failed to start';
+      });
+    }
+  }
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (_) {
+      if (!mounted) {
+        _countdownTimer?.cancel();
+        return;
+      }
+      setState(() {
+        if (_secondsRemaining > 0) _secondsRemaining--;
+      });
+    });
+  }
+
+  Future<void> _poll(DeviceFlowResponse flow) async {
+    try {
+      final result = await widget.oauth.pollForToken(
+        flow.deviceCode,
+        interval: flow.interval,
+        expiresIn: flow.expiresIn,
+      );
+
+      if (!mounted) return;
+
+      if (result.isError) {
+        if (result.error == 'timeout') {
+          _handleTimeout();
+          return;
+        }
+        setState(() {
+          _isPolling = false;
+          _errorDetail = result.errorDescription;
+          _status = result.error ?? 'authorization failed';
+        });
+        return;
+      }
+
+      _countdownTimer?.cancel();
       setState(() {
         _isPolling = false;
-        _status = result.errorDescription ?? 'authorization failed';
+        _status = 'authorization successful!';
+      });
+      await Future.delayed(Duration(milliseconds: 800));
+      if (!mounted) return;
+      Navigator.of(context).pop(result);
+    } catch (e) {
+      widget.crashLog.log(Severity.warning, 'oauth', 'poll error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isPolling = false;
+        _errorDetail = '$e';
+        _status = 'connection error';
+      });
+    }
+  }
+
+  void _handleTimeout() {
+    if (_retryCount >= _maxRetries) {
+      widget.crashLog.log(Severity.warning, 'oauth',
+          'device flow timed out after $_maxRetries retries');
+      setState(() {
+        _isPolling = false;
+        _status = 'timed out';
+        _errorDetail =
+            'no authorization after ${_maxRetries + 1} attempts. try again later.';
       });
       return;
     }
 
+    _retryCount++;
+    widget.crashLog.log(Severity.warning, 'oauth',
+        'device flow timed out, retry $_retryCount/$_maxRetries');
+    _countdownTimer?.cancel();
+    _restartFlow();
+  }
+
+  Future<void> _restartFlow() async {
     setState(() {
-      _isPolling = false;
-      _isDone = true;
+      _loading = true;
+      _status = 'restarting (${_retryCount}/$_maxRetries)...';
     });
 
-    Navigator.of(context).pop(result);
+    try {
+      final flow = await widget.oauth.startDeviceFlow();
+      if (!mounted) return;
+
+      setState(() {
+        _deviceFlow = flow;
+        _loading = false;
+        _isPolling = true;
+        _status = 'new code generated — enter it in your browser';
+        _secondsRemaining = flow.expiresIn;
+      });
+
+      _startCountdown();
+      _poll(flow);
+    } catch (e) {
+      widget.crashLog.log(Severity.error, 'oauth', 'restart device flow failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _isPolling = false;
+        _errorDetail = '$e';
+        _status = 'restart failed';
+      });
+    }
+  }
+
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<bool> _onPop() async {
+    if (!_isPolling) return true;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text(
+          'cancel authorization?',
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        content: Text(
+          'authorization is in progress. are you sure?',
+          style: TextStyle(
+            color: TColors.mutedText,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'no, wait',
+              style: TextStyle(
+                color: TColors.cyan,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'yes, cancel',
+              style: TextStyle(
+                color: TColors.red,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return confirm ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: TColors.background,
-      title: Text(
-        'github authorization',
-        style: TextStyle(
-          color: TColors.foreground,
-          fontFamily: 'monospace',
-          fontSize: 14,
+    return PopScope(
+      canPop: !_isPolling,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          final shouldPop = await _onPop();
+          if (shouldPop && mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: AlertDialog(
+        backgroundColor: TColors.background,
+        title: Text(
+          'github authorization',
+          style: TextStyle(
+            color: TColors.foreground,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
         ),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'enter the code below in your browser:',
-            style: TextStyle(
-              color: TColors.mutedText,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-          SizedBox(height: 16),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              color: TColors.surface,
-              border: Border.all(color: TColors.border),
-            ),
-            child: SelectableText(
-              widget.deviceFlow.userCode,
-              style: TextStyle(
-                color: TColors.green,
-                fontFamily: 'monospace',
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 4,
-              ),
-            ),
-          ),
-          SizedBox(height: 12),
-          SelectableText(
-            widget.deviceFlow.verificationUri,
-            style: TextStyle(
-              color: TColors.cyan,
-              fontFamily: 'monospace',
-              fontSize: 11,
-            ),
-          ),
-          SizedBox(height: 8),
-          TermButton(
-            icon: Icons.open_in_browser,
-            label: 'open link',
-            onTap: () async {
-              final uri = Uri.tryParse(widget.deviceFlow.verificationUri);
-              if (uri != null) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            accent: true,
-          ),
-          SizedBox(height: 16),
-          if (_isPolling)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (_loading)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(
                       strokeWidth: 1.5,
                       color: TColors.green,
                     ),
+                    SizedBox(height: 12),
+                    Text(
+                      _status,
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_deviceFlow != null) ...[
+              Text(
+                'enter the code below in your browser:',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+              SizedBox(height: 16),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: TColors.surface,
+                  border: Border.all(color: TColors.border),
+                ),
+                child: SelectableText(
+                  _deviceFlow!.userCode,
+                  style: TextStyle(
+                    color: TColors.green,
+                    fontFamily: 'monospace',
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
                   ),
-                  SizedBox(width: 8),
+                ),
+              ),
+              SizedBox(height: 12),
+              SelectableText(
+                _deviceFlow!.verificationUri,
+                style: TextStyle(
+                  color: TColors.cyan,
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                ),
+              ),
+              SizedBox(height: 8),
+              TermButton(
+                icon: Icons.open_in_browser,
+                label: 'open link',
+                onTap: () async {
+                  final uri = Uri.tryParse(_deviceFlow!.verificationUri);
+                  if (uri != null) {
+                    await launchUrl(
+                        uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                accent: true,
+              ),
+              SizedBox(height: 12),
+              if (_isPolling) ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: TColors.green,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      _status,
+                      style: TextStyle(
+                        color: TColors.mutedText,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'code expires in ${_formatTime(_secondsRemaining)}',
+                  style: TextStyle(
+                    color: _secondsRemaining < 60
+                        ? TColors.red
+                        : TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  _status,
+                  style: TextStyle(
+                    color: _errorDetail == null ? TColors.green : TColors.red,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                ),
+                if (_errorDetail != null) ...[
+                  SizedBox(height: 4),
                   Text(
-                    _status,
+                    _errorDetail!,
                     style: TextStyle(
                       color: TColors.mutedText,
                       fontFamily: 'monospace',
-                      fontSize: 11,
+                      fontSize: 10,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
-              )
-            else
+              ],
+            ] else ...[
               Text(
                 _status,
                 style: TextStyle(
@@ -707,21 +1033,65 @@ class _OAuthDeviceDialogState extends State<_OAuthDeviceDialog> {
                   fontSize: 11,
                 ),
               ),
+              if (_errorDetail != null) ...[
+                SizedBox(height: 4),
+                Text(
+                  _errorDetail!,
+                  style: TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
           ],
         ),
-      actions: [
-        if (!_isDone)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'cancel',
-              style: TextStyle(
-                color: TColors.mutedText,
-                fontFamily: 'monospace',
+        actions: [
+          if (_isPolling)
+            TextButton(
+              onPressed: () {
+                _countdownTimer?.cancel();
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'cancel',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            )
+          else ...[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'close',
+                style: TextStyle(
+                  color: TColors.mutedText,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
-          ),
-      ],
+            if (_errorDetail != null)
+              TextButton(
+                onPressed: _retryCount >= _maxRetries
+                    ? () => Navigator.of(context).pop()
+                    : _restartFlow,
+                child: Text(
+                  _retryCount >= _maxRetries ? 'done' : 'retry',
+                  style: TextStyle(
+                    color: _retryCount >= _maxRetries
+                        ? TColors.mutedText
+                        : TColors.cyan,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

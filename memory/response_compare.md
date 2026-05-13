@@ -164,29 +164,24 @@ Untuk response yang bukan JSON (image, binary, HTML, XML):
 
 ### Phasing within Phase 5a
 
-**Part 1 — Core Diff Engine + JSON Diff (ACTIVE):**
-1. `ResponseDiffEngine` abstract + `JsonDiffEngine`
-2. `DiffEntry` model + serialization
-3. `DiffView` widget with inline card-based diff
-4. Compare button in response viewer
-5. CompareSourceDialog (URL input mode)
-6. Field ignore / masking — auto-detect volatile fields + manual ignore per-request
+**Part 1 — Core Diff Engine + JSON Diff (COMPLETED):**
+1. ✅ `ResponseDiffEngine` abstract + `JsonDiffEngine`
+2. ✅ `DiffEntry` model + serialization
+3. ✅ `DiffView` widget with **unified diff** (git-diff style, replaces card-based)
+4. ✅ Compare button in response viewer (home + fullscreen, consistent 3-row toolbar)
+5. ✅ `CompareSourceDialog` — editable curl with syntax highlighting (`CurlHighlightController`), saved request loader with search filter, 80% dialog sizing, terminal-style loading
+6. ✅ Field ignore / masking — auto-detect volatile fields (timestamp, uuid, etc.)
 
-**Part 2 — Extended Sources + Text Diff (after Part 1):**
-7. `TextDiffEngine` (Myers algorithm)
-8. Saved request as comparison source
-9. History entry as comparison source
-10. Cross-env comparison
-11. Persist comparison pair in `.meta.json` (quick-action 1-tap compare)
-12. Baseline snapshot — `.baseline.json` sidecar, "set as baseline" mode
-
-**Part 3 — Polish + Advanced (after Part 2):**
-13. Filter chips (show all / changes only / added / removed)
-14. Diff summary (status, timing, size)
-15. Non-JSON response handling (image toggle, HTML text diff, binary metadata-only)
-16. Auto-compare on env switch (toggle per-request)
-17. Save diff result to history
-18. Share diff output
+**Part 2 — Extended Sources + Text Diff (next):**
+7. [ ] `TextDiffEngine` (Myers algorithm)
+8. [ ] History entry as comparison source
+9. [ ] Cross-env comparison
+10. [ ] Persist comparison pair in `.meta.json` (quick-action 1-tap compare)
+11. [ ] Baseline snapshot — `.baseline.json` sidecar, "set as baseline" mode
+12. [ ] Diff summary (status, timing, size)
+13. [ ] Filter chips (show all / changes only / added / removed)
+14. [ ] Non-JSON response handling (image toggle, HTML text diff, binary metadata-only)
+15. [ ] Auto-compare on env switch (toggle per-request)
 
 ### Why Phase 5a
 

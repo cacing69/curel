@@ -7,7 +7,7 @@ import 'package:curel/domain/providers/services.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
-import 'package:curel/presentation/widgets/response_viewer.dart';
+import 'package:curel/presentation/widgets/response_toolbar.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -90,20 +90,48 @@ mixin HomeActions on ConsumerState<HomePage> {
 
     await Future<void>.delayed(Duration.zero);
 
+    // Merge .curlrc defaults (project-level curl config)
+    final projectId = ref.read(activeProjectProvider)?.id;
+    String effectiveText = text;
+    if (projectId != null) {
+      final curlrc = await ref.read(requestServiceProvider).readCurlrc(projectId);
+      if (curlrc != null && curlrc.trim().isNotEmpty) {
+        final flags = _parseCurlrcFlags(curlrc);
+        if (flags.isNotEmpty) {
+          // insert flags after 'curl' and before the rest of the command
+          effectiveText = 'curl $flags ${text.substring(4).trim()}';
+        }
+      }
+    }
+
+    // Merge cookies from active cookie jar
+    final activeJar = projectId != null
+        ? await ref.read(cookieJarServiceProvider).getActiveJar(projectId)
+        : null;
+    if (activeJar != null && activeJar.cookies.isNotEmpty) {
+      // Parse URL early to match cookies by domain
+      final urlGuess = _extractUrlFromCurl(effectiveText);
+      if (urlGuess != null) {
+        final cookieHeader = ref.read(cookieJarServiceProvider).buildCookieHeader(activeJar, urlGuess);
+        if (cookieHeader.isNotEmpty) {
+          effectiveText = _injectCookieFlag(effectiveText, cookieHeader);
+        }
+      }
+    }
+
     final sw = Stopwatch()..start();
     try {
-      final projectId = ref.read(activeProjectProvider)?.id;
-      final shouldResolve = text.contains('<<');
+      final shouldResolve = effectiveText.contains('<<');
       final resolved = shouldResolve
           ? await ref
                 .read(envServiceProvider)
-                .resolve(text, projectId: projectId)
-          : text;
+                .resolve(effectiveText, projectId: projectId)
+          : effectiveText;
 
       final undefined = shouldResolve
           ? await ref
                 .read(envServiceProvider)
-                .findUndefinedVars(text, projectId: projectId)
+                .findUndefinedVars(effectiveText, projectId: projectId)
           : const <String>{};
 
       if (undefined.isNotEmpty) {
@@ -210,6 +238,18 @@ mixin HomeActions on ConsumerState<HomePage> {
 
       // History & Meta updates...
       _updateMetadataAndHistory(text, result, parsed, projectId);
+
+      // Capture Set-Cookie into active jar
+      if (projectId != null && activeJar != null) {
+        final updatedJar = ref.read(cookieJarServiceProvider).captureSetCookies(
+              result.headers,
+              parsed.curl.uri,
+              activeJar,
+            );
+        if (!identical(updatedJar.cookies, activeJar.cookies)) {
+          await ref.read(cookieJarServiceProvider).saveJar(projectId, updatedJar);
+        }
+      }
     } catch (e) {
       if (mounted) {
         final msg = formatError(e);
@@ -323,5 +363,32 @@ mixin HomeActions on ConsumerState<HomePage> {
       return t;
     });
     return updated.join(' ');
+  }
+
+  String _parseCurlrcFlags(String content) {
+    final flags = <String>[];
+    for (final line in content.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      flags.add(trimmed);
+    }
+    return flags.join(' ');
+  }
+
+  Uri? _extractUrlFromCurl(String text) {
+    final cleaned = text.replaceAll('\\\n', ' ').replaceAll('\\', ' ');
+    final tokens = cleaned.split(RegExp(r'\s+'));
+    for (final token in tokens) {
+      final unquoted = token.replaceAll("'", '').replaceAll('"', '');
+      if (unquoted.startsWith('http://') || unquoted.startsWith('https://')) {
+        return Uri.tryParse(unquoted);
+      }
+    }
+    return null;
+  }
+
+  String _injectCookieFlag(String text, String cookieHeader) {
+    final escaped = cookieHeader.replaceAll("'", "'\\''");
+    return 'curl -b \'$escaped\' ${text.substring(4).trim()}';
   }
 }

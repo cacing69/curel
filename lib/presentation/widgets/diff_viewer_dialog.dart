@@ -1,5 +1,6 @@
 import 'package:curel/domain/services/diff_service.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
+import 'package:curel/presentation/widgets/term_button.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:flutter/material.dart';
 
@@ -160,22 +161,27 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
                               child: Row(
                                 children: [
                                   SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: Checkbox(
-                                      value: isChecked,
-                                      activeColor: TColors.green,
-                                      checkColor: TColors.background,
-                                      side: BorderSide(color: TColors.comment),
-                                      onChanged: (val) {
-                                        setState(() {
-                                          if (val == true) {
-                                            _selectedPaths.add(change.path);
-                                          } else {
-                                            _selectedPaths.remove(change.path);
-                                          }
-                                        });
-                                      },
+                                    width: 16,
+                                    height: 16,
+                                    child: Transform.scale(
+                                      scale: 0.7,
+                                      child: Checkbox(
+                                        value: isChecked,
+                                        activeColor: TColors.green,
+                                        checkColor: TColors.background,
+                                        side: BorderSide(color: TColors.comment),
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                        onChanged: (val) {
+                                          setState(() {
+                                            if (val == true) {
+                                              _selectedPaths.add(change.path);
+                                            } else {
+                                              _selectedPaths.remove(change.path);
+                                            }
+                                          });
+                                        },
+                                      ),
                                     ),
                                   ),
                                   SizedBox(width: 4),
@@ -227,17 +233,19 @@ class _DiffViewerDialogState extends State<DiffViewerDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  _ActionButton(
+                  TermButton(
                     label: 'cancel',
-                    onPressed: () => Navigator.pop(context, null),
+                    onTap: () => Navigator.pop(context, null),
                     color: TColors.comment,
+                    bordered: true,
                   ),
                   SizedBox(width: 12),
-                  _ActionButton(
+                  TermButton(
                     label: 'sync ${_selectedPaths.length} files',
-                    onPressed: _selectedPaths.isEmpty ? () {} : () => Navigator.pop(context, _selectedPaths.toList()),
+                    onTap: _selectedPaths.isEmpty ? () {} : () => Navigator.pop(context, _selectedPaths.toList()),
                     color: _selectedPaths.isEmpty ? TColors.comment : TColors.green,
                     icon: Icons.sync,
+                    bordered: true,
                   ),
                 ],
               ),
@@ -350,48 +358,4 @@ class _SmallButton extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-  final Color color;
-  final IconData? icon;
 
-  _ActionButton({
-    required this.label,
-    required this.onPressed,
-    required this.color,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        height: 28,
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: color),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: color),
-              SizedBox(width: 6),
-            ],
-            Text(
-              label.toLowerCase(),
-              style: TextStyle(
-                color: color,
-                fontFamily: 'monospace',
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

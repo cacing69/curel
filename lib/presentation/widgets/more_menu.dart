@@ -9,6 +9,9 @@ class MoreMenu extends StatelessWidget {
   final VoidCallback onHistory;
   final VoidCallback onExplore;
   final VoidCallback? onImportCollection;
+  final VoidCallback? onBatchCurlImport;
+  final VoidCallback? onCookieJars;
+  final VoidCallback? onTrafficLog;
 
   const MoreMenu({
     required this.onAbout,
@@ -18,6 +21,9 @@ class MoreMenu extends StatelessWidget {
     required this.onHistory,
     required this.onExplore,
     this.onImportCollection,
+    this.onBatchCurlImport,
+    this.onCookieJars,
+    this.onTrafficLog,
     super.key,
   });
 
@@ -49,6 +55,63 @@ class MoreMenu extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       'import collection',
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (onBatchCurlImport != null)
+              PopupMenuItem<int>(
+                value: 7,
+                height: 36,
+                child: Row(
+                  children: [
+                    Icon(Icons.content_paste, size: 14, color: TColors.mutedText),
+                    const SizedBox(width: 8),
+                    Text(
+                      'batch curl import',
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (onCookieJars != null)
+              PopupMenuItem<int>(
+                value: 8,
+                height: 36,
+                child: Row(
+                  children: [
+                    Icon(Icons.cookie_outlined, size: 14, color: TColors.mutedText),
+                    const SizedBox(width: 8),
+                    Text(
+                      'cookie jars',
+                      style: TextStyle(
+                        color: TColors.foreground,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (onTrafficLog != null)
+              PopupMenuItem<int>(
+                value: 9,
+                height: 36,
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_find, size: 14, color: TColors.mutedText),
+                    const SizedBox(width: 8),
+                    Text(
+                      'traffic log',
                       style: TextStyle(
                         color: TColors.foreground,
                         fontFamily: 'monospace',
@@ -183,6 +246,9 @@ class MoreMenu extends StatelessWidget {
           if (value == 4) onFeedback();
           if (value == 5 && onImportCollection != null) onImportCollection!();
           if (value == 6) onExplore();
+          if (value == 7 && onBatchCurlImport != null) onBatchCurlImport!();
+          if (value == 8 && onCookieJars != null) onCookieJars!();
+          if (value == 9 && onTrafficLog != null) onTrafficLog!();
         });
       },
       child: Container(

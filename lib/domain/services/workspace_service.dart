@@ -21,6 +21,7 @@ abstract class WorkspaceService {
   Future<String> exportProjectAs(String projectId, String adapterId);
   Future<({int requests, int envs})> importProject(String json, {String? customName});
   Future<({int requests, int envs})> importIntoProject(String json, String projectId);
+  Future<({int requests, int envs})> importIntoCollection(String json, String collectionName, {String? subfolder});
   Future<PreviewResult?> previewImport(String json);
 }
 
@@ -263,6 +264,36 @@ class WorkspaceServiceImpl implements WorkspaceService {
     }
     final collection = await adapter.convert(json);
     return _saveImportedCollection(collection, projectId: projectId);
+  }
+
+  @override
+  Future<({int requests, int envs})> importIntoCollection(
+    String json,
+    String collectionName, {
+    String? subfolder,
+  }) async {
+    final adapter = _adapterRegistry.findAdapter(json);
+    if (adapter == null) return (requests: 0, envs: 0);
+
+    final collection = await adapter.convert(json);
+
+    // Rewrite request paths to include subfolder
+    final adjusted = ImportedCollection(
+      name: collection.name,
+      description: collection.description,
+      environments: collection.environments,
+      samples: collection.samples,
+      requests: collection.requests.map((r) {
+        if (subfolder == null || subfolder.isEmpty) return r;
+        return ImportedRequest(
+          path: '$subfolder/${r.path}',
+          curlContent: r.curlContent,
+          meta: r.meta,
+        );
+      }).toList(),
+    );
+
+    return _saveImportedCollection(adjusted, customName: collectionName);
   }
 
   Future<({int requests, int envs})> _saveImportedCollection(

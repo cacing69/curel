@@ -7,6 +7,8 @@ class TermButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool accent;
   final bool fullWidth;
+  final bool bordered;
+  final Color? color;
 
   const TermButton({
     this.icon,
@@ -14,34 +16,45 @@ class TermButton extends StatelessWidget {
     this.onTap,
     this.accent = false,
     this.fullWidth = false,
+    this.bordered = false,
+    this.color,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    final accentColor = enabled ? TColors.green : TColors.mutedText;
+    final effectiveColor = color ??
+        (accent
+            ? TColors.green
+            : enabled
+                ? TColors.foreground
+                : TColors.mutedText);
+    final bgColor = bordered
+        ? Colors.transparent
+        : accent
+            ? (enabled
+                ? TColors.green.withValues(alpha: 0.15)
+                : TColors.surface)
+            : TColors.surface;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 28,
         padding: EdgeInsets.symmetric(horizontal: 14),
         width: fullWidth ? double.infinity : null,
-        color: accent
-            ? (enabled
-                  ? TColors.green.withValues(alpha: 0.15)
-                  : TColors.surface)
-            : TColors.surface,
+        decoration: bordered
+            ? BoxDecoration(border: Border.all(color: effectiveColor))
+            : null,
+        color: bordered ? null : bgColor,
         child: Row(
           mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-          mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
+          mainAxisAlignment:
+              fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: [
             if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: accent ? accentColor : (enabled ? TColors.foreground : TColors.mutedText),
-              ),
+              Icon(icon, size: 14, color: effectiveColor),
               if (label != null && label!.isNotEmpty)
                 const SizedBox(width: 4),
             ],
@@ -51,7 +64,7 @@ class TermButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontFamily: 'monospace',
-                  color: accent ? accentColor : (enabled ? TColors.foreground : TColors.mutedText),
+                  color: effectiveColor,
                 ),
               ),
           ],

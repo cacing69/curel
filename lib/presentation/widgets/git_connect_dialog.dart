@@ -229,12 +229,7 @@ class _GitConnectDialogState extends ConsumerState<GitConnectDialog> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: _loadingRepos
-                        ? SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: TColors.green),
-                          )
+                        ? TerminalLoader(compact: true)
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
