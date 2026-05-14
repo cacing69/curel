@@ -1,0 +1,13 @@
+# This is a generated file.  Do not edit.
+buildinfo.configure.tool: configure
+buildinfo.configure.args:  '--host=x86_64-linux-android' '--prefix=/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64' '--with-openssl=/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64' '--with-zlib' '--without-libpsl' '--enable-shared' '--disable-static' '--disable-ldap' '--disable-manual' 'CFLAGS=-O3' 'LDFLAGS=-L/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/lib' 'LIBS=-lssl -lcrypto' 'host_alias=x86_64-linux-android' 'CC=/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android24-clang' 'CPPFLAGS=-I/opt/homebrew/opt/openjdk@17/include'
+buildinfo.host: aarch64-apple-darwin25.4.0
+buildinfo.host.cpu: aarch64
+buildinfo.host.os: darwin25.4.0
+buildinfo.target: x86_64-pc-linux-android
+buildinfo.target.cpu: x86_64
+buildinfo.target.os: linux-android
+buildinfo.target.flags: UNIX ANDROID UNIX CROSS
+buildinfo.compiler: CLANG
+buildinfo.compiler.version: 19.0
+buildinfo.sysroot: 

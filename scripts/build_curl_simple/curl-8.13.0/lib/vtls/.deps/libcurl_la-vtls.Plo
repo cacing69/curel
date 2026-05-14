@@ -1,0 +1,535 @@
+vtls/libcurl_la-vtls.lo: vtls/vtls.c ../lib/curl_setup.h \
+  ../lib/curl_config.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/pthread.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/cdefs.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/versioning.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/api-level.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/get_device_api_level_inlines.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/ndk-version.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/limits.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/limits.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/float.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/limits.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/posix_limits.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/page_size.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/pthread_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stddef.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_ptrdiff_t.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_size_t.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_wchar_t.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_null.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_max_align_t.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_offsetof.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdint.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdint.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/wchar_limits.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/int-ll64.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/bitsperlong.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/bitsperlong.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/posix_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/stddef.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/compiler_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/compiler.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/posix_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/posix_types_64.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/posix_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sched.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/timespec.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sched.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sched/types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/time.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/time.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/time.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/time_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/select.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/signal.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/sigcontext.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/signal_types.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/signal.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/signal.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/signal-defs.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/siginfo.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/siginfo.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/ucontext.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/user.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/xlocale.h \
+  ../include/curl/system.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/socket.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/fcntl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/fcntl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/flock64.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/flock.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/socket.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/socket.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/sockios.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/sockios.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sockios.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/uio.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sockaddr_storage.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sa_family_t.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdio.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdarg.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg___gnuc_va_list.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_list.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_arg.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg___va_copy.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_copy.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/seek_constants.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/assert.h \
+  ../lib/curl_setup_once.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdlib.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/alloca.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/wait.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/wait.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/malloc.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/legacy_stdlib_inlines.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/stdlib_inlines.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/string.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/strcasecmp.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/strings.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/errno.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/errno.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/errno.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/errno.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/errno-base.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/stat.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/stat.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/fcntl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/fadvise.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/falloc.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/fcntl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/openat2.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/fcntl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/lockf.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdbool.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/unistd.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/getentropy.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/getopt.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ioctl.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sysconf.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/legacy_unistd_inlines.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/swab.h \
+  ../lib/functypes.h ../lib/curl_ctype.h ../lib/urldata.h \
+  ../lib/cookie.h ../include/curl/curl.h ../include/curl/curlver.h \
+  ../include/curl/easy.h ../include/curl/multi.h \
+  ../include/curl/urlapi.h ../include/curl/options.h \
+  ../include/curl/header.h ../include/curl/websockets.h ../lib/llist.h \
+  ../lib/psl.h ../lib/formdata.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netinet/in.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/endian.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/endian.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netinet/in6.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/in6.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/libc-compat.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/in.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ip_msfilter.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/in_addr.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ip_mreq_source.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/socket.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/byteorder.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/byteorder/little_endian.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/swab.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/swab.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/ipv6.h \
+  ../lib/timeval.h ../lib/timediff.h ../lib/http_chunks.h \
+  ../lib/dynbuf.h ../lib/hostip.h ../lib/hash.h ../lib/curl_addrinfo.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netdb.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/arpa/inet.h \
+  ../lib/asyn.h ../lib/httpsrr.h ../lib/curl_threads.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/setjmp.h \
+  ../lib/hash_offt.h ../lib/splay.h ../lib/dynhds.h ../lib/request.h \
+  ../lib/bufq.h ../lib/netrc.h ../lib/mime.h ../lib/imap.h \
+  ../lib/pingpong.h ../lib/curl_sasl.h ../lib/bufref.h ../lib/pop3.h \
+  ../lib/smtp.h ../lib/ftp.h ../lib/file.h ../lib/vssh/ssh.h \
+  ../lib/vssh/curl_path.h ../lib/http.h ../lib/ws.h ../lib/rtsp.h \
+  ../lib/smb.h ../lib/mqtt.h ../lib/ftplistparser.h ../lib/multihandle.h \
+  ../lib/conncache.h ../lib/cshutdn.h ../lib/multi_ev.h \
+  ../lib/socketpair.h ../lib/cf-socket.h ../lib/nonblock.h \
+  ../lib/sockaddr.h ../lib/cfilters.h vtls/vtls.h vtls/vtls_int.h \
+  vtls/vtls_scache.h vtls/openssl.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/opensslv.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/macros.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/opensslconf.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/configuration.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ossl_typ.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/types.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/e_os2.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/inttypes.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/inttypes.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/safestack.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/stack.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/e_ostime.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/comp.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/crypto.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cryptoerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/symhacks.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cryptoerr_legacy.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/core.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/comperr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bio.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bioerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/buffer.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/buffererr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/evp.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/core_dispatch.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/indicator.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/params.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bn.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bnerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/evperr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/objects.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/obj_mac.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asn1.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asn1err.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/objectserr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ec.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ecerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/rsa.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/rsaerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dsa.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dh.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dherr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dsaerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sha.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509err.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509_vfy.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/lhash.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pkcs7.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pkcs7err.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/http.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conf.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conferr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conftypes.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pem.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pemerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/hmac.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/async.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asyncerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ct.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cterr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sslerr.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sslerr_legacy.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/prov_ssl.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl2.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl3.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/tls1.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dtls1.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/srtp.h \
+  /Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/quic.h \
+  vtls/gtls.h vtls/wolfssl.h vtls/schannel.h vtls/sectransp.h \
+  vtls/mbedtls.h vtls/bearssl.h vtls/rustls.h ../lib/slist.h \
+  ../lib/sendf.h ../lib/curl_trc.h ../lib/strcase.h ../lib/url.h \
+  ../lib/progress.h ../lib/share.h ../lib/multiif.h ../lib/curl_md5.h \
+  ../lib/curl_hmac.h ../lib/curl_sha256.h ../lib/warnless.h \
+  ../lib/curl_base64.h ../lib/curl_printf.h ../include/curl/mprintf.h \
+  ../lib/inet_pton.h ../lib/connect.h ../lib/select.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/poll.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/poll.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/poll.h \
+  /Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/poll.h \
+  ../lib/strdup.h ../lib/rand.h ../lib/curl_memory.h ../lib/memdebug.h
+../lib/curl_setup.h:
+../lib/curl_config.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/pthread.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/cdefs.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/versioning.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/api-level.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/get_device_api_level_inlines.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/ndk-version.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/limits.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/limits.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/float.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/limits.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/posix_limits.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/page_size.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/pthread_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stddef.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_ptrdiff_t.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_size_t.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_wchar_t.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_null.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_max_align_t.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stddef_offsetof.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdint.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdint.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/wchar_limits.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/int-ll64.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/bitsperlong.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/bitsperlong.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/posix_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/stddef.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/compiler_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/compiler.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/posix_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/posix_types_64.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/posix_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sched.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/timespec.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sched.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sched/types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/time.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/time.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/time.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/time_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/select.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/signal.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/sigcontext.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/signal_types.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/signal.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/signal.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/signal-defs.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/siginfo.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/siginfo.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/ucontext.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/user.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/xlocale.h:
+../include/curl/system.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/socket.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/fcntl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/fcntl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/flock64.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/flock.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/socket.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/socket.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/sockios.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/sockios.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/sockios.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/uio.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sockaddr_storage.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sa_family_t.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdio.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdarg.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg___gnuc_va_list.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_list.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_arg.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg___va_copy.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/__stdarg_va_copy.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/seek_constants.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/assert.h:
+../lib/curl_setup_once.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/stdlib.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/alloca.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/wait.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/wait.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/malloc.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/legacy_stdlib_inlines.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/stdlib_inlines.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/string.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/strcasecmp.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/strings.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/errno.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/errno.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/errno.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/errno.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/errno-base.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/stat.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/stat.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/fcntl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/fadvise.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/falloc.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/fcntl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/openat2.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/fcntl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/lockf.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/stdbool.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/unistd.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/getentropy.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/getopt.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ioctl.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/sysconf.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/android/legacy_unistd_inlines.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/swab.h:
+../lib/functypes.h:
+../lib/curl_ctype.h:
+../lib/urldata.h:
+../lib/cookie.h:
+../include/curl/curl.h:
+../include/curl/curlver.h:
+../include/curl/easy.h:
+../include/curl/multi.h:
+../include/curl/urlapi.h:
+../include/curl/options.h:
+../include/curl/header.h:
+../include/curl/websockets.h:
+../lib/llist.h:
+../lib/psl.h:
+../lib/formdata.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netinet/in.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/endian.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/sys/endian.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netinet/in6.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/in6.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/libc-compat.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/in.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ip_msfilter.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/in_addr.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/bits/ip_mreq_source.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/socket.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/byteorder.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/byteorder/little_endian.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/swab.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/swab.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/ipv6.h:
+../lib/timeval.h:
+../lib/timediff.h:
+../lib/http_chunks.h:
+../lib/dynbuf.h:
+../lib/hostip.h:
+../lib/hash.h:
+../lib/curl_addrinfo.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/netdb.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/arpa/inet.h:
+../lib/asyn.h:
+../lib/httpsrr.h:
+../lib/curl_threads.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/setjmp.h:
+../lib/hash_offt.h:
+../lib/splay.h:
+../lib/dynhds.h:
+../lib/request.h:
+../lib/bufq.h:
+../lib/netrc.h:
+../lib/mime.h:
+../lib/imap.h:
+../lib/pingpong.h:
+../lib/curl_sasl.h:
+../lib/bufref.h:
+../lib/pop3.h:
+../lib/smtp.h:
+../lib/ftp.h:
+../lib/file.h:
+../lib/vssh/ssh.h:
+../lib/vssh/curl_path.h:
+../lib/http.h:
+../lib/ws.h:
+../lib/rtsp.h:
+../lib/smb.h:
+../lib/mqtt.h:
+../lib/ftplistparser.h:
+../lib/multihandle.h:
+../lib/conncache.h:
+../lib/cshutdn.h:
+../lib/multi_ev.h:
+../lib/socketpair.h:
+../lib/cf-socket.h:
+../lib/nonblock.h:
+../lib/sockaddr.h:
+../lib/cfilters.h:
+vtls/vtls.h:
+vtls/vtls_int.h:
+vtls/vtls_scache.h:
+vtls/openssl.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/opensslv.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/macros.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/opensslconf.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/configuration.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ossl_typ.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/types.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/e_os2.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/include/inttypes.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/inttypes.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/safestack.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/stack.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/e_ostime.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/comp.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/crypto.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cryptoerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/symhacks.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cryptoerr_legacy.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/core.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/comperr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bio.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bioerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/buffer.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/buffererr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/evp.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/core_dispatch.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/indicator.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/params.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bn.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/bnerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/evperr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/objects.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/obj_mac.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asn1.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asn1err.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/objectserr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ec.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ecerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/rsa.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/rsaerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dsa.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dh.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dherr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dsaerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sha.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509err.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/x509_vfy.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/lhash.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pkcs7.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pkcs7err.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/http.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conf.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conferr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/conftypes.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pem.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/pemerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/hmac.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/async.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/asyncerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ct.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/cterr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sslerr.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/sslerr_legacy.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/prov_ssl.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl2.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/ssl3.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/tls1.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/dtls1.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/srtp.h:
+/Users/ibnulmutaki/Development/github/curel/scripts/build_curl_simple/out/x86_64/include/openssl/quic.h:
+vtls/gtls.h:
+vtls/wolfssl.h:
+vtls/schannel.h:
+vtls/sectransp.h:
+vtls/mbedtls.h:
+vtls/bearssl.h:
+vtls/rustls.h:
+../lib/slist.h:
+../lib/sendf.h:
+../lib/curl_trc.h:
+../lib/strcase.h:
+../lib/url.h:
+../lib/progress.h:
+../lib/share.h:
+../lib/multiif.h:
+../lib/curl_md5.h:
+../lib/curl_hmac.h:
+../lib/curl_sha256.h:
+../lib/warnless.h:
+../lib/curl_base64.h:
+../lib/curl_printf.h:
+../include/curl/mprintf.h:
+../lib/inet_pton.h:
+../lib/connect.h:
+../lib/select.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/poll.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/linux/poll.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/x86_64-linux-android/asm/poll.h:
+/Users/ibnulmutaki/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/asm-generic/poll.h:
+../lib/strdup.h:
+../lib/rand.h:
+../lib/curl_memory.h:
+../lib/memdebug.h:

@@ -8,7 +8,6 @@ import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/response_toolbar.dart';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,20 +22,6 @@ mixin HomeActions on ConsumerState<HomePage> {
   Future<void> loadRequest(String relativePath);
 
   String formatError(Object e) {
-    if (e is DioException) {
-      switch (e.type) {
-        case DioExceptionType.connectionError:
-          return 'error: connection failed — host unreachable';
-        case DioExceptionType.connectionTimeout:
-          return 'error: connection timed out';
-        case DioExceptionType.receiveTimeout:
-          return 'error: response timed out';
-        case DioExceptionType.unknown:
-          return 'error: ${e.error}';
-        default:
-          return 'error: request failed (${e.type.name})';
-      }
-    }
     final msg = e.toString().replaceFirst(
       RegExp(r'^(Exception|FormatException|TypeError):\s*'),
       '',
@@ -51,19 +36,18 @@ mixin HomeActions on ConsumerState<HomePage> {
     Duration? maxTime, {
     required bool binary,
   }) async {
-    // Use native libcurl for flags that Dio can't handle
+    final client = ref.read(httpClientProvider);
+
+    // Use native libcurl directly for flags that need it
     if (parsed.needsNativeCurl && parsed.curlCommand.isNotEmpty) {
-      final client = ref.read(libcurlClientProvider);
-      return client.executeRaw(
+      return (await client.executeRaw(
         parsed.curlCommand,
         verbose: parsed.verbose,
         trace: parsed.traceEnabled,
         traceAscii: parsed.traceAscii,
-      );
+      ))!;
     }
 
-    // Standard Dio execution
-    final client = ref.read(httpClientProvider);
     final executor = binary ? client.executeBinary : client.execute;
     return executor(
       parsed.curl,

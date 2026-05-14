@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/providers/services.dart';
@@ -10,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 
 // ── Models ──────────────────────────────────────────────────────
 
@@ -562,48 +562,41 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
             .join('; ');
       }
 
-      final formData = FormData();
-      for (final entry in _formDataEntries) {
-        if (entry.name.isEmpty) continue;
-        if (entry.isFile && entry.fileBytes != null) {
-          formData.files.add(
-            MapEntry(
-              entry.name,
-              MultipartFile.fromBytes(
-                entry.fileBytes!,
-                filename: entry.fileName,
-              ),
-            ),
-          );
-        } else {
-          formData.fields.add(MapEntry(entry.name, entry.value));
+      final uri = Uri.parse(_url.trim());
+      final client = HttpClient();
+      final req = await client.openUrl(_method.name.toUpperCase(), uri);
+      headers.forEach((k, v) => req.headers.set(k, v));
+
+      final hasFormData = _formDataEntries.any((e) => e.name.isNotEmpty);
+      if (hasFormData) {
+        final boundary = 'boundary_${DateTime.now().millisecondsSinceEpoch}';
+        req.headers.set('Content-Type', 'multipart/form-data; boundary=$boundary');
+        for (final entry in _formDataEntries) {
+          if (entry.name.isEmpty) continue;
+          if (entry.isFile && entry.fileBytes != null) {
+            req.write('--$boundary\r\n');
+            req.write('Content-Disposition: form-data; name="${entry.name}"; filename="${entry.fileName ?? "file"}"\r\n');
+            req.write('Content-Type: application/octet-stream\r\n\r\n');
+            req.add(entry.fileBytes!);
+            req.write('\r\n');
+          } else {
+            req.write('--$boundary\r\n');
+            req.write('Content-Disposition: form-data; name="${entry.name}"\r\n\r\n');
+            req.write('${entry.value ?? ""}\r\n');
+          }
         }
+        req.write('--$boundary--\r\n');
       }
-
-      final response = await Dio().request<String>(
-        _url.trim(),
-        data: formData,
-        options: Options(
-          method: _method.name.toUpperCase(),
-          headers: headers,
-          responseType: ResponseType.plain,
-          validateStatus: (s) => s != null && s < 600,
-        ),
-      );
-
-      final elapsed = sw.elapsedMilliseconds;
-      if (elapsed < 500) {
-        await Future.delayed(Duration(milliseconds: 500 - elapsed));
-      }
+      final resp = await req.close();
+      final body = await resp.transform(utf8.decoder).join();
+      client.close();
 
       final curlResponse = CurlResponse(
-        statusCode: response.statusCode,
-        statusMessage: response.statusMessage ?? '',
-        headers: response.headers.map,
-        body: response.data,
+        statusCode: resp.statusCode,
+        statusMessage: resp.reasonPhrase,
+        headers: _convertHeaders(resp.headers),
+        body: body,
       );
-
-      if (mounted) Navigator.of(context).pop(curlResponse);
     } catch (e) {
       final elapsed = sw.elapsedMilliseconds;
       if (elapsed < 500) {
@@ -613,6 +606,12 @@ class _RequestBuilderPageState extends ConsumerState<RequestBuilderPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Map<String, List<String>> _convertHeaders(HttpHeaders h) {
+    final map = <String, List<String>>{};
+    h.forEach((k, v) => map[k] = v);
+    return map;
   }
 
   // ── Build ─────────────────────────────────────────────────────

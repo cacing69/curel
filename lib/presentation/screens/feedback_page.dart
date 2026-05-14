@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:curel/presentation/widgets/term_button.dart';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -220,7 +221,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       for (var i = 0; i < compressedImages.length; i++) {
         final img = compressedImages[i];
         attachments.add({'id': i, 'filename': img.name});
-        formMap['files[$i]'] = MultipartFile.fromBytes(img.bytes, filename: img.name);
+        formMap['files[$i]'] = img;
       }
       if (attachments.isNotEmpty) {
         payload['attachments'] = attachments;
@@ -231,15 +232,31 @@ class _FeedbackPageState extends State<FeedbackPage> {
       }
       formMap['payload_json'] = jsonEncode(payload);
 
-      final dio = Dio();
-      final res = await dio.post(
-        _webhookUrl,
-        data: FormData.fromMap(formMap),
-        options: Options(contentType: 'multipart/form-data'),
-      );
+      final uri = Uri.parse(_webhookUrl);
+      final client = HttpClient();
+      final req = await client.postUrl(uri);
+      final boundary = 'boundary_${DateTime.now().millisecondsSinceEpoch}';
+      req.headers.set('Content-Type', 'multipart/form-data; boundary=$boundary');
+      for (final entry in formMap.entries) {
+        final val = entry.value;
+        if (val is _PickedImage) {
+          req.write('--$boundary\r\n');
+          req.write('Content-Disposition: form-data; name="${entry.key}"; filename="${val.name}"\r\n');
+          req.write('Content-Type: application/octet-stream\r\n\r\n');
+          req.add(val.bytes);
+        } else {
+          req.write('--$boundary\r\n');
+          req.write('Content-Disposition: form-data; name="${entry.key}"\r\n\r\n');
+          req.write('$val\r\n');
+        }
+      }
+      req.write('--$boundary--\r\n');
+      final resp = await req.close();
+      final resBody = await resp.transform(utf8.decoder).join();
+      client.close();
 
-      if (res.statusCode != 200 && res.statusCode != 204) {
-        throw Exception('send failed: ${res.statusCode}');
+      if (resp.statusCode != 200 && resp.statusCode != 204) {
+        throw Exception('send failed: ${resp.statusCode} $resBody');
       }
 
       if (!mounted) return;

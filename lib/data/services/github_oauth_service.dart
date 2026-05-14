@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:dio/dio.dart';
+import 'dart:io';
 
 class DeviceFlowResponse {
   final String deviceCode;
@@ -40,35 +39,44 @@ class OAuthTokenResponse {
 }
 
 class GitHubOAuthService {
-  late final Dio _client;
+  final HttpClient _client = HttpClient();
   final String clientId;
   final String? clientSecret;
 
   GitHubOAuthService({required this.clientId, this.clientSecret}) {
-    _client = Dio(BaseOptions(
-      connectTimeout: Duration(seconds: 10),
-      receiveTimeout: Duration(seconds: 15),
-    ));
+    _client.connectionTimeout = Duration(seconds: 10);
+  }
+
+  Future<Map<String, dynamic>> _post(String url, Map<String, dynamic> data, {Map<String, String>? headers}) async {
+    final uri = Uri.parse(url);
+    final req = await _client.postUrl(uri);
+    req.headers.set('Accept', 'application/json');
+    req.headers.set('Content-Type', 'application/json');
+    if (headers != null) headers.forEach((k, v) => req.headers.set(k, v));
+    req.write(jsonEncode(data));
+    final resp = await req.close().timeout(Duration(seconds: 15));
+    final body = await resp.transform(utf8.decoder).join();
+    return _parseJsonMap(body);
+  }
+
+  Future<Map<String, dynamic>> _delete(String url, Map<String, dynamic> data, {Map<String, String>? headers}) async {
+    final uri = Uri.parse(url);
+    final req = await _client.deleteUrl(uri);
+    req.headers.set('Accept', 'application/json');
+    req.headers.set('Content-Type', 'application/json');
+    if (headers != null) headers.forEach((k, v) => req.headers.set(k, v));
+    req.write(jsonEncode(data));
+    final resp = await req.close().timeout(Duration(seconds: 10));
+    final body = await resp.transform(utf8.decoder).join();
+    return _parseJsonMap(body);
   }
 
   Future<DeviceFlowResponse> startDeviceFlow() async {
-    final response = await _client.post(
-      'https://github.com/login/device/code',
-      options: Options(
-        headers: {'Accept': 'application/json'},
-        responseType: ResponseType.json,
-      ),
-      data: {
-        'client_id': clientId,
-        'scope': 'repo',
-      },
-    );
+    final data = await _post('https://github.com/login/device/code', {
+      'client_id': clientId,
+      'scope': 'repo',
+    });
 
-    if (response.statusCode != 200) {
-      throw Exception('failed to start device flow: ${response.statusCode}');
-    }
-
-    final data = _parseJsonMap(response.data);
     return DeviceFlowResponse(
       deviceCode: data['device_code'],
       userCode: data['user_code'],
@@ -89,24 +97,11 @@ class GitHubOAuthService {
       await Future.delayed(Duration(seconds: interval));
 
       try {
-        final response = await _client.post(
-          'https://github.com/login/oauth/access_token',
-          options: Options(
-            headers: {'Accept': 'application/json'},
-            responseType: ResponseType.json,
-          ),
-          data: {
-            'client_id': clientId,
-            'device_code': deviceCode,
-            'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-          },
-        );
-
-        if (response.statusCode != 200) {
-          continue;
-        }
-
-        final data = _parseJsonMap(response.data);
+        final data = await _post('https://github.com/login/oauth/access_token', {
+          'client_id': clientId,
+          'device_code': deviceCode,
+          'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+        });
 
         if (data.containsKey('access_token')) {
           return OAuthTokenResponse(
@@ -159,57 +154,27 @@ class GitHubOAuthService {
 
     try {
       final credentials = base64Encode(utf8.encode('$clientId:$clientSecret'));
-      final response = await _client.delete(
-        'https://api.github.com/applications/$clientId/token',
-        options: Options(
-          headers: {
-            'Authorization': 'Basic $credentials',
-            'Accept': 'application/json',
-          },
-          responseType: ResponseType.json,
-        ),
-        data: {'access_token': accessToken},
-      );
+      final resp = await _client.deleteUrl(Uri.parse(
+          'https://api.github.com/applications/$clientId/token'));
+      resp.headers.set('Authorization', 'Basic $credentials');
+      resp.headers.set('Accept', 'application/json');
+      resp.headers.set('Content-Type', 'application/json');
+      resp.write(jsonEncode({'access_token': accessToken}));
+      final response = await resp.close().timeout(Duration(seconds: 10));
       return response.statusCode == 204;
     } catch (_) {
       return false;
     }
   }
 
-  Map<String, dynamic> _parseJsonMap(dynamic data) {
-    if (data is Map<String, dynamic>) return data;
-    if (data is String) {
-      try {
-        final decoded = jsonDecode(data);
-        if (decoded is Map<String, dynamic>) return decoded;
-      } catch (_) {}
-    }
-    return {};
-  }
-
   Future<OAuthTokenResponse> refreshToken(String refreshToken) async {
     try {
-      final response = await _client.post(
-        'https://github.com/login/oauth/access_token',
-        options: Options(
-          headers: {'Accept': 'application/json'},
-          responseType: ResponseType.json,
-        ),
-        data: {
-          'client_id': clientId,
-          'grant_type': 'refresh_token',
-          'refresh_token': refreshToken,
-        },
-      );
+      final data = await _post('https://github.com/login/oauth/access_token', {
+        'client_id': clientId,
+        'grant_type': 'refresh_token',
+        'refresh_token': refreshToken,
+      });
 
-      if (response.statusCode != 200) {
-        return OAuthTokenResponse(
-          error: 'refresh_failed',
-          errorDescription: 'token refresh failed: ${response.statusCode}',
-        );
-      }
-
-      final data = _parseJsonMap(response.data);
       return OAuthTokenResponse(
         accessToken: data['access_token'],
         refreshToken: data['refresh_token'],
@@ -222,5 +187,16 @@ class GitHubOAuthService {
         errorDescription: '$e',
       );
     }
+  }
+
+  Map<String, dynamic> _parseJsonMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is String) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+    return {};
   }
 }

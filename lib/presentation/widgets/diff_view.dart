@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/data/services/libcurl_http_client.dart';
 import 'package:curel/domain/models/diff_entry.dart';
 import 'package:curel/domain/models/request_item_model.dart';
 import 'package:curel/domain/services/diff/response_diff_engine.dart';
@@ -228,7 +229,7 @@ class _CompareSourceDialogState extends State<CompareSourceDialog> {
     });
 
     try {
-      final httpClient = DioCurlHttpClient();
+      final httpClient = LibcurlHttpClient();
 
       final baseText = _baseCurlController.text.trim();
       if (!baseText.startsWith('curl')) {

@@ -46,6 +46,8 @@ Android, iOS, macOS, Windows, Linux, Web
 
 ### Phase 3: Maturity & Pluginable Growth (Ongoing)
 
+- [x] **Native libcurl Integration** — Replaced Dio HTTP client with native libcurl via `dart:ffi`. Bundles `libcurl.so` (cross-compiled for arm64/arm/x86_64) with HTTP/2, HTTP/3 (QUIC), TLS 1.3, brotli, zlib, SFTP, FTP, SMTP, IMAP, POP3, SMB, MQTT, RTSP. `LibcurlHttpClient` implements full `CurlHttpClient` interface with write/header callbacks, `--pinnedpubkey` support, and `executeRaw()` for unsupported flags. Build script at `scripts/build_curl_android.sh`.
+
 - [x] **Dialog Control Bar Refactor** — Unified all dialog action buttons to use `TermButton` with `bordered` variant (compare/sync/conflict/import/save dialogs). Removed local `_ActionButton`, `_footerButton`, `_btn` definitions. Added `bordered` and `color` parameters to `TermButton`. Conflict dialog: fixed layout crash (Spacer inside horizontal scroll), redesigned to vertical preview (local top/remote bottom), moved bulk actions to sidebar header, reduced sidebar width 180→130.
 
 - [x] **Pluginable Collection Engine** (Adapter Pattern)
@@ -71,6 +73,7 @@ Android, iOS, macOS, Windows, Linux, Web
 - [ ] **Simple Response Assertions** — visual pass/fail assertions per request without scripting (status range, body contains, header exists, json path, response time)
 - [x] **Request Notes** — `.notes.md` sidecar file per request for developer documentation, git-diffable markdown
 - [x] **curl Config Support** — per-project `.curlrc` for default curl flags (headers, proxy, insecure, user-agent)
+- [x] **curl Parser Robustness** — Fixed `--pinnedpubkey` and other TLS flags crash (value `sha256//...` parsed as URL). Added `_protectNonUrlValues()` to shield non-HTTP values from parser. Added `_nativeOnlyFlags` detection + `needsNativeCurl` auto-fallback for 30+ unsupported flags. Native curl fallback via `Process.run` on desktop, libcurl FFI on mobile.
 - [ ] **Proxy Configuration** — `--proxy`, `--proxy-header`, `--noproxy` support for corporate networks and interception tools (Burp/Charles/mitmproxy)
 
 - [ ] **Folder-level Environment Override** — `.env.json` per folder extending layered env resolution (global → project → folder → subfolder)
@@ -85,17 +88,18 @@ System-wide HTTP/HTTPS traffic capture via local VPN. Android-first, iOS deferre
 
 #### Phase 4a: Android HTTP-only Interception (MVP)
 
-- [ ] **Android VpnService Tunnel** — Kotlin/Java native code implementing `VpnService` to create local VPN; all device traffic routed through tunnel; IP packet reassembly → TCP stream extraction
-- [ ] **HTTP Request/Response Parser** — parse raw TCP streams into HTTP request/response pairs; extract method, URL, headers, body; reconstruct HTTP messages from captured packets
-- [ ] **Flutter Platform Bridge** — method channel or FFI bridge: native → Dart streaming transfer of captured requests; start/stop capture control; traffic filtering rules
-- [ ] **Traffic Log Viewer** — real-time list of captured requests with method badge, URL, status code, response size; search/filter by domain, method, status; tap to view full request/response
-- [ ] **Auto-export to `.curl`** — captured requests written as `.curl` files to `_intercept/` project; request body auto-included; response saved as sample
-- [ ] **Foreground Service** — persistent notification during capture (Android requirement); capture toggle in app toolbar
+- [x] **Android VpnService Tunnel** — `CurelVpnService.kt`: VpnService with packet capture loop, TCP/UDP forwarding, `protect()` socket, foreground notification
+- [x] **HTTP Request/Response Parser** — `TcpFlow.kt`: TCP stream reassembly, HTTP request detection (method, URL, headers, body), SNI extraction for HTTPS
+- [x] **Flutter Platform Bridge** — `VpnFlutterBridge.kt` + `MainActivity.kt`: MethodChannel `curel/traffic_capture`, batch-delivery every 200ms, VPN permission via `startActivityForResult`
+- [x] **Traffic Log Viewer** — `TrafficLogPage`: real-time captured request list, method/URL badge, expandable headers/body, tap-to-copy curl
+- [x] **Auto-export to `.curl`** — `CapturedRequest.toCurl()` converter, copy to clipboard
+- [x] **Foreground Service** — Notification channel + ongoing notification with stop action
 
 #### Phase 4b: HTTPS Interception (TLS MITM)
 
-- [ ] **Local CA Certificate Generator** — generate self-signed root CA on device; user installs via Android settings (one-time setup); `network_security_config.xml` for debug builds
-- [ ] **TLS MITM Proxy** — man-in-the-middle TLS termination; dynamic certificate generation per hostname (like mitmproxy); forward original request to destination, return decrypted response
+- [x] **Local CA Certificate Generator** — `CertManager.kt`: 2048-bit RSA root CA (PKCS12 keystore), per-hostname cert via SNI (BouncyCastle `bcpkix-jdk18on`), KeyChain API for one-tap install
+- [x] **TLS MITM Engine** — `TlsMitmEngine.kt`: SSLEngine-based byte-level TLS termination, ClientHello SNI extraction, dynamic cert per hostname, HTTP request capture from decrypted stream
+- [x] **HTTPS Capture** — `TcpFlow.kt` port 443 routing to MITM engine, TLS handshake + forward to real server
 - [ ] **SSL Pinning Bypass (best-effort)** — some apps pin certificates; document limitation
 
 #### Phase 4c: iOS (later)

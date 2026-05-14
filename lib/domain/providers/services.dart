@@ -34,10 +34,6 @@ final httpClientProvider = Provider<CurlHttpClient>(
   (ref) => LibcurlHttpClient(),
 );
 
-final libcurlClientProvider = Provider<LibcurlHttpClient>(
-  (ref) => LibcurlHttpClient(),
-);
-
 final envServiceProvider = Provider<EnvService>(
   (ref) => FileSystemEnvService(ref.read(fileSystemProvider)),
 );
