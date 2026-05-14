@@ -29,6 +29,9 @@ class LibcurlHttpClient implements CurlHttpClient {
   final CurlLibrary _curl = CurlLibrary();
   var _userAgent = '';
 
+  static String? caBundlePath;
+
+  @override
   void setUserAgent(String value) => _userAgent = value;
 
   void ensureLoaded() {
@@ -140,6 +143,10 @@ class LibcurlHttpClient implements CurlHttpClient {
       }
 
       // TLS
+      if (caBundlePath != null) {
+        final caPath = caBundlePath!.toNativeUtf8();
+        _curl.easySetopt(easy, CURLOPT_CAINFO, caPath.cast<NativeType>());
+      }
       if (insecure) {
         _setoptInt(easy, CURLOPT_SSL_VERIFYPEER, 0);
         _setoptInt(easy, CURLOPT_SSL_VERIFYHOST, 0);

@@ -21,6 +21,7 @@ echo "=== Downloading sources ==="
 [ -d curl-8.13.0 ] || tar xf curl-8.13.0.tar.xz
 [ -f openssl-3.5.0.tar.gz ] || curl -LO https://www.openssl.org/source/openssl-3.5.0.tar.gz
 [ -d openssl-3.5.0 ] || tar xf openssl-3.5.0.tar.gz
+[ -f cacert.pem ] || curl -LO https://curl.se/ca/cacert.pem
 
 ARCHS="arm64-v8a:aarch64-linux-android:android-arm64 armeabi-v7a:armv7a-linux-androideabi:android-arm x86_64:x86_64-linux-android:android-x86_64"
 
