@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -69,6 +70,7 @@ class _HomePageState extends ConsumerState<HomePage>
   List<String> _envOverlayOptions = [];
   Offset _envOverlayOffset = Offset.zero;
   List<({String key, String lower})> _envKeyIndex = [];
+  Timer? _envOverlayTimer;
 
   String get _requestDisplayName {
     final path = ref.read(selectedRequestPathProvider);
@@ -180,6 +182,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void dispose() {
+    _envOverlayTimer?.cancel();
     _hideEnvOverlay();
     WidgetsBinding.instance.removeObserver(this);
     _curlController.removeListener(_onCurlValueChanged);
@@ -199,9 +202,14 @@ class _HomePageState extends ConsumerState<HomePage>
     _updateEnvOverlay();
   }
 
+  static const _envOverlayDebounceMs = 80;
+
   void _onCurlValueChanged() {
     if (!_editorFocusNode.hasFocus) return;
-    _updateEnvOverlay();
+    _envOverlayTimer?.cancel();
+    _envOverlayTimer = Timer(const Duration(milliseconds: _envOverlayDebounceMs), () {
+      if (mounted) _updateEnvOverlay();
+    });
   }
 
   void _hideEnvOverlay() {
@@ -1539,13 +1547,15 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _buildInputField({int? maxLines = 8, int minLines = 3}) {
-    return CurlInputField(
-      controller: _curlController,
-      focusNode: _editorFocusNode,
-      textFieldKey: _textFieldKey,
-      onClear: _clear,
-      maxLines: maxLines,
-      minLines: minLines,
+    return RepaintBoundary(
+      child: CurlInputField(
+        controller: _curlController,
+        focusNode: _editorFocusNode,
+        textFieldKey: _textFieldKey,
+        onClear: _clear,
+        maxLines: maxLines,
+        minLines: minLines,
+      ),
     );
   }
 
@@ -1563,8 +1573,52 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
+  void _onHistorySelect(String curl) {
+    setState(() => curlController.text = curl);
+    ref
+        .read(responseStateProvider.notifier)
+        .update((s) => s.copyWith(clearResponse: true, clearError: true));
+    executeCurl();
+  }
+
+  void _navigateFeedback(BuildContext ctx) {
+    Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => FeedbackPage(
+          projectId: ref.read(activeProjectProvider)?.id,
+          projectName: ref.read(activeProjectProvider)?.name,
+          requestPath: ref.read(selectedRequestPathProvider),
+        ),
+      ),
+    );
+  }
+
+  void _navigateSettings(BuildContext ctx) {
+    Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsPage(
+          onUserAgentChanged: widget.onUserAgentChanged,
+          onWorkspaceChanged: widget.onWorkspaceChanged,
+          onThemeChanged: widget.onThemeChanged,
+          projectId: ref.read(activeProjectProvider)?.id,
+        ),
+      ),
+    );
+  }
+
+  void _navigateHistory(BuildContext ctx) {
+    Navigator.of(ctx).push(
+      MaterialPageRoute(
+        builder: (_) => HistoryPage(
+          currentProjectId: ref.read(activeProjectProvider)?.id,
+          currentProjectName: ref.read(activeProjectProvider)?.name,
+          onSelect: _onHistorySelect,
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionToolbar() {
-    final activeProject = ref.read(activeProjectProvider);
     return ActionToolbar(
       curlText: _curlController.text.trim(),
       onBuilder: _openBuilder,
@@ -1575,52 +1629,14 @@ class _HomePageState extends ConsumerState<HomePage>
       onImportCollection: _importCollection,
       onBatchCurlImport: _batchCurlImport,
       onCookieJars: _openCookieJars,
-      onHistorySelect: (curl) {
-        setState(() => curlController.text = curl);
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(clearResponse: true, clearError: true));
-        executeCurl();
-      },
+      onHistorySelect: _onHistorySelect,
       onHelp: () => _showHelp(context),
       onNavigateAbout: (ctx) => Navigator.of(
         ctx,
       ).push(MaterialPageRoute(builder: (_) => AboutPage())),
-      onNavigateFeedback: (ctx) => Navigator.of(ctx).push(
-        MaterialPageRoute(
-          builder: (_) => FeedbackPage(
-            projectId: ref.read(activeProjectProvider)?.id,
-            projectName: activeProject?.name,
-            requestPath: ref.read(selectedRequestPathProvider),
-          ),
-        ),
-      ),
-      onNavigateSettings: (ctx) => Navigator.of(ctx).push(
-        MaterialPageRoute(
-          builder: (_) => SettingsPage(
-            onUserAgentChanged: widget.onUserAgentChanged,
-            onWorkspaceChanged: widget.onWorkspaceChanged,
-            onThemeChanged: widget.onThemeChanged,
-            projectId: ref.read(activeProjectProvider)?.id,
-          ),
-        ),
-      ),
-      onNavigateHistory: (ctx) => Navigator.of(ctx).push(
-        MaterialPageRoute(
-          builder: (_) => HistoryPage(
-            currentProjectId: ref.read(activeProjectProvider)?.id,
-            currentProjectName: activeProject?.name,
-            onSelect: (curl) {
-              setState(() => _curlController.text = curl);
-              ref
-                  .read(responseStateProvider.notifier)
-                  .update(
-                    (s) => s.copyWith(clearResponse: true, clearError: true),
-                  );
-            },
-          ),
-        ),
-      ),
+      onNavigateFeedback: _navigateFeedback,
+      onNavigateSettings: _navigateSettings,
+      onNavigateHistory: _navigateHistory,
       onNavigateExplore: () => Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const WorkspaceExplorerPage())),
@@ -1660,74 +1676,88 @@ class _HomePageState extends ConsumerState<HomePage>
   // ── Layout Modes ────────────────────────────────────────────────
 
   Widget _buildPortraitLayout() {
-    final es = ref.watch(editorStateProvider);
-    final selectedPath = ref.watch(selectedRequestPathProvider);
     return Scaffold(
       backgroundColor: TColors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (es.isFullscreen) ...[
-              Container(
-                color: TColors.surface,
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                child: Row(
+            Consumer(
+              builder: (_, ref, __) {
+                final es = ref.watch(editorStateProvider);
+                final selectedPath = ref.watch(selectedRequestPathProvider);
+                if (!es.isFullscreen) return const SizedBox.shrink();
+                return Column(
                   children: [
-                    WindowDot(
-                      color: TColors.red,
-                      icon: Icons.close,
-                      onTap: _exitFullscreen,
-                    ),
-                    SizedBox(width: 4),
-                    WindowDot(color: TColors.yellow),
-                    SizedBox(width: 4),
-                    WindowDot(color: TColors.green),
-                    SizedBox(width: 10),
-                    Text(
-                      selectedPath != null
-                          ? _requestDisplayName
-                          : 'curl editor',
-                      style: TextStyle(
-                        color: TColors.mutedText,
-                        fontFamily: 'monospace',
-                        fontSize: 13,
+                    Container(
+                      color: TColors.surface,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      child: Row(
+                        children: [
+                          WindowDot(
+                            color: TColors.red,
+                            icon: Icons.close,
+                            onTap: _exitFullscreen,
+                          ),
+                          const SizedBox(width: 4),
+                          WindowDot(color: TColors.yellow),
+                          const SizedBox(width: 4),
+                          WindowDot(color: TColors.green),
+                          const SizedBox(width: 10),
+                          Text(
+                            selectedPath != null
+                                ? _requestDisplayName
+                                : 'curl editor',
+                            style: TextStyle(
+                              color: TColors.mutedText,
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                            ),
+                          ),
+                          const Spacer(),
+                          HelpButton(onTap: () => _showHelp(context)),
+                        ],
                       ),
                     ),
-                    Spacer(),
-                    HelpButton(onTap: () => _showHelp(context)),
+                    Container(height: 1, color: TColors.border),
                   ],
-                ),
-              ),
-              Container(height: 1, color: TColors.border),
-            ],
-
-            if (es.isFullscreen)
-              Expanded(
-                child: Container(
-                  color: TColors.surface,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: _buildInputField(maxLines: null, minLines: 1),
-                ),
-              )
-            else
-              GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _enterFullscreen,
-                child: Container(
-                  color: TColors.surface,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: _buildInputField(),
-                ),
-              ),
-
+                );
+              },
+            ),
+            Consumer(
+              builder: (_, ref, __) {
+                final es = ref.watch(editorStateProvider);
+                if (es.isFullscreen) {
+                  return Expanded(
+                    child: Container(
+                      color: TColors.surface,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: _buildInputField(maxLines: null, minLines: 1),
+                    ),
+                  );
+                }
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _enterFullscreen,
+                  child: Container(
+                    color: TColors.surface,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: _buildInputField(),
+                  ),
+                );
+              },
+            ),
             EditorDashboard(
               envBar: _buildEnvBar(),
               actionBar: _buildActionToolbar(),
             ),
-
-            if (!es.isFullscreen)
-              Expanded(child: _buildResponseSection(isHorizontal: false)),
+            Consumer(
+              builder: (_, ref, __) {
+                final es = ref.watch(editorStateProvider);
+                if (es.isFullscreen) return const SizedBox.shrink();
+                return Expanded(child: _buildResponseSection(isHorizontal: false));
+              },
+            ),
           ],
         ),
       ),

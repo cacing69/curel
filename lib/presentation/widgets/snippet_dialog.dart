@@ -169,14 +169,19 @@ class _SnippetDialogState extends ConsumerState<SnippetDialog> {
     return SingleChildScrollView(
       padding: EdgeInsets.all(12),
       scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: SelectableText.rich(
-          _buildTextSpan(nodes),
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: TColors.text,
-            height: 1.5,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: 400,
+        ),
+        child: SingleChildScrollView(
+          child: SelectableText.rich(
+            _buildTextSpan(nodes),
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: TColors.text,
+              height: 1.5,
+            ),
           ),
         ),
       ),
@@ -187,14 +192,19 @@ class _SnippetDialogState extends ConsumerState<SnippetDialog> {
     return SingleChildScrollView(
       padding: EdgeInsets.all(12),
       scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: SelectableText(
-          code,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: TColors.text,
-            height: 1.5,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: 400,
+        ),
+        child: SingleChildScrollView(
+          child: SelectableText(
+            code,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: TColors.text,
+              height: 1.5,
+            ),
           ),
         ),
       ),

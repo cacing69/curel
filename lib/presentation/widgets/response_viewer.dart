@@ -18,7 +18,6 @@ class ResponseViewer extends StatelessWidget {
   final bool showHtmlPreview;
   final bool searchActive;
   final bool prettify;
-  final bool showLineNumbers;
   final VoidCallback? onCloseSearch;
 
   const ResponseViewer({
@@ -30,7 +29,6 @@ class ResponseViewer extends StatelessWidget {
     this.showHtmlPreview = false,
     this.searchActive = false,
     this.prettify = true,
-    this.showLineNumbers = false,
     this.onCloseSearch,
     super.key,
   });
@@ -143,26 +141,33 @@ class ResponseViewer extends StatelessWidget {
       }
 
       if (selectedTab == ResponseTab.headers) {
-        return SingleChildScrollView(
+        final lines = response!.headersLines;
+        return ListView.builder(
           padding: EdgeInsets.all(8),
-          child: SelectionArea(
-            child: RichText(
-              text: response!.formatHeadersSpan(),
-              softWrap: true,
-            ),
-          ),
+          itemCount: lines.length,
+          itemBuilder: (context, index) {
+            return SelectionArea(
+              child: Text.rich(
+                TextSpan(children: lines[index]),
+                style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: TColors.text),
+              ),
+            );
+          },
         );
       }
 
       if (selectedTab == ResponseTab.verbose) {
-        return SingleChildScrollView(
+        final lines = response!.verboseLogLines;
+        return ListView.builder(
           padding: EdgeInsets.all(8),
-          child: SelectionArea(
-            child: RichText(
-              text: response!.formatVerboseLogSpan(),
-              softWrap: true,
-            ),
-          ),
+          itemCount: lines.length,
+          itemBuilder: (context, index) {
+            return SelectionArea(
+              child: Text.rich(
+                TextSpan(children: lines[index]),
+              ),
+            );
+          },
         );
       }
 
@@ -191,7 +196,7 @@ class ResponseViewer extends StatelessWidget {
         );
       }
 
-      return _buildHighlightedBody(response!, prettify, showLineNumbers);
+      return _buildHighlightedBody(response!, prettify);
     }
 
     return Center(
@@ -208,12 +213,10 @@ class ResponseViewer extends StatelessWidget {
   static Widget _buildHighlightedBody(
     CurlResponse response,
     bool prettify,
-    bool showLineNumbers,
   ) {
     return ChunkedTextViewer(
       text: response.getBodyText(prettify),
       language: response.highlightLanguage,
-      showLineNumbers: showLineNumbers,
     );
   }
 }
@@ -252,7 +255,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
   bool _showHtmlPreview = false;
   bool _searchActive = false;
   bool _prettify = true;
-  bool _showLineNumbers = false;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +270,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
               showHtmlPreview: _showHtmlPreview,
               searchActive: _searchActive,
               prettify: _prettify,
-              showLineNumbers: _showLineNumbers,
               showBackButton: true,
               onBack: () => Navigator.of(context).pop(),
               onTabChanged: (tab, {showHtmlPreview = false, searchActive}) {
@@ -293,8 +294,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 if (_searchActive) _showHtmlPreview = false;
               }),
               onTogglePrettify: () => setState(() => _prettify = !_prettify),
-              onToggleLineNumbers: () =>
-                  setState(() => _showLineNumbers = !_showLineNumbers),
             ),
             Container(height: 1, color: TColors.border),
             Expanded(
@@ -304,7 +303,6 @@ class _FullscreenResponseViewerState extends State<FullscreenResponseViewer> {
                 showHtmlPreview: _showHtmlPreview,
                 searchActive: _searchActive,
                 prettify: _prettify,
-                showLineNumbers: _showLineNumbers,
                 onCloseSearch: () => setState(() => _searchActive = false),
               ),
             ),

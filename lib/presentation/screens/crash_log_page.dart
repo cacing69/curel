@@ -15,8 +15,15 @@ class CrashLogPage extends ConsumerStatefulWidget {
 
 class _CrashLogPageState extends ConsumerState<CrashLogPage> {
   List<CrashLog> _logs = [];
+  final Map<int, String> _formattedTimes = {};
+  final Map<int, String> _formattedDates = {};
   bool _loading = true;
   int? _filterSeverity;
+
+  static String _fmtTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  static String _fmtDate(DateTime dt) =>
+      '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
   @override
   void initState() {
@@ -30,7 +37,16 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
           .read(crashLogServiceProvider)
           .getAll(severity: _filterSeverity)
           .timeout(const Duration(seconds: 5));
-      if (mounted) setState(() { _logs = logs; _loading = false; });
+      if (mounted) setState(() {
+        _logs = logs;
+        _formattedTimes.clear();
+        _formattedDates.clear();
+        for (final l in logs) {
+          _formattedTimes[l.id] = _fmtTime(l.timestamp);
+          _formattedDates[l.id] = _fmtDate(l.timestamp);
+        }
+        _loading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -165,8 +181,8 @@ class _CrashLogPageState extends ConsumerState<CrashLogPage> {
 
   Widget _buildLogRow(CrashLog log) {
     final color = _severityColor(log.severity);
-    final time = '${log.timestamp.hour.toString().padLeft(2, '0')}:${log.timestamp.minute.toString().padLeft(2, '0')}';
-    final date = '${log.timestamp.month.toString().padLeft(2, '0')}-${log.timestamp.day.toString().padLeft(2, '0')}';
+    final time = _formattedTimes[log.id] ?? _fmtTime(log.timestamp);
+    final date = _formattedDates[log.id] ?? _fmtDate(log.timestamp);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

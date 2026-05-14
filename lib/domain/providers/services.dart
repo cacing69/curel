@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/data/services/dio_http_client.dart';
 import 'package:curel/data/services/libcurl_http_client.dart';
 import 'package:curel/data/services/filesystem_service.dart';
 import 'package:curel/domain/services/bookmark_service.dart';
@@ -30,8 +33,16 @@ final settingsProvider = Provider<SettingsService>(
   (ref) => PreferencesSettingsService(),
 );
 
-final httpClientProvider = Provider<CurlHttpClient>(
-  (ref) => LibcurlHttpClient(),
+final useCurlEngineProvider = StateProvider<bool>((ref) => false);
+
+final curlClientProvider = Provider<CurlHttpClient>(
+  (ref) {
+    final useCurl = ref.watch(useCurlEngineProvider);
+    if (useCurl && Platform.isAndroid) {
+      return LibcurlHttpClient();
+    }
+    return DioHttpClient();
+  },
 );
 
 final envServiceProvider = Provider<EnvService>(

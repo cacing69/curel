@@ -29,7 +29,6 @@ class ResponseState {
   final bool showHtmlPreview;
   final bool searchActive;
   final bool prettify;
-  final bool showLineNumbers;
 
   const ResponseState({
     this.response,
@@ -40,7 +39,6 @@ class ResponseState {
     this.showHtmlPreview = false,
     this.searchActive = false,
     this.prettify = true,
-    this.showLineNumbers = false,
   });
 
   ResponseState copyWith({
@@ -52,7 +50,6 @@ class ResponseState {
     bool? showHtmlPreview,
     bool? searchActive,
     bool? prettify,
-    bool? showLineNumbers,
     bool clearError = false,
     bool clearLog = false,
     bool clearResponse = false,
@@ -66,7 +63,6 @@ class ResponseState {
       showHtmlPreview: showHtmlPreview ?? this.showHtmlPreview,
       searchActive: searchActive ?? this.searchActive,
       prettify: prettify ?? this.prettify,
-      showLineNumbers: showLineNumbers ?? this.showLineNumbers,
     );
   }
 }

@@ -13,3 +13,25 @@
 - implemented Bruno Import/Export adapter: _BruParser for .bru format (dictionary/text/array blocks), import .bru → curl, export curl → .bru, registered in AdapterRegistry
 - registered VscodeRestAdapter in AdapterRegistry — .http/.rest file import/export now available alongside Bruno, Postman, Insomnia, Hoppscotch, Curel Native
 - implemented cookie jar management: named jars per project (.cookiejar/ dir), CookieEntry model with RFC 6265 domain/path/secure matching, CookieJarService with Netscape format import, auto-inject cookies via -b flag before execute, auto-capture Set-Cookie from responses, cookie jar dialog UI with add/edit/delete/import, env bar cookie button, more menu entry
+16: - performance: cached regex results in CurlHighlightController to avoid re-parsing on every keystroke
+17: - performance: cached syntax highlighted spans in SearchableText to avoid recomputation in build()
+18: - performance: skip syntax highlighting in ChunkedTextViewer for texts >200KB
+19: - performance: converted RequestDrawer tree from ListView(children:) to ListView.builder with flat lazy tree
+20: - performance: batched sequential state updates in executeCurl (bundled isLoading:false with response/error)
+21: - performance: cached diff counts in DiffView constructors instead of build()
+22: - performance: debounced _updateEnvOverlay to 80ms via Timer (was every keystroke)
+23: - performance: split ref.watch in _buildPortraitLayout into 3 Consumer widgets to isolate rebuilds
+24: - performance: added RepaintBoundary around CurlInputField to isolate text field repaints
+25: - performance: hoisted 5 closures from _buildActionToolbar to instance methods
+26: - performance: removed shrinkWrap:true from diff_view and request_drawer lists
+27: - performance: precomputed timestamp strings in crash_log_page before itemBuilder
+28: - performance: added cacheWidth/cacheHeight to Image.memory in feedback_page
+29: - performance: rewrote SearchableText to use ListView.builder instead of SingleChildScrollView
+30: - performance: converted headers/verbose tabs in ResponseViewer to ListView.builder (headersLines/verboseLogLines)
+31: - performance: added splash screen in main.dart to defer HomePage build until settings loaded
+32: - performance: pre-load libcurl via ensureLoaded() in splash to avoid first-request freeze
+33: - performance: implemented Isolate.run() for non-verbose curl (main thread free, spinner animates)
+34: - feature: CURLOPT_DEBUGFUNCTION + --trace support via debug callback
+35: - feature: auto-switch to verbose tab when -v flag detected
+36: - feature: removed line numbers feature
+37: - ux: fixed action_toolbar overflow (removed Spacer + exec label)

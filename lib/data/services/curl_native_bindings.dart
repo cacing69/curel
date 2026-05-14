@@ -65,6 +65,21 @@ typedef CurlWriteCallbackDart = int Function(
   Pointer<Void>,
 );
 
+typedef CurlDebugCallbackNative = Int32 Function(
+  Pointer<Void> handle,
+  Int32 type,
+  Pointer<Uint8> data,
+  UintPtr size,
+  Pointer<Void> userdata,
+);
+typedef CurlDebugCallbackDart = int Function(
+  Pointer<Void>,
+  int,
+  Pointer<Uint8>,
+  int,
+  Pointer<Void>,
+);
+
 // ── CURLOPT constants ────────────────────────────────────────
 // Values from curl/curl.h
 
@@ -80,6 +95,8 @@ const int CURLOPT_HEADERDATA = 10029;
 const int CURLOPT_SSL_VERIFYPEER = 64;
 const int CURLOPT_SSL_VERIFYHOST = 81;
 const int CURLOPT_VERBOSE = 41;
+const int CURLOPT_DEBUGFUNCTION = 20094;
+const int CURLOPT_DEBUGDATA = 10095;
 const int CURLOPT_FOLLOWLOCATION = 52;
 const int CURLOPT_TIMEOUT_MS = 155;
 const int CURLOPT_CONNECTTIMEOUT_MS = 156;

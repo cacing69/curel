@@ -12,7 +12,6 @@ class ResponseToolbar extends StatelessWidget {
   final bool showHtmlPreview;
   final bool searchActive;
   final bool prettify;
-  final bool showLineNumbers;
   final bool showBackButton;
   final VoidCallback? onBack;
   final void Function(ResponseTab tab, {bool showHtmlPreview, bool? searchActive}) onTabChanged;
@@ -24,7 +23,6 @@ class ResponseToolbar extends StatelessWidget {
   final VoidCallback? onOpenFullscreen;
   final VoidCallback onToggleSearch;
   final VoidCallback onTogglePrettify;
-  final VoidCallback onToggleLineNumbers;
 
   const ResponseToolbar({
     required this.response,
@@ -32,7 +30,6 @@ class ResponseToolbar extends StatelessWidget {
     required this.showHtmlPreview,
     required this.searchActive,
     required this.prettify,
-    required this.showLineNumbers,
     this.showBackButton = false,
     this.onBack,
     required this.onTabChanged,
@@ -44,7 +41,6 @@ class ResponseToolbar extends StatelessWidget {
     this.onOpenFullscreen,
     required this.onToggleSearch,
     required this.onTogglePrettify,
-    required this.onToggleLineNumbers,
     super.key,
   });
 
@@ -158,8 +154,6 @@ class ResponseToolbar extends StatelessWidget {
                   _action(Icons.compare_arrows, onCompare!),
                   SizedBox(width: 8),
                 ],
-                _action(Icons.format_list_numbered, onToggleLineNumbers,
-                    active: showLineNumbers),
                 if (onOpenFullscreen != null) ...[
                   SizedBox(width: 8),
                   _action(Icons.fullscreen, onOpenFullscreen!),

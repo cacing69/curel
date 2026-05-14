@@ -44,7 +44,6 @@ class ResponseSection extends ConsumerWidget {
               showHtmlPreview: rs.showHtmlPreview,
               searchActive: rs.searchActive,
               prettify: rs.prettify,
-              showLineNumbers: rs.showLineNumbers,
               onTabChanged: (tab, {showHtmlPreview = false, searchActive}) {
                 ref.read(responseStateProvider.notifier).update((s) => s.copyWith(
                       selectedTab: tab,
@@ -64,9 +63,6 @@ class ResponseSection extends ConsumerWidget {
               onTogglePrettify: () => ref
                   .read(responseStateProvider.notifier)
                   .update((s) => s.copyWith(prettify: !s.prettify)),
-              onToggleLineNumbers: () => ref
-                  .read(responseStateProvider.notifier)
-                  .update((s) => s.copyWith(showLineNumbers: !s.showLineNumbers)),
             ),
           Container(
             height: isHorizontal ? null : 1,
@@ -83,9 +79,8 @@ class ResponseSection extends ConsumerWidget {
             selectedTab: rs.selectedTab,
             showHtmlPreview: rs.showHtmlPreview,
             searchActive: rs.searchActive,
-            prettify: rs.prettify,
-            showLineNumbers: rs.showLineNumbers,
-            onCloseSearch: () => ref
+              prettify: rs.prettify,
+              onCloseSearch: () => ref
                 .read(responseStateProvider.notifier)
                 .update((s) => s.copyWith(searchActive: false)),
           ),

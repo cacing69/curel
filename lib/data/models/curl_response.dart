@@ -157,6 +157,23 @@ class CurlResponse {
     return TextSpan(children: children);
   }
 
+  List<List<TextSpan>> get headersLines {
+    final result = <List<TextSpan>>[];
+    final code = statusCode ?? 0;
+    result.add([
+      TextSpan(text: 'Status: ', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12)),
+      TextSpan(text: '$statusCode $statusMessage', style: TextStyle(color: code >= 200 && code < 300 ? TColors.green : TColors.red, fontFamily: 'monospace', fontSize: 12)),
+    ]);
+    result.add([]);
+    for (final entry in headers.entries) {
+      result.add([
+        TextSpan(text: '  ${entry.key}', style: TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12)),
+        TextSpan(text: ': ${entry.value.join(", ")}', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12)),
+      ]);
+    }
+    return result;
+  }
+
   String formatVerboseLog() {
     return verboseLog ?? '';
   }
@@ -168,52 +185,29 @@ class CurlResponse {
     final children = <TextSpan>[];
     for (final line in verboseLog!.split('\n')) {
       if (line.startsWith('> ')) {
-        children.add(
-          TextSpan(
-            text: '$line\n',
-            style: TextStyle(
-              color: TColors.cyan,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-        );
+        children.add(TextSpan(text: '$line\n', style: TextStyle(color: TColors.cyan, fontFamily: 'monospace', fontSize: 12)));
       } else if (line.startsWith('< ')) {
-        children.add(
-          TextSpan(
-            text: '$line\n',
-            style: TextStyle(
-              color: TColors.green,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-        );
+        children.add(TextSpan(text: '$line\n', style: TextStyle(color: TColors.green, fontFamily: 'monospace', fontSize: 12)));
       } else if (line.startsWith('* ')) {
-        children.add(
-          TextSpan(
-            text: '$line\n',
-            style: TextStyle(
-              color: TColors.mutedText,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-        );
+        children.add(TextSpan(text: '$line\n', style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 12)));
       } else {
-        children.add(
-          TextSpan(
-            text: '$line\n',
-            style: TextStyle(
-              color: TColors.text,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-        );
+        children.add(TextSpan(text: '$line\n', style: TextStyle(color: TColors.text, fontFamily: 'monospace', fontSize: 12)));
       }
     }
     return TextSpan(children: children);
+  }
+
+  List<List<TextSpan>> get verboseLogLines {
+    if (verboseLog == null || verboseLog!.isEmpty) return [];
+    final result = <List<TextSpan>>[];
+    for (final line in verboseLog!.split('\n')) {
+      final color = line.startsWith('> ') ? TColors.cyan
+          : line.startsWith('< ') ? TColors.green
+          : line.startsWith('* ') ? TColors.mutedText
+          : TColors.text;
+      result.add([TextSpan(text: line, style: TextStyle(color: color, fontFamily: 'monospace', fontSize: 12))]);
+    }
+    return result;
   }
 
   String formatTraceLog() {

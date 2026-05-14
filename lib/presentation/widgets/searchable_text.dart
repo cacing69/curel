@@ -37,11 +37,23 @@ class _SearchableTextState extends State<SearchableText> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
-  final _contentKey = GlobalKey();
 
   String _query = '';
   List<TextRange> _matches = [];
   int _activeIndex = 0;
+
+  String? _cachedSyntaxText;
+  String? _cachedSyntaxLanguage;
+  List<TextSpan>? _cachedSyntaxFlats;
+
+  List<List<TextSpan>> _lines = [];
+  List<int> _lineOffsets = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildLines();
+  }
 
   @override
   void didUpdateWidget(covariant SearchableText oldWidget) {
@@ -52,6 +64,7 @@ class _SearchableTextState extends State<SearchableText> {
       if (_matches.isNotEmpty && _activeIndex >= _matches.length) {
         _activeIndex = 0;
       }
+      _rebuildLines();
     }
 
     if (!widget.searchActive && oldWidget.searchActive) {
@@ -88,6 +101,7 @@ class _SearchableTextState extends State<SearchableText> {
       _matches = matches;
       _activeIndex = 0;
     });
+    _rebuildLines();
     if (matches.isNotEmpty) {
       _scrollToMatch(0);
     }
@@ -97,6 +111,7 @@ class _SearchableTextState extends State<SearchableText> {
     if (_matches.isEmpty) return;
     final next = (_activeIndex + 1) % _matches.length;
     setState(() => _activeIndex = next);
+    _rebuildLines();
     _scrollToMatch(next);
   }
 
@@ -104,6 +119,7 @@ class _SearchableTextState extends State<SearchableText> {
     if (_matches.isEmpty) return;
     final prev = (_activeIndex - 1 + _matches.length) % _matches.length;
     setState(() => _activeIndex = prev);
+    _rebuildLines();
     _scrollToMatch(prev);
   }
 
@@ -122,41 +138,196 @@ class _SearchableTextState extends State<SearchableText> {
     return results;
   }
 
+  int _lineIndexForOffset(int offset) {
+    if (_lineOffsets.isEmpty) return 0;
+    for (var i = _lineOffsets.length - 1; i >= 0; i--) {
+      if (_lineOffsets[i] <= offset) return i;
+    }
+    return 0;
+  }
+
   void _scrollToMatch(int index) {
     if (index >= _matches.length || _matches.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-
       final match = _matches[index];
-      final span = _buildSpan();
-      final painter = TextPainter(
-        text: span,
-        textDirection: TextDirection.ltr,
-        strutStyle: StrutStyle.fromTextStyle(widget.style),
-      );
-
-      final renderBox =
-          _contentKey.currentContext?.findRenderObject() as RenderBox?;
-      if (renderBox == null) return;
-
-      final resolvedPadding = widget.padding.resolve(TextDirection.ltr);
-      painter.layout(
-        maxWidth: math.max(0, renderBox.size.width - resolvedPadding.horizontal),
-      );
-
-      final offset = painter.getOffsetForCaret(
-        TextPosition(offset: match.start),
-        Rect.zero,
-      );
-
-      final target = math.max(0.0, offset.dy - 40);
+      final lineIdx = _lineIndexForOffset(match.start);
       final maxScroll = _scrollController.position.maxScrollExtent;
+      final itemHeight = 18.0;
+      final target = math.max(0.0, lineIdx * itemHeight - 60);
       _scrollController.animateTo(
         target.clamp(0.0, maxScroll),
         duration: Duration(milliseconds: 200),
         curve: Curves.easeInOut,
       );
     });
+  }
+
+  void _rebuildLines() {
+    final flats = _computeFlatSpans();
+    _lines = _splitSpansByNewlines(flats);
+    _lineOffsets = _computeLineOffsets();
+  }
+
+  List<int> _computeLineOffsets() {
+    final offsets = <int>[0];
+    final text = widget.text;
+    for (var i = 0; i < text.length; i++) {
+      if (text[i] == '\n') {
+        offsets.add(i + 1);
+      }
+    }
+    return offsets;
+  }
+
+  List<TextSpan> _computeFlatSpans() {
+    final isSearching = widget.searchActive && _query.isNotEmpty;
+    final hasSyntax = widget.syntaxLanguage != null;
+
+    if (!hasSyntax && !isSearching) {
+      final spans = <TextSpan>[];
+      _splitPlainText(spans, widget.text, 0, widget.text.length);
+      return spans;
+    }
+
+    if (hasSyntax && !isSearching) {
+      final syntaxSpans = _syntaxHighlightedFlatSpans();
+      if (syntaxSpans.isEmpty) {
+        final spans = <TextSpan>[];
+        _splitPlainText(spans, widget.text, 0, widget.text.length);
+        return spans;
+      }
+      return syntaxSpans;
+    }
+
+    final baseSpans = hasSyntax
+        ? _syntaxHighlightedFlatSpans()
+        : _plainFlats();
+
+    if (isSearching && _query.isNotEmpty && _matches.isNotEmpty) {
+      return _applySearchHighlight(baseSpans);
+    }
+
+    final theme = widget.syntaxTheme ?? syntaxTheme;
+    final defaultColor = theme['root']?.color ?? TColors.text;
+    return baseSpans.isEmpty
+        ? [TextSpan(text: widget.text, style: TextStyle(color: defaultColor))]
+        : baseSpans;
+  }
+
+  List<TextSpan> _plainFlats() {
+    final spans = <TextSpan>[];
+    _splitPlainText(spans, widget.text, 0, widget.text.length);
+    return spans;
+  }
+
+  void _splitPlainText(List<TextSpan> into, String text, int from, int to) {
+    final slice = text.substring(from, math.min(to, text.length));
+    final parts = slice.split('\n');
+    for (var i = 0; i < parts.length; i++) {
+      if (i > 0) into.add(TextSpan(text: '\n'));
+      if (parts[i].isNotEmpty) {
+        into.add(TextSpan(text: parts[i]));
+      }
+    }
+  }
+
+  List<TextSpan> _applySearchHighlight(List<TextSpan> baseSpans) {
+    final theme = widget.syntaxTheme ?? syntaxTheme;
+    final defaultColor = theme['root']?.color ?? TColors.text;
+    final flatSpans = baseSpans.toList();
+
+    if (_query.isEmpty || _matches.isEmpty) {
+      return flatSpans;
+    }
+
+    final text = widget.text;
+    final children = <InlineSpan>[];
+    var lastEnd = 0;
+
+    for (var i = 0; i < _matches.length; i++) {
+      final match = _matches[i];
+
+      if (match.start > lastEnd) {
+        children.addAll(_sliceSpans(flatSpans, lastEnd, match.start));
+      }
+
+      final isActive = i == _activeIndex;
+      final matchSpans = _sliceSpans(flatSpans, match.start, match.end);
+      for (final span in matchSpans) {
+        final spanColor = span.style?.color ?? defaultColor;
+        children.add(TextSpan(
+          text: span.text,
+          style: TextStyle(
+            color: isActive ? TColors.background : spanColor,
+            backgroundColor: isActive
+                ? TColors.yellow
+                : TColors.yellow.withValues(alpha: 0.3),
+          ),
+        ));
+      }
+
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      children.addAll(_sliceSpans(flatSpans, lastEnd, text.length));
+    }
+
+    final result = <TextSpan>[];
+    for (final c in children) {
+      if (c is TextSpan) result.add(c);
+    }
+    return result;
+  }
+
+  List<TextSpan> _sliceSpans(List<TextSpan> spans, int from, int to) {
+    final result = <TextSpan>[];
+    var pos = 0;
+
+    for (final span in spans) {
+      final t = span.text ?? '';
+      if (t.isEmpty) continue;
+      final spanStart = pos;
+      final spanEnd = pos + t.length;
+
+      if (spanEnd <= from || spanStart >= to) {
+        pos = spanEnd;
+        continue;
+      }
+
+      final overlapStart = math.max(spanStart, from) - pos;
+      final overlapEnd = math.min(spanEnd, to) - pos;
+      final slicedText = t.substring(overlapStart, overlapEnd);
+
+      if (slicedText.isNotEmpty) {
+        result.add(TextSpan(text: slicedText, style: span.style));
+      }
+
+      pos = spanEnd;
+    }
+
+    return result;
+  }
+
+  List<TextSpan> _syntaxHighlightedFlatSpans() {
+    if (widget.syntaxLanguage == null) return [];
+    if (_cachedSyntaxFlats != null &&
+        _cachedSyntaxText == widget.text &&
+        _cachedSyntaxLanguage == widget.syntaxLanguage) {
+      return _cachedSyntaxFlats!;
+    }
+    final result = highlight.parse(widget.text, language: widget.syntaxLanguage);
+    if (result.nodes == null) {
+      _cachedSyntaxFlats = [];
+      _cachedSyntaxText = widget.text;
+      _cachedSyntaxLanguage = widget.syntaxLanguage;
+      return [];
+    }
+    _cachedSyntaxFlats = _convertSyntaxNodes(result.nodes!);
+    _cachedSyntaxText = widget.text;
+    _cachedSyntaxLanguage = widget.syntaxLanguage;
+    return _cachedSyntaxFlats!;
   }
 
   List<TextSpan> _convertSyntaxNodes(List<Node> nodes) {
@@ -196,179 +367,43 @@ class _SearchableTextState extends State<SearchableText> {
       traverse(node);
     }
 
-    return spans;
-  }
-
-  List<TextSpan> _syntaxHighlightedSpans() {
-    if (widget.syntaxLanguage == null) return [];
-    final result = highlight.parse(widget.text, language: widget.syntaxLanguage);
-    if (result.nodes == null) return [];
-    return _convertSyntaxNodes(result.nodes!);
-  }
-
-  List<TextSpan> _flattenSpans(List<TextSpan> spans) {
-    final result = <TextSpan>[];
-    void visit(TextSpan span) {
+    final flat = <TextSpan>[];
+    void flatten(TextSpan span) {
       if (span.text != null && span.text!.isNotEmpty) {
-        result.add(TextSpan(text: span.text, style: span.style));
+        flat.add(TextSpan(text: span.text, style: span.style));
       }
       if (span.children != null) {
-        for (final child in span.children!) {
-          if (child is TextSpan) visit(child);
+        for (final c in span.children!) {
+          if (c is TextSpan) flatten(c);
         }
       }
     }
     for (final span in spans) {
-      visit(span);
+      flatten(span);
     }
-    return result;
+    return flat;
   }
 
-  TextSpan _applySearchHighlight(List<TextSpan> baseSpans) {
-    final defaultColor =
-        (widget.syntaxTheme ?? syntaxTheme)['root']?.color ??
-        TColors.text;
-    final flatSpans = _flattenSpans(baseSpans);
-
-    if (_query.isEmpty || _matches.isEmpty) {
-      return TextSpan(
-        style: TextStyle(color: defaultColor, fontFamily: 'monospace', fontSize: 12),
-        children: flatSpans.isNotEmpty ? flatSpans : [TextSpan(text: widget.text, style: TextStyle(color: defaultColor))],
-      );
-    }
-
-    final text = widget.text;
-    final children = <InlineSpan>[];
-    var lastEnd = 0;
-
-    for (var i = 0; i < _matches.length; i++) {
-      final match = _matches[i];
-
-      if (match.start > lastEnd) {
-        children.addAll(_sliceSpans(flatSpans, lastEnd, match.start));
-      }
-
-      final isActive = i == _activeIndex;
-      final matchSpans = _sliceSpans(flatSpans, match.start, match.end);
-      final highlightedSpans = matchSpans.map((span) {
-        final spanColor = span.style?.color ?? defaultColor;
-        return TextSpan(
-          text: span.text,
-          style: TextStyle(
-            color: isActive ? TColors.background : spanColor,
-            backgroundColor: isActive
-                ? TColors.yellow
-                : TColors.yellow.withValues(alpha: 0.3),
-          ),
-        );
-      }).toList();
-      children.addAll(highlightedSpans);
-
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < text.length) {
-      children.addAll(_sliceSpans(flatSpans, lastEnd, text.length));
-    }
-
-    return TextSpan(
-      style: TextStyle(color: defaultColor, fontFamily: 'monospace', fontSize: 12),
-      children: children,
-    );
-  }
-
-  List<TextSpan> _sliceSpans(List<TextSpan> spans, int from, int to) {
-    final result = <TextSpan>[];
-    var pos = 0;
-
+  List<List<TextSpan>> _splitSpansByNewlines(List<TextSpan> spans) {
+    final lines = <List<TextSpan>>[[]];
     for (final span in spans) {
-      final text = span.text ?? '';
-      if (text.isEmpty) continue;
-      final spanStart = pos;
-      final spanEnd = pos + text.length;
-
-      if (spanEnd <= from || spanStart >= to) {
-        pos = spanEnd;
+      final t = span.text ?? '';
+      if (!t.contains('\n')) {
+        lines.last.add(span);
         continue;
       }
-
-      final overlapStart = math.max(spanStart, from) - pos;
-      final overlapEnd = math.min(spanEnd, to) - pos;
-      final slicedText = text.substring(overlapStart, overlapEnd);
-
-      if (slicedText.isNotEmpty) {
-        result.add(TextSpan(text: slicedText, style: span.style, children: span.children));
+      final parts = t.split('\n');
+      for (var i = 0; i < parts.length; i++) {
+        if (i > 0) lines.add([]);
+        if (parts[i].isNotEmpty) {
+          lines.last.add(TextSpan(text: parts[i], style: span.style));
+        }
       }
-
-      pos = spanEnd;
     }
-
-    return result;
-  }
-
-  TextSpan _buildSpan() {
-    final isSearching = widget.searchActive && _query.isNotEmpty;
-    final hasSyntax = widget.syntaxLanguage != null;
-
-    if (isSearching && hasSyntax) {
-      final syntaxSpans = _syntaxHighlightedSpans();
-      if (syntaxSpans.isEmpty) return _buildPlainHighlightSpan();
-      return _applySearchHighlight(syntaxSpans);
+    if (lines.last.isEmpty && lines.length > 1) {
+      lines.removeLast();
     }
-
-    if (isSearching) {
-      return _buildPlainHighlightSpan();
-    }
-
-    if (hasSyntax) {
-      final syntaxSpans = _syntaxHighlightedSpans();
-      if (syntaxSpans.isEmpty) return TextSpan(text: widget.text, style: widget.style);
-      return TextSpan(style: widget.style, children: syntaxSpans);
-    }
-
-    return TextSpan(text: widget.text, style: widget.style);
-  }
-
-  TextSpan _buildPlainHighlightSpan() {
-    if (_query.isEmpty || _matches.isEmpty) {
-      return TextSpan(text: widget.text, style: widget.style);
-    }
-
-    final children = <InlineSpan>[];
-    var lastEnd = 0;
-
-    for (var i = 0; i < _matches.length; i++) {
-      final match = _matches[i];
-
-      if (match.start > lastEnd) {
-        children.add(TextSpan(
-          text: widget.text.substring(lastEnd, match.start),
-          style: widget.style,
-        ));
-      }
-
-      final isActive = i == _activeIndex;
-      children.add(TextSpan(
-        text: widget.text.substring(match.start, match.end),
-        style: widget.style.copyWith(
-          backgroundColor: isActive
-              ? TColors.yellow
-              : TColors.yellow.withValues(alpha: 0.3),
-          color: isActive ? TColors.background : null,
-        ),
-      ));
-
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < widget.text.length) {
-      children.add(TextSpan(
-        text: widget.text.substring(lastEnd),
-        style: widget.style,
-      ));
-    }
-
-    return TextSpan(children: children);
+    return lines;
   }
 
   @override
@@ -388,24 +423,38 @@ class _SearchableTextState extends State<SearchableText> {
     final isSearching = widget.searchActive && _query.isNotEmpty;
 
     if (hasSyntax || isSearching) {
-      return SingleChildScrollView(
-        key: _contentKey,
+      return ListView.builder(
         controller: _scrollController,
         padding: widget.padding,
-        child: SelectionArea(
-          child: RichText(
-            text: _buildSpan(),
-            softWrap: true,
-          ),
-        ),
+        itemCount: _lines.length,
+        itemBuilder: (context, index) {
+          final lineSpans = _lines[index];
+          return SelectionArea(
+            child: Text.rich(
+              TextSpan(
+                style: widget.style,
+                children: lineSpans,
+              ),
+              softWrap: false,
+            ),
+          );
+        },
       );
     }
 
-    return SingleChildScrollView(
-      key: _contentKey,
+    return ListView.builder(
       controller: _scrollController,
       padding: widget.padding,
-      child: SelectableText(widget.text, style: widget.style),
+      itemCount: _lines.length,
+      itemBuilder: (context, index) {
+        final lineSpans = _lines[index];
+        return SelectableText.rich(
+          TextSpan(
+            style: widget.style,
+            children: lineSpans,
+          ),
+        );
+      },
     );
   }
 

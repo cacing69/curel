@@ -204,6 +204,57 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
 
   // ── Collapsible folder tree ────────────────────────────────────────
 
+  List<_TreeEntry> _buildFlatTree(List<RequestItem> items) {
+    final entries = <_TreeEntry>[];
+    final tree = _buildTree(items);
+
+    final rootNode = tree[''];
+    if (rootNode != null) {
+      for (final item in rootNode.requests) {
+        entries.add(_TreeEntry.request(item, 0));
+      }
+    }
+
+    final folderKeys = tree.keys.where((k) => k.isNotEmpty).toList()..sort();
+    for (final key in folderKeys) {
+      final node = tree[key]!;
+      final expanded = _searchQuery.isNotEmpty ||
+          _expandedFolders.contains(node.fullPath);
+      final count = _countAll(node);
+
+      entries.add(_TreeEntry.folder(node, count, expanded, 0));
+
+      if (expanded) {
+        _addChildrenFlat(node, 1, entries);
+      }
+
+      entries.add(_TreeEntry.separator());
+    }
+
+    return entries;
+  }
+
+  void _addChildrenFlat(_FolderNode node, int depth, List<_TreeEntry> entries) {
+    final childKeys = node.children.keys.toList()..sort();
+    for (final key in childKeys) {
+      final child = node.children[key]!;
+      final expanded = _searchQuery.isNotEmpty ||
+          _expandedFolders.contains(child.fullPath);
+      final count = _countAll(child);
+
+      entries.add(_TreeEntry.folder(child, count, expanded, depth));
+
+      if (expanded) {
+        _addChildrenFlat(child, depth + 1, entries);
+      }
+
+      entries.add(_TreeEntry.separator());
+    }
+    for (final item in node.requests) {
+      entries.add(_TreeEntry.request(item, depth));
+    }
+  }
+
   Widget _buildList() {
     final items = _filtered;
     if (items.isEmpty) {
@@ -219,8 +270,20 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
       );
     }
 
-    final tree = _buildTree(items);
-    return ListView(children: _renderTree(tree, 0));
+    final flatTree = _buildFlatTree(items);
+    return ListView.builder(
+      itemCount: flatTree.length,
+      itemBuilder: (context, index) {
+        final entry = flatTree[index];
+        return switch (entry) {
+          TreeRequestEntry e => _buildItem(e.item, indent: e.depth),
+          TreeFolderEntry e => _buildFolderHeader(
+              e.node, e.count, e.expanded, e.depth),
+          TreeSeparatorEntry() => Container(
+              height: 1, color: TColors.border),
+        };
+      },
+    );
   }
 
   Map<String, _FolderNode> _buildTree(List<RequestItem> items) {
@@ -260,40 +323,6 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
         current = node.children;
       }
     }
-  }
-
-  List<Widget> _renderTree(Map<String, _FolderNode> nodes, int depth) {
-    final widgets = <Widget>[];
-
-    final rootNode = nodes[''];
-    if (rootNode != null) {
-      for (final item in rootNode.requests) {
-        widgets.add(_buildItem(item));
-      }
-    }
-
-    final folderKeys = nodes.keys.where((k) => k.isNotEmpty).toList()..sort();
-    for (final key in folderKeys) {
-      final node = nodes[key]!;
-      final expanded = _searchQuery.isNotEmpty ||
-          _expandedFolders.contains(node.fullPath);
-      final count = _countAll(node);
-
-      widgets.add(_buildFolderHeader(node, count, expanded, depth));
-
-      if (expanded) {
-        if (node.children.isNotEmpty) {
-          widgets.addAll(_renderTree(node.children, depth + 1));
-        }
-        for (final item in node.requests) {
-          widgets.add(_buildItem(item, indent: depth + 1));
-        }
-      }
-
-      widgets.add(Container(height: 1, color: TColors.border));
-    }
-
-    return widgets;
   }
 
   int _countAll(_FolderNode node) {
@@ -648,8 +677,8 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
                 fontSize: 14)),
         content: SizedBox(
           width: double.maxFinite,
+          height: 300,
           child: ListView.builder(
-            shrinkWrap: true,
             itemCount: envs.length,
             itemBuilder: (ctx, i) {
               final env = envs[i];
@@ -850,6 +879,31 @@ class _RequestDrawerState extends ConsumerState<RequestDrawer> {
     );
   }
 }
+
+sealed class _TreeEntry {
+  _TreeEntry();
+
+  factory _TreeEntry.request(RequestItem item, int depth) => TreeRequestEntry(item, depth);
+  factory _TreeEntry.folder(_FolderNode node, int count, bool expanded, int depth) =>
+      TreeFolderEntry(node, count, expanded, depth);
+  factory _TreeEntry.separator() => TreeSeparatorEntry();
+}
+
+class TreeRequestEntry extends _TreeEntry {
+  final RequestItem item;
+  final int depth;
+  TreeRequestEntry(this.item, this.depth);
+}
+
+class TreeFolderEntry extends _TreeEntry {
+  final _FolderNode node;
+  final int count;
+  final bool expanded;
+  final int depth;
+  TreeFolderEntry(this.node, this.count, this.expanded, this.depth);
+}
+
+class TreeSeparatorEntry extends _TreeEntry {}
 
 class _FolderNode {
   final String name;

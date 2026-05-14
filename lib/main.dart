@@ -8,6 +8,7 @@ import 'package:curel/domain/services/crash_log_service.dart';
 import 'package:curel/presentation/screens/home_page.dart';
 import 'package:curel/presentation/theme/app_theme.dart';
 import 'package:curel/presentation/theme/app_tokens.dart';
+import 'package:curel/presentation/theme/terminal_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,7 @@ class App extends ConsumerStatefulWidget {
 
 class _AppState extends ConsumerState<App> {
   int _workspaceKey = 0;
+  bool _ready = false;
 
   @override
   void initState() {
@@ -66,19 +68,26 @@ class _AppState extends ConsumerState<App> {
   Future<void> _loadSettings() async {
     final settings = ref.read(settingsProvider);
     final fs = ref.read(fileSystemProvider);
-    final httpClient = ref.read(httpClientProvider);
     final ua = await settings.getUserAgent();
+    final useCurl = await settings.getUseCurlEngine();
+    ref.read(useCurlEngineProvider.notifier).state = useCurl;
+
+    final httpClient = ref.read(curlClientProvider);
     httpClient.setUserAgent(ua);
-    await _initCaBundle();
+
+    if (httpClient is LibcurlHttpClient) {
+      await _initCaBundle();
+      httpClient.ensureLoaded();
+    }
+
     final workspace = await settings.getEffectiveWorkspacePath();
     await fs.setWorkspaceRoot(workspace);
 
-    // Load saved theme
     final themeId = await settings.getTheme();
     setAppTheme(themeId);
 
     await ref.read(syncControllerProvider).syncAndRefresh();
-    if (mounted) setState(() {});
+    if (mounted) setState(() => _ready = true);
   }
 
   void _onWorkspaceChanged() async {
@@ -87,7 +96,7 @@ class _AppState extends ConsumerState<App> {
   }
 
   void _onUserAgentChanged(String ua) {
-    ref.read(httpClientProvider).setUserAgent(ua);
+    ref.read(curlClientProvider).setUserAgent(ua);
   }
 
   void _onThemeChanged() {
@@ -96,6 +105,18 @@ class _AppState extends ConsumerState<App> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildThemeData(),
+        home: Scaffold(
+          backgroundColor: const Color(0xFF1A1A1A),
+          body: Center(
+            child: TerminalLoader(),
+          ),
+        ),
+      );
+    }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: buildThemeData(),

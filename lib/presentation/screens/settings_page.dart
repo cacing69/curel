@@ -42,6 +42,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _maxTimeController = TextEditingController();
   var _loading = true;
   var _moreThemesExpanded = false;
+  var _useCurlEngine = false;
   String _defaultUA = '';
   String _workspaceDisplay = '';
   String _selectedThemeId = 'dracula';
@@ -69,9 +70,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         .read(settingsProvider)
         .getEffectiveWorkspacePath();
     final themeId = await ref.read(settingsProvider).getTheme();
+    final useCurl = await ref.read(settingsProvider).getUseCurlEngine();
     if (mounted) {
       _defaultUA = defaultUA;
       _selectedThemeId = themeId;
+      _useCurlEngine = useCurl;
       _uaController.text = ua == defaultUA ? '' : ua;
       _connectTimeoutController.text = connectTimeout == defaultConnectTimeout
           ? ''
@@ -280,6 +283,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         children: [
                           // ── request ─────────────────────────────
                           _sectionLabel('request'),
+                          if (Platform.isAndroid) ...[
+                            _buildCurlEngineToggle(),
+                            _itemDivider(),
+                          ],
                           _buildUserAgentBlock(),
                           _itemDivider(),
                           _buildInlineRow(
@@ -428,6 +435,75 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _itemDivider() => Container(height: 1, color: TColors.background);
 
   // ── Section blocks ────────────────────────────────────────────────
+
+  Widget _buildCurlEngineToggle() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      color: TColors.surface,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'curl engine',
+                  style: TextStyle(
+                    color: TColors.foreground,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  _useCurlEngine
+                      ? 'native libcurl (verbose, trace)'
+                      : 'dio (async, cross-platform)',
+                  style: TextStyle(
+                    color: TColors.mutedText,
+                    fontFamily: 'monospace',
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
+              final next = !_useCurlEngine;
+              await ref.read(settingsProvider).setUseCurlEngine(next);
+              ref.read(useCurlEngineProvider.notifier).state = next;
+              setState(() => _useCurlEngine = next);
+            },
+            child: Container(
+              width: 36,
+              height: 20,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: _useCurlEngine
+                    ? TColors.green
+                    : TColors.mutedText.withValues(alpha: 0.3),
+              ),
+              child: Align(
+                alignment: _useCurlEngine
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  margin: EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: TColors.background,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildUserAgentBlock() {
     return Container(

@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/data/services/curl_http_client.dart';
+import 'package:curel/data/services/curl_isolate.dart';
 import 'package:curel/data/services/curl_native_bindings.dart';
 import 'package:curel/domain/services/curl_parser_service.dart';
 import 'package:curl_parser/curl_parser.dart' as cp;
@@ -21,6 +22,19 @@ int _writeCallback(Pointer<Uint8> data, int size, int nmemb, Pointer<Void> userd
   final id = userdata.address;
   _bufs.putIfAbsent(id, () => []).addAll(data.asTypedList(total));
   return total;
+}
+
+int _debugCallback(
+    Pointer<Void> handle, int type, Pointer<Uint8> data, int size, Pointer<Void> userdata) {
+  final ctx = userdata.address;
+  final verboseId = ctx >> 32;
+  final traceId = ctx & 0xFFFFFFFF;
+  final bytes = data.asTypedList(size);
+  _bufs.putIfAbsent(traceId, () => []).addAll(bytes);
+  if (type <= 2) {
+    _bufs.putIfAbsent(verboseId, () => []).addAll(bytes);
+  }
+  return 0;
 }
 
 // ── Client ───────────────────────────────────────────────────
@@ -51,6 +65,7 @@ class LibcurlHttpClient implements CurlHttpClient {
     String? httpVersion,
   }) => _doRequest(curl,
       verbose: verbose, followRedirects: followRedirects,
+      trace: trace, traceAscii: traceAscii,
       connectTimeout: connectTimeout, maxTime: maxTime,
       insecure: insecure, pinnedpubkey: null);
 
@@ -67,6 +82,7 @@ class LibcurlHttpClient implements CurlHttpClient {
     String? httpVersion,
   }) => _doRequest(curl,
       verbose: verbose, followRedirects: followRedirects,
+      trace: trace, traceAscii: traceAscii,
       connectTimeout: connectTimeout, maxTime: maxTime,
       insecure: insecure, pinnedpubkey: null);
 
@@ -80,6 +96,8 @@ class LibcurlHttpClient implements CurlHttpClient {
     final flags = _extractFlagValues(curlCommand);
     return _doRequest(parsed.curl,
         verbose: verbose || parsed.verbose,
+        trace: trace || parsed.traceEnabled,
+        traceAscii: traceAscii || parsed.traceAscii,
         followRedirects: parsed.followRedirects,
         connectTimeout: parsed.connectTimeout,
         maxTime: parsed.maxTime,
@@ -90,6 +108,8 @@ class LibcurlHttpClient implements CurlHttpClient {
   Future<CurlResponse> _doRequest(
     cp.Curl curl, {
     bool verbose = false,
+    bool trace = false,
+    bool traceAscii = false,
     bool followRedirects = false,
     Duration? connectTimeout,
     Duration? maxTime,
@@ -97,13 +117,55 @@ class LibcurlHttpClient implements CurlHttpClient {
     String? pinnedpubkey,
   }) async {
     ensureLoaded();
+
+    final useIsolate = true;
+    if (useIsolate) {
+      try {
+        final result = await runCurlInIsolate(CurlIsolateArgs(
+          url: curl.uri.toString(),
+          method: curl.method,
+          headers: curl.headers != null
+              ? curl.headers!.map((k, v) => MapEntry(k, v.toString()))
+              : {},
+          data: curl.data,
+          caBundlePath: caBundlePath,
+          verbose: verbose,
+          trace: trace,
+          followRedirects: followRedirects,
+          connectTimeoutMs: connectTimeout?.inMilliseconds,
+          maxTimeMs: maxTime?.inMilliseconds,
+          insecure: insecure,
+          userAgent: _userAgent.isNotEmpty ? _userAgent : null,
+          pinnedpubkey: pinnedpubkey,
+        ));
+
+        if (result.error == null) {
+          return CurlResponse(
+            statusCode: result.statusCode ?? 0,
+            statusMessage: result.statusMessage ?? '',
+            headers: result.headers,
+            body: result.body,
+            verboseLog: result.verboseLog,
+            traceLog: result.traceLog,
+            executionTime: Duration(milliseconds: result.elapsedMs),
+          );
+        }
+      } catch (_) {
+        // isolate failed, fall through to synchronous path
+      }
+    }
+
     final easy = _curl.easyInit();
     if (easy == nullptr) throw Exception('curl_easy_init() failed');
 
     final bodyId = _nextId++;
     final headerId = _nextId++;
+    final verboseId = _nextId++;
+    final traceId = _nextId++;
     _bufs[bodyId] = [];
     _bufs[headerId] = [];
+    _bufs[verboseId] = [];
+    _bufs[traceId] = [];
 
     try {
       // URL
@@ -168,7 +230,13 @@ class LibcurlHttpClient implements CurlHttpClient {
       }
 
       // Verbose
-      if (verbose) _setoptInt(easy, CURLOPT_VERBOSE, 1);
+      if (verbose || trace) {
+        _setoptInt(easy, CURLOPT_VERBOSE, 1);
+        final debugCtx = (verboseId << 32) | traceId;
+        final debugPtr = Pointer.fromFunction<CurlDebugCallbackNative>(_debugCallback, 0);
+        _curl.easySetopt(easy, CURLOPT_DEBUGFUNCTION, debugPtr.cast<NativeType>());
+        _curl.easySetopt(easy, CURLOPT_DEBUGDATA, Pointer<Void>.fromAddress(debugCtx).cast());
+      }
 
       // Write callback (body)
       final writePtr = Pointer.fromFunction<CurlWriteCallbackNative>(_writeCallback, 0);
@@ -197,7 +265,7 @@ class LibcurlHttpClient implements CurlHttpClient {
       calloc.free(timePtr);
 
       // Parse headers
-      final headerText = utf8.decode(_bufs[headerId]!);
+      final headerText = utf8.decode(_bufs[headerId]!, allowMalformed: true);
       final responseHeaders = <String, List<String>>{};
       for (final line in headerText.split('\r\n')) {
         final colon = line.indexOf(':');
@@ -207,21 +275,50 @@ class LibcurlHttpClient implements CurlHttpClient {
         }
       }
 
-      final bodyStr = utf8.decode(_bufs[bodyId]!);
+      final bodyStr = utf8.decode(_bufs[bodyId]!, allowMalformed: true);
       final ok = code == CURLE_OK;
+      final verboseLog = verbose && _bufs[verboseId]!.isNotEmpty
+          ? utf8.decode(_bufs[verboseId]!, allowMalformed: true)
+          : null;
+      final traceLogStr = trace && _bufs[traceId]!.isNotEmpty
+          ? _formatTraceHex(_bufs[traceId]!)
+          : null;
 
       return CurlResponse(
         statusCode: ok ? statusCode : 0,
         statusMessage: ok ? 'OK' : _curl.easyStrerror(code).toDartString(),
         headers: responseHeaders,
         body: bodyStr.isNotEmpty ? bodyStr : null,
+        verboseLog: verboseLog,
+        traceLog: traceLogStr,
         executionTime: ok ? Duration(milliseconds: totalMs) : sw.elapsed,
       );
     } finally {
       _curl.easyCleanup(easy);
       _bufs.remove(bodyId);
       _bufs.remove(headerId);
+      _bufs.remove(verboseId);
+      _bufs.remove(traceId);
     }
+  }
+
+  static String _formatTraceHex(List<int> bytes) {
+    final buf = StringBuffer();
+    for (var i = 0; i < bytes.length; i += 16) {
+      final hex = <String>[];
+      final ascii = StringBuffer();
+      for (var j = 0; j < 16 && i + j < bytes.length; j++) {
+        final b = bytes[i + j];
+        hex.add(b.toRadixString(16).padLeft(2, '0'));
+        ascii.write(b >= 32 && b <= 126 ? String.fromCharCode(b) : '.');
+      }
+      buf.write(i.toRadixString(16).padLeft(4, '0'));
+      buf.write(': ');
+      buf.write(hex.join(' ').padRight(48));
+      buf.write('  ');
+      buf.writeln(ascii.toString());
+    }
+    return buf.toString();
   }
 
   void _setoptInt(CURL easy, int option, int value) {

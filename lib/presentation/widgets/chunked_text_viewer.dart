@@ -28,6 +28,7 @@ class ChunkedTextViewer extends StatefulWidget {
 
 class _ChunkedTextViewerState extends State<ChunkedTextViewer> {
   List<List<TextSpan>> _lines = [];
+  static const _maxHighlightCharCount = 200000;
 
   @override
   void initState() {
@@ -44,13 +45,12 @@ class _ChunkedTextViewerState extends State<ChunkedTextViewer> {
   }
 
   List<List<TextSpan>> _parseLines() {
-    if (widget.language != null) {
+    if (widget.language != null && widget.text.length <= _maxHighlightCharCount) {
       try {
         final result = highlight.parse(widget.text, language: widget.language!);
         final flatSpans = _buildFlatSpans(result.nodes);
         return _splitSpansByNewlines(flatSpans);
       } catch (_) {
-        // fall through to plain
       }
     }
     return widget.text.split('\n').map((line) => [TextSpan(text: line)]).toList();

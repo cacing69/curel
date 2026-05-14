@@ -10,7 +10,7 @@
 
 ## Cross-platform Targets
 
-Android, iOS, macOS, Windows, Linux, Web
+Android (primary), iOS, macOS, Windows, Linux, Web
 
 ## Phases
 
@@ -46,7 +46,7 @@ Android, iOS, macOS, Windows, Linux, Web
 
 ### Phase 3: Maturity & Pluginable Growth (Ongoing)
 
-- [x] **Native libcurl Integration** — Replaced Dio HTTP client with native libcurl via `dart:ffi`. Bundles `libcurl.so` (cross-compiled for arm64/arm/x86_64) with HTTP/2, HTTP/3 (QUIC), TLS 1.3, brotli, zlib, SFTP, FTP, SMTP, IMAP, POP3, SMB, MQTT, RTSP. `LibcurlHttpClient` implements full `CurlHttpClient` interface with write/header callbacks, `--pinnedpubkey` support, and `executeRaw()` for unsupported flags. Build script at `scripts/build_curl_android.sh`.
+- [x] **Native libcurl Integration** — Replaced Dio HTTP client with native libcurl via `dart:ffi`. Full `CurlHttpClient` interface implementation with write/header callbacks, `CURLOPT_CAINFO` (Mozilla CA bundle bundled in `assets/cacert.pem`), `--pinnedpubkey` support via `CURLOPT_PINNEDPUBLICKEY`, and `executeRaw()` for unsupported flags. Builds `libcurl.so` via `scripts/build_curl_android.sh` for arm64-v8a (6MB), armeabi-v7a (4.3MB), x86_64 (6.4MB) with OpenSSL 3.5.0, zlib. Removed all Dio dependencies from pubspec.yaml and all source files.
 
 - [x] **Dialog Control Bar Refactor** — Unified all dialog action buttons to use `TermButton` with `bordered` variant (compare/sync/conflict/import/save dialogs). Removed local `_ActionButton`, `_footerButton`, `_btn` definitions. Added `bordered` and `color` parameters to `TermButton`. Conflict dialog: fixed layout crash (Spacer inside horizontal scroll), redesigned to vertical preview (local top/remote bottom), moved bulk actions to sidebar header, reduced sidebar width 180→130.
 

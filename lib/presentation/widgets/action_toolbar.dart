@@ -88,7 +88,6 @@ class ActionToolbar extends ConsumerWidget {
           const SizedBox(width: 8),
           TermButton(
             icon: Icons.play_arrow,
-            label: 'exec',
             onTap: rs.isLoading ? null : onExecute,
             accent: true,
           ),

@@ -479,7 +479,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
                     border: Border.all(color: TColors.border),
                     color: TColors.background,
                   ),
-                  child: Image.memory(_images[i].bytes, fit: BoxFit.cover),
+                  child: Image.memory(
+                    _images[i].bytes,
+                    fit: BoxFit.cover,
+                    cacheWidth: 160,
+                    cacheHeight: 112,
+                  ),
                 ),
                 Positioned(
                   top: 2,

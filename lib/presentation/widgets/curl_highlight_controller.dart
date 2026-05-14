@@ -25,6 +25,15 @@ class CurlHighlightController extends TextEditingController {
     r'|(\s+)',
   );
 
+  String? _lastText;
+  TextSpan? _cachedSpan;
+
+  @override
+  void set value(TextEditingValue newValue) {
+    if (newValue.text != text) _cachedSpan = null;
+    super.value = newValue;
+  }
+
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
@@ -33,6 +42,10 @@ class CurlHighlightController extends TextEditingController {
   }) {
     if (text.isEmpty) {
       return TextSpan(style: style, text: '');
+    }
+
+    if (_cachedSpan != null && text == _lastText) {
+      return TextSpan(style: style, children: _cachedSpan!.children);
     }
 
     final spans = <TextSpan>[];
@@ -103,6 +116,8 @@ class CurlHighlightController extends TextEditingController {
       }
     }
 
+    _lastText = text;
+    _cachedSpan = TextSpan(children: spans);
     return TextSpan(style: style, children: spans);
   }
 }

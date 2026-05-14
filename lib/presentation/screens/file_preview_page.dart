@@ -335,7 +335,6 @@ class _FilePreviewPageState extends ConsumerState<FilePreviewPage> {
     return ChunkedTextViewer(
       text: _content!,
       language: lang,
-      showLineNumbers: true,
       onRefresh: _reload,
     );
   }

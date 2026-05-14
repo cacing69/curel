@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
 import 'package:curel/data/models/curl_response.dart';
 import 'package:curel/domain/models/history_model.dart';
 import 'package:curel/domain/models/request_model.dart';
@@ -36,7 +40,7 @@ mixin HomeActions on ConsumerState<HomePage> {
     Duration? maxTime, {
     required bool binary,
   }) async {
-    final client = ref.read(httpClientProvider);
+    final client = ref.read(curlClientProvider);
 
     // Use native libcurl directly for flags that need it
     if (parsed.needsNativeCurl && parsed.curlCommand.isNotEmpty) {
@@ -89,10 +93,13 @@ mixin HomeActions on ConsumerState<HomePage> {
           ),
         );
 
+    final responseNotifier = ref.read(responseStateProvider.notifier);
+
     final es = ref.read(editorStateProvider);
     if (es.isFullscreen) exitFullscreen(unfocus: false);
 
-    // auto-save if editing existing file
+    await Future<void>.delayed(Duration(milliseconds: 16));
+
     final selectedPath = ref.read(selectedRequestPathProvider);
     if (selectedPath != null) {
       final projectId = ref.read(activeProjectProvider)?.id;
@@ -106,9 +113,6 @@ mixin HomeActions on ConsumerState<HomePage> {
       }
     }
 
-    await Future<void>.delayed(Duration.zero);
-
-    // Merge .curlrc defaults (project-level curl config)
     final projectId = ref.read(activeProjectProvider)?.id;
     String effectiveText = text;
     if (projectId != null) {
@@ -116,18 +120,15 @@ mixin HomeActions on ConsumerState<HomePage> {
       if (curlrc != null && curlrc.trim().isNotEmpty) {
         final flags = _parseCurlrcFlags(curlrc);
         if (flags.isNotEmpty) {
-          // insert flags after 'curl' and before the rest of the command
           effectiveText = 'curl $flags ${text.substring(4).trim()}';
         }
       }
     }
 
-    // Merge cookies from active cookie jar
     final activeJar = projectId != null
         ? await ref.read(cookieJarServiceProvider).getActiveJar(projectId)
         : null;
     if (activeJar != null && activeJar.cookies.isNotEmpty) {
-      // Parse URL early to match cookies by domain
       final urlGuess = _extractUrlFromCurl(effectiveText);
       if (urlGuess != null) {
         final cookieHeader = ref.read(cookieJarServiceProvider).buildCookieHeader(activeJar, urlGuess);
@@ -155,11 +156,11 @@ mixin HomeActions on ConsumerState<HomePage> {
       if (undefined.isNotEmpty) {
         if (mounted) {
           showTerminalToast(context, 'undefined vars: ${undefined.join(', ')}');
-          ref
-              .read(responseStateProvider.notifier)
+          responseNotifier
               .update(
                 (s) => s.copyWith(
                   error: 'error: undefined vars: ${undefined.join(', ')}',
+                  isLoading: false,
                 ),
               );
         }
@@ -206,28 +207,38 @@ mixin HomeActions on ConsumerState<HomePage> {
 
       final newTab = (parsed.traceEnabled && result.traceLog != null)
           ? ResponseTab.trace
-          : ResponseTab.body;
+          : (parsed.verbose && result.verboseLog != null)
+              ? ResponseTab.verbose
+              : ResponseTab.body;
 
       if (mounted) {
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(response: result, selectedTab: newTab));
+        responseNotifier
+            .update((s) => s.copyWith(
+                  response: result,
+                  selectedTab: newTab,
+                  isLoading: false,
+                ));
 
         if (hasOutput) {
-          await downloadFile(result, parsed.outputFileName!);
+          final outputBytes = result.body is List<int>
+              ? result.body as List<int>
+              : utf8.encode(result.body?.toString() ?? '');
+          await _autoSaveFile(
+            String.fromCharCodes(outputBytes),
+            parsed.outputFileName!,
+            projectId,
+            subdir: 'outputs',
+          );
         }
 
         if (parsed.traceFileName != null &&
             result.traceLog != null &&
             result.traceLog!.isNotEmpty) {
-          await downloadFile(
-            CurlResponse(
-              body: result.traceLog,
-              statusCode: 0,
-              headers: {},
-              statusMessage: '',
-            ),
+          await _autoSaveFile(
+            result.traceLog!,
             parsed.traceFileName!,
+            projectId,
+            subdir: 'traces',
           );
         }
       }
@@ -249,16 +260,9 @@ mixin HomeActions on ConsumerState<HomePage> {
     } catch (e) {
       if (mounted) {
         final msg = formatError(e);
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(error: msg));
+        responseNotifier
+            .update((s) => s.copyWith(error: msg, isLoading: false));
         showTerminalToast(context, msg);
-      }
-    } finally {
-      if (mounted) {
-        ref
-            .read(responseStateProvider.notifier)
-            .update((s) => s.copyWith(isLoading: false));
       }
     }
   }
@@ -311,6 +315,44 @@ mixin HomeActions on ConsumerState<HomePage> {
       if (path != null && mounted) {
         showTerminalToast(context, 'saved to $fileName');
       }
+    } catch (e) {
+      if (mounted) showTerminalToast(context, 'error: $e');
+    }
+  }
+
+  Future<void> _autoSaveFile(
+    String content,
+    String fileName,
+    String? projectId, {
+    String subdir = '',
+  }) async {
+    if (projectId == null) {
+      await downloadFile(CurlResponse(body: content), fileName);
+      return;
+    }
+    try {
+      final fs = ref.read(fileSystemProvider);
+      final projectDir = await fs.getProjectDir(projectId);
+      String dirPath = projectDir;
+      if (subdir.isNotEmpty) {
+        dirPath = p.join(projectDir, subdir);
+        await Directory(dirPath).create(recursive: true);
+      }
+
+      var name = fileName;
+      final dot = fileName.lastIndexOf('.');
+      final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
+      final ext = dot > 0 ? fileName.substring(dot) : '';
+      var counter = 1;
+      while (await fs.exists(p.join(dirPath, name))) {
+        name = '$stem-$counter$ext';
+        counter++;
+      }
+
+      final filePath = p.join(dirPath, name);
+      await fs.writeFile(filePath, content);
+      final displayName = name == fileName ? fileName : name;
+      if (mounted) showTerminalToast(context, 'saved to $subdir/$displayName');
     } catch (e) {
       if (mounted) showTerminalToast(context, 'error: $e');
     }

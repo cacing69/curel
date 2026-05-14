@@ -25,7 +25,7 @@ class _TerminalLoaderState extends State<TerminalLoader>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 80),
+      duration: const Duration(milliseconds: 160),
     )..repeat();
   }
 

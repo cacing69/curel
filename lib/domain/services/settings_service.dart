@@ -8,6 +8,7 @@ const _keyConnectTimeout = 'connect_timeout';
 const _keyMaxTime = 'max_time';
 const _keyWorkspacePath = 'workspace_path';
 const _keyTheme = 'app_theme';
+const _keyCurlEngine = 'curl_engine';
 
 const defaultConnectTimeout = 30;
 const defaultMaxTime = 0;
@@ -26,6 +27,8 @@ abstract class SettingsService {
   Future<void> clearWorkspacePath();
   Future<String> getTheme();
   Future<void> setTheme(String themeId);
+  Future<bool> getUseCurlEngine();
+  Future<void> setUseCurlEngine(bool value);
 }
 
 class PreferencesSettingsService implements SettingsService {
@@ -131,5 +134,17 @@ class PreferencesSettingsService implements SettingsService {
   Future<void> setTheme(String themeId) async {
     final prefs = await _instance;
     await prefs.setString(_keyTheme, themeId);
+  }
+
+  @override
+  Future<bool> getUseCurlEngine() async {
+    final prefs = await _instance;
+    return prefs.getBool(_keyCurlEngine) ?? false;
+  }
+
+  @override
+  Future<void> setUseCurlEngine(bool value) async {
+    final prefs = await _instance;
+    await prefs.setBool(_keyCurlEngine, value);
   }
 }

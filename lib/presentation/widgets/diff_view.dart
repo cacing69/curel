@@ -18,12 +18,18 @@ class DiffView extends StatelessWidget {
   final CurlResponse responseA;
   final CurlResponse responseB;
 
-  const DiffView({
+  DiffView({
     required this.entries,
     required this.responseA,
     required this.responseB,
     super.key,
-  });
+  })  : _addedCount = entries.where((e) => e.type == DiffType.added).length,
+        _removedCount = entries.where((e) => e.type == DiffType.removed).length,
+        _changedCount = entries.where((e) => e.type == DiffType.changed).length;
+
+  final int _addedCount;
+  final int _removedCount;
+  final int _changedCount;
 
   @override
   Widget build(BuildContext context) {
@@ -72,20 +78,16 @@ class DiffView extends StatelessWidget {
   }
 
   Widget _buildSummaryBar() {
-    final added = entries.where((e) => e.type == DiffType.added).length;
-    final removed = entries.where((e) => e.type == DiffType.removed).length;
-    final changed = entries.where((e) => e.type == DiffType.changed).length;
-
     return Container(
       color: TColors.surface,
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          _summaryChip('$added added', TColors.green),
+          _summaryChip('$_addedCount added', TColors.green),
           SizedBox(width: 8),
-          _summaryChip('$removed removed', TColors.red),
+          _summaryChip('$_removedCount removed', TColors.red),
           SizedBox(width: 8),
-          _summaryChip('$changed changed', TColors.orange),
+          _summaryChip('$_changedCount changed', TColors.orange),
           if (entries.isEmpty) ...[
             SizedBox(width: 8),
             Text(
@@ -448,25 +450,25 @@ class _CompareSourceDialogState extends State<CompareSourceDialog> {
     }
 
     final filtered = _filteredRequests;
-    return Container(
-      constraints: BoxConstraints(maxHeight: 180),
-      decoration: BoxDecoration(
-        color: TColors.surface,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: filtered.isEmpty
-          ? Center(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'no matches',
-                  style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 11),
+    return SizedBox(
+      height: 180,
+      child: Container(
+        decoration: BoxDecoration(
+          color: TColors.surface,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: filtered.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'no matches',
+                    style: TextStyle(color: TColors.mutedText, fontFamily: 'monospace', fontSize: 11),
+                  ),
                 ),
-              ),
-            )
-          : ListView.builder(
-              shrinkWrap: true,
-              itemCount: filtered.length,
+              )
+            : ListView.builder(
+                itemCount: filtered.length,
         itemBuilder: (context, index) {
           final req = filtered[index];
           final folder = _folderPath(req.relativePath);
@@ -514,6 +516,7 @@ class _CompareSourceDialogState extends State<CompareSourceDialog> {
             ),
           );
         },
+      ),
       ),
     );
   }
@@ -631,19 +634,21 @@ class _DiffResultView extends StatelessWidget {
   final CurlResponse responseB;
   final VoidCallback onBack;
 
-  const _DiffResultView({
+  _DiffResultView({
     required this.entries,
     required this.responseA,
     required this.responseB,
     required this.onBack,
-  });
+  })  : _addedCount = entries.where((e) => e.type == DiffType.added).length,
+        _removedCount = entries.where((e) => e.type == DiffType.removed).length,
+        _changedCount = entries.where((e) => e.type == DiffType.changed).length;
+
+  final int _addedCount;
+  final int _removedCount;
+  final int _changedCount;
 
   @override
   Widget build(BuildContext context) {
-    final added = entries.where((e) => e.type == DiffType.added).length;
-    final removed = entries.where((e) => e.type == DiffType.removed).length;
-    final changed = entries.where((e) => e.type == DiffType.changed).length;
-
     return Column(
       mainAxisSize: MainAxisSize.max,
       children: [
@@ -657,11 +662,11 @@ class _DiffResultView extends StatelessWidget {
                 child: Icon(Icons.arrow_back, size: 18, color: TColors.mutedText),
               ),
               SizedBox(width: 8),
-              _miniChip('+$added', TColors.green),
+              _miniChip('+$_addedCount', TColors.green),
               SizedBox(width: 6),
-              _miniChip('-$removed', TColors.red),
+              _miniChip('-$_removedCount', TColors.red),
               SizedBox(width: 6),
-              _miniChip('~$changed', TColors.orange),
+              _miniChip('~$_changedCount', TColors.orange),
             ],
           ),
         ),
