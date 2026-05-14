@@ -207,9 +207,7 @@ mixin HomeActions on ConsumerState<HomePage> {
 
       final newTab = (parsed.traceEnabled && result.traceLog != null)
           ? ResponseTab.trace
-          : (parsed.verbose && result.verboseLog != null)
-              ? ResponseTab.verbose
-              : ResponseTab.body;
+          : ResponseTab.body;
 
       if (mounted) {
         responseNotifier

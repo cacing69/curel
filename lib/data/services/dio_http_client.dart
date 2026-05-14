@@ -110,13 +110,14 @@ class DioHttpClient implements CurlHttpClient {
 
     final dio = _createDio(insecure: insecure);
 
+    Interceptor? _interceptor;
     if (verbose || trace) {
-      dio.interceptors.add(InterceptorsWrapper(
+      _interceptor = InterceptorsWrapper(
         onRequest: (req, handler) {
           if (verbose) {
             verboseLog.writeln('> ${req.method} ${req.uri}');
             req.headers.forEach((k, v) {
-              verboseLog.writeln('> $k: ${v.join(', ')}');
+              verboseLog.writeln('> $k: ${_headerVal(v)}');
             });
             verboseLog.writeln('>');
           }
@@ -124,7 +125,7 @@ class DioHttpClient implements CurlHttpClient {
             final headerBuf = StringBuffer();
             headerBuf.writeln('${req.method} ${req.uri} HTTP/1.1');
             req.headers.forEach((k, v) {
-              headerBuf.writeln('$k: ${v.join(', ')}');
+              headerBuf.writeln('$k: ${_headerVal(v)}');
             });
             headerBuf.writeln();
             final headerBytes = utf8.encode(headerBuf.toString());
@@ -145,7 +146,7 @@ class DioHttpClient implements CurlHttpClient {
           if (verbose) {
             verboseLog.writeln('< HTTP ${res.statusCode} ${res.statusMessage}');
             res.headers.forEach((k, v) {
-              verboseLog.writeln('< $k: ${v.join(', ')}');
+              verboseLog.writeln('< $k: ${_headerVal(v)}');
             });
             verboseLog.writeln('<');
           }
@@ -153,7 +154,7 @@ class DioHttpClient implements CurlHttpClient {
             final headerBuf = StringBuffer();
             headerBuf.writeln('HTTP/1.1 ${res.statusCode} ${res.statusMessage}');
             res.headers.forEach((k, v) {
-              headerBuf.writeln('$k: ${v.join(', ')}');
+              headerBuf.writeln('$k: ${_headerVal(v)}');
             });
             headerBuf.writeln();
             final headerBytes = utf8.encode(headerBuf.toString());
@@ -171,7 +172,8 @@ class DioHttpClient implements CurlHttpClient {
           }
           handler.next(res);
         },
-      ));
+      );
+      dio.interceptors.add(_interceptor);
     }
 
     try {
@@ -219,7 +221,17 @@ class DioHttpClient implements CurlHttpClient {
         verboseLog: verbose ? verboseLog.toString().trim() : null,
         executionTime: stopwatch.elapsed,
       );
+    } finally {
+      if (_interceptor != null) {
+        dio.interceptors.remove(_interceptor);
+        _interceptor = null;
+      }
     }
+  }
+
+  static String _headerVal(dynamic v) {
+    if (v is List) return v.join(', ');
+    return v.toString();
   }
 
   static String _toHex(List<int> bytes) {
@@ -239,57 +251,5 @@ class DioHttpClient implements CurlHttpClient {
       buf.writeln(ascii.toString());
     }
     return buf.toString();
-  }
-
-  InterceptorsWrapper _createTraceInterceptor(
-    StringBuffer verboseLog, StringBuffer traceLog,
-    bool verbose, bool trace,
-  ) {
-    return InterceptorsWrapper(
-      onRequest: (req, handler) {
-        if (verbose) {
-          verboseLog.writeln('> ${req.method} ${req.uri}');
-          req.headers.forEach((k, v) => verboseLog.writeln('> $k: ${v.join(', ')}'));
-          verboseLog.writeln('>');
-        }
-        if (trace) {
-          final h = StringBuffer();
-          h.writeln('${req.method} ${req.uri} HTTP/1.1');
-          req.headers.forEach((k, v) => h.writeln('$k: ${v.join(', ')}'));
-          h.writeln();
-          final b = utf8.encode(h.toString());
-          traceLog.writeln('=> Send header, ${b.length} bytes');
-          traceLog.write(_toHex(b));
-          if (req.data != null) {
-            final d = req.data is List<int> ? req.data : utf8.encode(req.data.toString());
-            traceLog.writeln('=> Send data, ${d.length} bytes');
-            traceLog.write(_toHex(d));
-          }
-        }
-        handler.next(req);
-      },
-      onResponse: (res, handler) {
-        if (verbose) {
-          verboseLog.writeln('< HTTP ${res.statusCode} ${res.statusMessage}');
-          res.headers.forEach((k, v) => verboseLog.writeln('< $k: ${v.join(', ')}'));
-          verboseLog.writeln('<');
-        }
-        if (trace) {
-          final h = StringBuffer();
-          h.writeln('HTTP/1.1 ${res.statusCode} ${res.statusMessage}');
-          res.headers.forEach((k, v) => h.writeln('$k: ${v.join(', ')}'));
-          h.writeln();
-          final b = utf8.encode(h.toString());
-          traceLog.writeln('<= Recv header, ${b.length} bytes');
-          traceLog.write(_toHex(b));
-          if (res.data != null) {
-            final d = res.data is List<int> ? res.data : utf8.encode(res.data.toString());
-            traceLog.writeln('<= Recv data, ${d.length} bytes');
-            traceLog.write(_toHex(d));
-          }
-        }
-        handler.next(res);
-      },
-    );
   }
 }
